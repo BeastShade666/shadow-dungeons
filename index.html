@@ -1389,8 +1389,9 @@ function monster(kind){
 // Procedural floor themes and lightweight scenery; regenerated each floor.
 const terrainGroup=new THREE.Group();scene.add(terrainGroup);
 const obstacles=[];
+const dungeonWallSegments=[];
 function terrainForFloor(){
- terrainGroup.clear();obstacles.length=0;
+ terrainGroup.clear();obstacles.length=0;dungeonWallSegments.length=0;
  const boss=level%3===0,theme=(level-1)%6;
  const palette=[
   {ground:0x30283d,stone:0x655b77,accent:0x9357d5,crate:0x6b4732},
@@ -1435,11 +1436,12 @@ function terrainForFloor(){
     ?add(new THREE.BoxGeometry(wallThickness,wallHeight,length),palette.stone,fixed,wallHeight/2,mid)
     :add(new THREE.BoxGeometry(length,wallHeight,wallThickness),palette.stone,mid,wallHeight/2,fixed);
    wall.material.roughness=.95;
+   dungeonWallSegments.push({axis,fixed,start,end,half:wallThickness/2});
    // Solid collision along the full segment; door gaps have no blockers.
    const steps=Math.ceil(length/.38);
    for(let k=0;k<=steps;k++){
     const p=start+length*k/steps;
-    obstacles.push(axis==='x'?{x:fixed,z:p,r:.30}:{x:p,z:fixed,r:.30});
+    obstacles.push(axis==='x'?{x:fixed,z:p,r:.30,wallSample:true}:{x:p,z:fixed,r:.30,wallSample:true});
    }
   };
   const passage=(axis,fixed,center,width)=>{
@@ -1922,10 +1924,30 @@ function weaponSound(type,special=false){
  }catch{}
 }
 // Combat visibility: a wall or solid obstacle between attacker and target blocks hits.
-function combatLineClear(x,z,tx,tz,margin=.08){
+function combatLineClear(x,z,tx,tz,margin=.04){
  const dx=tx-x,dz=tz-z,lengthSq=dx*dx+dz*dz;
  if(lengthSq<.0001)return true;
+ // Exact line-vs-rectangle intersection for generated walls, including corners.
+ for(const w of dungeonWallSegments){
+  const half=w.half+margin;
+  const minX=w.axis==='x'?w.fixed-half:w.start-margin;
+  const maxX=w.axis==='x'?w.fixed+half:w.end+margin;
+  const minZ=w.axis==='z'?w.fixed-half:w.start-margin;
+  const maxZ=w.axis==='z'?w.fixed+half:w.end+margin;
+  let enter=0,exit=1;
+  for(const [p,d,min,max] of [[x,dx,minX,maxX],[z,dz,minZ,maxZ]]){
+   if(Math.abs(d)<1e-8){if(p<min||p>max){enter=2;break}}
+   else{
+    const t1=(min-p)/d,t2=(max-p)/d;
+    enter=Math.max(enter,Math.min(t1,t2));
+    exit=Math.min(exit,Math.max(t1,t2));
+   }
+  }
+  if(enter<=exit&&enter<=1&&exit>=0)return false;
+ }
+ // Solid props also block attacks; skip the wall collision samples already tested.
  for(const o of obstacles){
+  if(o.wallSample)continue;
   const t=THREE.MathUtils.clamp(((o.x-x)*dx+(o.z-z)*dz)/lengthSq,0,1);
   const cx=x+dx*t,cz=z+dz*t;
   if((cx-o.x)**2+(cz-o.z)**2<(o.r+margin)**2)return false;
@@ -1936,7 +1958,7 @@ function heroCanHit(e){
  return combatLineClear(hero.position.x,hero.position.z,e.obj.position.x,e.obj.position.z);
 }
 function damageEnemy(e,amount,soundType=data.weapon){
- if(!enemies.includes(e))return;
+ if(!enemies.includes(e)||!heroCanHit(e))return;
  weaponSound(soundType);
  if(!enemies.includes(e))return;
  if(e.kind==='boss'&&e.dodgeTime>0)return;
