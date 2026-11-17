@@ -576,7 +576,7 @@ function playSpaceMarineMotion(name){
 function updateSpaceMarineAnimation(dt,movement){
  if(data.character!=='spacemarine'||spaceMarineState!=='ready'||!spaceMarineMixer)return;
  // Normal movement walks; dodge dash runs; standing still idles.
- playSpaceMarineMotion(running?(dashTime>0?'Run':movement>.10?'Walk':'Idle'):'Idle');
+ playSpaceMarineMotion(running?(characterSwing?.marine||dashTime>0?'Run':movement>.10?'Walk':'Idle'):'Idle');
  spaceMarineMixer.update(dt);
 }
 function requestSpaceMarineModel(){
@@ -1425,10 +1425,10 @@ let characterSwing=null;
 function characterAttack(){
  if(!running||characterSwing||performance.now()-lastCharacterAttack<8000)return;
  lastCharacterAttack=performance.now();
- const wolf=data.character==='werewolf',kitsune=data.character==='kitsune',bell=data.character==='bellshade';
+ const wolf=data.character==='werewolf',kitsune=data.character==='kitsune',bell=data.character==='bellshade',marine=data.character==='spacemarine';
  const nearest=enemies.map(e=>({e,d:Math.hypot(e.obj.position.x-hero.position.x,e.obj.position.z-hero.position.z)})).sort((a,b)=>a.d-b.d)[0];
  if(nearest&&nearest.d<5)hero.rotation.y=Math.atan2(nearest.e.obj.position.x-hero.position.x,nearest.e.obj.position.z-hero.position.z);
- characterSwing={elapsed:0,duration:bell?.9:kitsune?.78:wolf?.7:.62,wolf,kitsune,bell,hit:false,hits:0};
+ characterSwing={elapsed:0,duration:marine?.65:bell?.9:kitsune?.78:wolf?.7:.62,wolf,kitsune,bell,marine,hit:false,hits:0};
  if(kitsune){kitsuneDaggerActive=true;kitsuneDaggerSlash=1;kitsuneDaggersVisible()}
  weaponSound(bell?'staff':wolf?'axe':'sword',true);
 }
@@ -1447,12 +1447,30 @@ function updateCharacterSwing(dt){
   bellStaff.rotation.x=Math.sin(t*Math.PI)*.35;
  }else if(a.kitsune){
   // Kitsune's articulated daggers animate with her arms.
+ }else if(a.marine){
+  // Soldier's native Run clip supplies its charge; no mesh or rig edits.
  }else{
   scytheRig.rotation.y=sweep;
   scytheRig.rotation.z=-.35+Math.sin(t*Math.PI)*.48;
  }
  if(a.bell){
   if(!a.hit&&t>=.36){a.hit=true;castBellVines()}
+ }else if(a.marine){
+  if(!a.hit&&t>=.46){
+   a.hit=true;
+   const forward=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
+   for(const enemy of [...enemies]){
+    const delta=enemy.obj.position.clone().sub(hero.position);delta.y=0;
+    const distance=delta.length();
+    if(distance>.01&&distance<=3.7&&forward.dot(delta.normalize())>=Math.cos(1.10))
+     damageEnemy(enemy,4,'sword');
+   }
+   const shock=new THREE.Mesh(
+    new THREE.TorusGeometry(1.7,.065,7,28,Math.PI*1.7),
+    new THREE.MeshBasicMaterial({color:0x9fdcff,transparent:true,opacity:.78,depthWrite:false,blending:THREE.AdditiveBlending}));
+   shock.position.copy(hero.position);shock.position.y=.3;shock.rotation.x=-Math.PI/2;
+   scene.add(shock);specialEffects.push({ring:shock,age:0,duration:.30});
+  }
  }else if(a.kitsune){
   // Three fast dagger contacts; each strike only hits enemies in a forward cone.
   const hitWindows=[.27,.49,.71];
