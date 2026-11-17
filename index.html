@@ -51,6 +51,7 @@
           <select id="heroColor" aria-label="Character model color"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option><option value="red">Crimson</option><option value="orange">Inferno</option><option value="gold">Gold</option><option value="pink">Rose</option><option value="cyan">Frost</option><option value="white">Silver</option><option value="black">Obsidian</option><option value="navy">Midnight Navy</option><option value="teal">Deep Teal</option><option value="lime">Venom Lime</option><option value="forest">Forest</option><option value="brown">Earth Brown</option><option value="gray">Storm Gray</option><option value="lavender">Lavender</option><option value="magenta">Magenta</option><option value="maroon">Blood Moon</option><option value="ice">Ice Blue</option><option value="peach">Peach</option><option value="bronze">Bronze</option></select>
         </label>
       </div>
+      <p id="spaceMarineCredit" hidden>Space Marine uses the original <a href="https://github.com/mrdoob/three.js/blob/r170/examples/models/gltf/Soldier.glb" target="_blank" rel="noopener noreferrer">Soldier.glb</a> from the Three.js examples (Mixamo source), with the original Idle, Walk and Run clips. Original model colors are preserved.</p>
       <h3 class="section-title">✦ Aura Shop</h3>
       <div id="shop">
         <span class="shop-label">Aura color</span>
@@ -560,7 +561,7 @@ const weaponGroup=new THREE.Group();weaponGroup.position.set(.75,1.25,.1);hero.a
 const spaceMarineVisual=new THREE.Group();hero.add(spaceMarineVisual);
 const spaceMarineURLs=[
  'https://threejs.org/examples/models/gltf/Soldier.glb',
- 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/Soldier.glb'
+ 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/Soldier.glb'
 ];
 let spaceMarineModel=null,spaceMarineMixer=null,spaceMarineState='idle',spaceMarineMotion='Idle',spaceMarineActive=null;
 const spaceMarineActions={};
@@ -612,6 +613,7 @@ function requestSpaceMarineModel(){
     spaceMarineActions.Run=spaceMarineMixer.clipAction(run);
     spaceMarineActive=null;
     playSpaceMarineMotion('Idle');
+    spaceMarineMixer.update(1/60);
     spaceMarineState='ready';
     lastPortraitKey='';
     refresh();
@@ -961,6 +963,7 @@ function refresh(){
  const marineSelected=data.character==='spacemarine';
  $('start').disabled=marineSelected&&spaceMarineState==='loading';
  $('start').textContent=marineSelected&&spaceMarineState==='loading'?'Loading Space Marine…':marineSelected&&spaceMarineState==='error'?'Retry Space Marine Model':hp<=0?'Retry Dungeon':'Enter Dungeon';
+ $('spaceMarineCredit').hidden=!marineSelected;
  $('wallet').textContent='Gold: '+data.gold;
  $('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;
  $('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length);
