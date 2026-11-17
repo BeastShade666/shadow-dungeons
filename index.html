@@ -531,7 +531,7 @@ function drawAuras(){
   choice.style.setProperty('--aura-color','#'+auraColors[id].toString(16).padStart(6,'0'));
   choice.setAttribute('aria-pressed',id===chosen?'true':'false');
   choice.textContent=item.name+' — '+item.price+' gold'+(hasAura?(data.auraColor===id?' · Equipped':' · Owned'):'');
-  choice.onclick=()=>{selectedAuraId=id;picker.open=false;drawAuras()};
+  choice.onclick=()=>{selectedAuraId=id;picker.open=false;drawAuras();updateCharacterPortrait()};
   options.appendChild(choice);
  }
  action.textContent=owned?(data.auraColor===chosen?'Equipped':'Equip Aura'):'Buy Aura · '+selected.price+' gold';
@@ -616,6 +616,7 @@ function recolorCharacterModels(){
  }
  body.material.color.setHex(colorMap[color]);
  wolfColorAccent.material.color.setHex(colorMap[color]);
+ for(const trim of kitsuneAccentParts)trim.material.color.setHex(colorMap[color]);
 }
 // A single GPU-backed character portrait using the existing game models and WebGL renderer.
 // Clones reuse mesh geometries/materials; no second WebGL context or independent scroll area.
@@ -638,21 +639,34 @@ const portraitTarget=new THREE.WebGLRenderTarget(portraitW,portraitH,{format:THR
 const portraitPixels=new Uint8Array(portraitW*portraitH*4);
 const portraitImage=portraitContext?.createImageData(portraitW,portraitH);
 let portraitModel=null,lastPortraitKey='';
+const portraitAuraMaterials=[];
 function updateCharacterPortrait(){
- const id=data.character==='werewolf'?'werewolf':'reaper';
+ const id=['reaper','werewolf','kitsune'].includes(data.character)?data.character:'reaper';
  const color=$('heroColor').value;
- const signature=[id,color,data.weapon,data.auraColor,data.aura].join(':');
+ const auraChoice=auraShop[selectedAuraId]?selectedAuraId:data.auraColor;
+ const signature=[id,color,data.weapon,data.auraColor,data.aura,auraChoice].join(':');
  if(signature===lastPortraitKey)return;
  lastPortraitKey=signature;
- $('characterPreviewName').textContent=id==='werewolf'?'Werewolf · Tail Axe':'Grim Reaper';
- $('characterPreviewDetail').textContent=id==='werewolf'?'Feral guardian · Double-bladed tail axe':'Shadowbound warrior · Hooded reaper';
- portraitCanvas.setAttribute('aria-label',id==='werewolf'?'3D preview of the Werewolf with tail axe':'3D preview of the Grim Reaper');
+ $('characterPreviewName').textContent=id==='kitsune'?'Crimson Kitsune · Twin Daggers':id==='werewolf'?'Werewolf · Tail Axe':'Grim Reaper';
+ $('characterPreviewDetail').textContent=id==='kitsune'?'Nine-tailed fox guardian · Twin dagger flurry':id==='werewolf'?'Feral guardian · Double-bladed tail axe':'Shadowbound warrior · Hooded reaper';
+ portraitCanvas.setAttribute('aria-label','3D preview: '+$('characterPreviewName').textContent);
+ $('characterPreviewNote').textContent='Aura: '+auraShop[auraChoice].name+(data.ownedAuras.includes(auraChoice)?(data.auraColor===auraChoice?' · Equipped':' · Owned'):' · Preview only — buy to equip')+'. Tap an aura color to preview its glow.';
  if(!portraitContext||!portraitImage)return;
- if(portraitModel)portraitScene.remove(portraitModel);
+ if(portraitModel){portraitScene.remove(portraitModel);for(const material of portraitAuraMaterials)material.dispose();portraitAuraMaterials.length=0;}
  portraitModel=new THREE.Group();
- portraitModel.add((id==='werewolf'?wolfVisual:reaperVisual).clone(true));
- portraitModel.add(weaponGroup.clone(true));
- if(data.aura){portraitModel.add(aura.clone(true));portraitModel.add(auraLight.clone());}
+ portraitModel.add((id==='kitsune'?kitsuneVisual:id==='werewolf'?wolfVisual:reaperVisual).clone(true));
+ if(!(id==='kitsune'&&data.weapon==='daggers'))portraitModel.add(weaponGroup.clone(true));
+ // Clone existing aura materials before tinting so unowned preview colors never alter gameplay.
+ const previewAura=aura.clone(true);previewAura.visible=true;
+ const tint=new THREE.Color(auraColors[auraChoice]||auraColors.violet);
+ previewAura.traverse(object=>{if(object.isMesh){object.material=object.material.clone();portraitAuraMaterials.push(object.material)}});
+ previewAura.children.forEach((object,i)=>{
+  if(!object.isMesh)return;
+  object.material.color.copy(i===0?tint.clone().lerp(new THREE.Color(0xffffff),.32):i>3&&i%3===0?tint.clone().lerp(new THREE.Color(0xffffff),.45):tint);
+  if(i===3)object.material.opacity=.18;
+ });
+ portraitModel.add(previewAura);
+ const glow=auraLight.clone();glow.visible=true;glow.color.copy(tint);glow.intensity=1.4;portraitModel.add(glow);
  portraitScene.add(portraitModel);
  const accent=colorMap[color]||colorMap.purple;
  portraitRing.material.color.setHex(accent);
@@ -679,7 +693,7 @@ function updateCharacterPortrait(){
  }
 }
 
-function refresh(){recolorCharacterModels();reaperVisual.visible=data.character!=='werewolf';wolfVisual.visible=data.character==='werewolf';aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length);updateCharacterPortrait()}
+function refresh(){recolorCharacterModels();reaperVisual.visible=data.character==='reaper';wolfVisual.visible=data.character==='werewolf';kitsuneVisual.visible=data.character==='kitsune';kitsuneDaggersVisible();weaponGroup.visible=!(data.character==='kitsune'&&data.weapon==='daggers');aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length);updateCharacterPortrait()}
 function monster(kind){
  const g=new THREE.Group();
  const add=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,color);m.position.set(x,y,z);m.scale.set(sx,sy,sz);g.add(m);return m};
@@ -1313,9 +1327,18 @@ function updateProjectiles(dt){
  }
 }
 $('start').onclick=()=>{if(!running){swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
-data.character=data.character==='werewolf'?'werewolf':'reaper';
+data.character=['werewolf','reaper','kitsune'].includes(data.character)?data.character:'reaper';
+if(data.character==='kitsune'&&!data.ownedWeapons.includes('daggers'))data.ownedWeapons.push('daggers');
 $('characterSelect').value=data.character;
-$('characterSelect').onchange=()=>{data.character=$('characterSelect').value==='werewolf'?'werewolf':'reaper';persist();refresh()};
+$('characterSelect').onchange=()=>{
+ const next=$('characterSelect').value;
+ data.character=['reaper','werewolf','kitsune'].includes(next)?next:'reaper';
+ if(data.character==='kitsune'){
+  if(!data.ownedWeapons.includes('daggers'))data.ownedWeapons.push('daggers');
+  data.weapon='daggers';
+ }else if(data.weapon==='daggers')data.weapon='sword';
+ buildWeapon();drawWeapons();persist();refresh();
+};
 $('heroColor').value=data.heroColor in colorMap?data.heroColor:'purple';$('heroColor').onchange=()=>{data.heroColor=$('heroColor').value;persist();refresh()};refresh();drawSkills();spawn();
 const clock=new THREE.Clock();
 function hurtHero(amount){
