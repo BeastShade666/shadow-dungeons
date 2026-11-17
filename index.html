@@ -1512,25 +1512,30 @@ function safeMonsterSpawn(index,total,occupied){
  return null;
 }
 // Camera-facing enemy health bars, attached to monsters so they follow movement.
-const enemyBarBackMaterial=new THREE.SpriteMaterial({color:0x241b27,depthTest:false,depthWrite:false});
-const enemyBarFillMaterials=[
- new THREE.SpriteMaterial({color:0x50e58a,depthTest:false,depthWrite:false}),
- new THREE.SpriteMaterial({color:0xf2c453,depthTest:false,depthWrite:false}),
- new THREE.SpriteMaterial({color:0xf15a66,depthTest:false,depthWrite:false})
-];
-function addEnemyHealthBar(enemy){
- const bar=new THREE.Group();
- bar.position.y=enemy.kind==='boss'?3.55:enemy.kind==='golem'?3.0:enemy.kind==='bat'||enemy.kind==='imp'?2.2:2.55;
- const width=enemy.kind==='boss'?2.35:1.35;
- const bg=new THREE.Sprite(enemyBarBackMaterial);bg.scale.set(width+.13,.24,1);bar.add(bg);
- const fill=new THREE.Sprite(enemyBarFillMaterials[0]);fill.scale.set(width,.145,1);fill.position.z=.025;bar.add(fill);
- enemy.obj.add(bar);enemy.healthBar={bar,fill,width};
- updateEnemyHealthBar(enemy);
+// Independent world-space bars avoid rotating with the monsters.
+const enemyBarBackMaterial=new THREE.SpriteMaterial({color:0x241b27,depthTest:true,depthWrite:false});
+const enemyBarFillMaterials=[0x50e58a,0xf2c453,0xf15a66].map(color=>new THREE.SpriteMaterial({color,depthTest:true,depthWrite:false}));
+function removeEnemyHealthBar(e){if(e.healthBar){scene.remove(e.healthBar.bar);e.healthBar=null}}
+function updateEnemyHealthBarPosition(e){
+ if(!e.healthBar)return;
+ const p=e.obj.position;
+ e.healthBar.bar.position.set(p.x,p.y+e.healthBar.offset*Math.max(.9,e.obj.scale.y),p.z);
 }
-function updateEnemyHealthBar(enemy){
- if(!enemy.healthBar)return;
- const {fill,width}=enemy.healthBar;
- const fraction=THREE.MathUtils.clamp(enemy.hp/enemy.maxHp,0,1);
+function addEnemyHealthBar(e){
+ e.obj.updateMatrixWorld(true);
+ const bounds=new THREE.Box3().setFromObject(e.obj);
+ const width=e.kind==='boss'?2.3:1.25;
+ const bar=new THREE.Group();
+ const bg=new THREE.Sprite(enemyBarBackMaterial);bg.scale.set(width+.14,.27,1);bg.position.z=-.025;bar.add(bg);
+ const fill=new THREE.Sprite(enemyBarFillMaterials[0]);fill.scale.set(width,.17,1);fill.position.z=.025;bar.add(fill);
+ scene.add(bar);
+ e.healthBar={bar,fill,width,offset:Math.max(1,bounds.max.y-e.obj.position.y)+.38};
+ updateEnemyHealthBar(e);updateEnemyHealthBarPosition(e);
+}
+function updateEnemyHealthBar(e){
+ if(!e.healthBar)return;
+ const {fill,width}=e.healthBar;
+ const fraction=THREE.MathUtils.clamp(e.hp/Math.max(1,e.maxHp),0,1);
  fill.scale.x=Math.max(.001,width*fraction);
  fill.position.x=-(width-fill.scale.x)/2;
  fill.material=enemyBarFillMaterials[fraction>.5?0:fraction>.25?1:2];
@@ -1598,7 +1603,7 @@ function updateBossLoot(dt){
 function spawn(){
  clearBossLoot();
  terrainForFloor();
- for(const e of enemies)scene.remove(e.obj);enemies=[];
+ for(const e of enemies){removeEnemyHealthBar(e);scene.remove(e.obj)}enemies=[];
  const bossFloor=level%3===0,count=bossFloor?1:Math.min(3+level,10);
  // New monster roster every ten floors, while bosses remain every third floor.
  const tier=Math.floor((level-1)/10);
@@ -1797,7 +1802,7 @@ function damageEnemy(e,amount,soundType=data.weapon){
  }
  e.hp-=amount*attackPower();updateEnemyHealthBar(e);e.obj.scale.setScalar(1.13);
  if(e.hp<=0){
-  scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
+  removeEnemyHealthBar(e);scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
   data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();drawSkills();drawAuras();
   if(!enemies.length){
    if(e.kind==='boss'){
@@ -2289,6 +2294,7 @@ function frame(){
     if(e.windup>0)e.obj.scale.setScalar(1.1+Math.sin(e.phase*14)*.03);
    }
    e.obj.rotation.y=Math.atan2(dx,dz);
+   updateEnemyHealthBarPosition(e);
   }
   updateSpaceMarineFacing();
   updateSwing(dt);
