@@ -765,17 +765,46 @@ function launchBossBolt(e){
  scene.add(orb);
  bossBolts.push({obj:orb,dir,life:3.5,damage:Math.ceil(14*e.damageScale),trailTimer:0});
 }
+const bossExplosions=[];
+function explodeBossBolt(position){
+ const group=new THREE.Group();group.position.copy(position);
+ const mat=new THREE.MeshBasicMaterial({color:0xc66bff,transparent:true,opacity:.8,depthWrite:false});
+ const ring=new THREE.Mesh(new THREE.RingGeometry(.22,.34,24),mat);
+ ring.rotation.x=-Math.PI/2;group.add(ring);
+ const flash=new THREE.Mesh(new THREE.SphereGeometry(.28,12,8),
+  new THREE.MeshBasicMaterial({color:0xf1c7ff,transparent:true,opacity:.75,depthWrite:false}));
+ group.add(flash);scene.add(group);
+ bossExplosions.push({group,ring,flash,age:0,life:.38});
+}
+function updateBossExplosions(dt){
+ for(let i=bossExplosions.length-1;i>=0;i--){
+  const fx=bossExplosions[i];fx.age+=dt;
+  const t=Math.min(1,fx.age/fx.life);
+  fx.ring.scale.setScalar(1+t*5);
+  fx.flash.scale.setScalar(1+t*2.4);
+  fx.ring.material.opacity=.8*(1-t);
+  fx.flash.material.opacity=.75*(1-t);
+  if(t>=1){scene.remove(fx.group);fx.ring.material.dispose();fx.flash.material.dispose();bossExplosions.splice(i,1)}
+ }
+}
 function updateBossBolts(dt){
  for(let i=bossBolts.length-1;i>=0;i--){
-  const b=bossBolts[i];
-  b.life-=dt;
-  // Move in world space, independent of enemy animation or player movement.
-  b.obj.position.x+=b.dir.x*11*dt;
-  b.obj.position.z+=b.dir.z*11*dt;
+  const b=bossBolts[i];b.life-=dt;
+  const oldX=b.obj.position.x,oldZ=b.obj.position.z;
+  const newX=oldX+b.dir.x*11*dt,newZ=oldZ+b.dir.z*11*dt;
+  const travel=Math.hypot(newX-oldX,newZ-oldZ);
+  const steps=Math.max(1,Math.ceil(travel/.15));
+  let collided=false,hitHero=false;
+  for(let j=1;j<=steps;j++){
+   const t=j/steps,x=oldX+(newX-oldX)*t,z=oldZ+(newZ-oldZ)*t;
+   b.obj.position.x=x;b.obj.position.z=z;
+   if(Math.hypot(x-hero.position.x,z-hero.position.z)<.85){collided=true;hitHero=true;break}
+   if(Math.abs(x)>15.8||Math.abs(z)>15.8||obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+.28)){collided=true;break}
+  }
   b.obj.rotation.y+=dt*9;
-  const dx=b.obj.position.x-hero.position.x,dz=b.obj.position.z-hero.position.z;
-  if(Math.hypot(dx,dz)<.85){hurtHero(b.damage);b.life=0}
-  if(b.life<=0||!running){scene.remove(b.obj);bossBolts.splice(i,1)}
+  if(hitHero)hurtHero(b.damage);
+  if(collided)explodeBossBolt(b.obj.position);
+  if(collided||b.life<=0||!running){scene.remove(b.obj);b.obj.geometry.dispose();b.obj.material.dispose();bossBolts.splice(i,1)}
  }
 }
 // Synthesized weapon sounds: no downloads or audio assets required.
@@ -1143,6 +1172,7 @@ function frame(){
   updateCharacterSwing(dt);
   updateProjectiles(dt);
   updateBossBolts(dt);
+  updateBossExplosions(dt);
   updateSpecialEffects(dt);
   refresh();
  }
