@@ -753,16 +753,28 @@ function spawn(){
 function show(message){resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
 const projectiles=[];const bossBolts=[];let swing=null;
 function launchBossBolt(e){
- const obj=new THREE.Mesh(new THREE.SphereGeometry(.27,12,10),new THREE.MeshStandardMaterial({color:0xb34cff,emissive:0x8025e0,emissiveIntensity:1.6}));
- obj.position.copy(e.obj.position).add(new THREE.Vector3(0,1.65,0));
- const dir=new THREE.Vector3(hero.position.x-obj.position.x,0,hero.position.z-obj.position.z).normalize();
- scene.add(obj);bossBolts.push({obj,dir,life:3.3,damage:Math.ceil(14*e.damageScale)});
+ // Fire a clearly visible orb away from the boss, aimed at the hero's current position.
+ const start=e.obj.position.clone().add(new THREE.Vector3(0,1.5,0));
+ const dir=new THREE.Vector3(hero.position.x-start.x,0,hero.position.z-start.z);
+ if(dir.lengthSq()<.001)dir.set(Math.sin(e.obj.rotation.y),0,Math.cos(e.obj.rotation.y));
+ dir.normalize();
+ const orb=new THREE.Mesh(new THREE.SphereGeometry(.34,16,12),
+  new THREE.MeshStandardMaterial({color:0xe3a1ff,emissive:0x8c21ff,emissiveIntensity:2.5}));
+ orb.position.copy(start).addScaledVector(dir,1.45);
+ const light=new THREE.PointLight(0x9f4cff,2.3,5);orb.add(light);
+ scene.add(orb);
+ bossBolts.push({obj:orb,dir,life:3.5,damage:Math.ceil(14*e.damageScale),trailTimer:0});
 }
 function updateBossBolts(dt){
  for(let i=bossBolts.length-1;i>=0;i--){
-  const b=bossBolts[i];b.life-=dt;b.obj.position.addScaledVector(b.dir,dt*8.5);b.obj.rotation.y+=dt*8;
+  const b=bossBolts[i];
+  b.life-=dt;
+  // Move in world space, independent of enemy animation or player movement.
+  b.obj.position.x+=b.dir.x*11*dt;
+  b.obj.position.z+=b.dir.z*11*dt;
+  b.obj.rotation.y+=dt*9;
   const dx=b.obj.position.x-hero.position.x,dz=b.obj.position.z-hero.position.z;
-  if(Math.hypot(dx,dz)<.75){hurtHero(b.damage);b.life=0}
+  if(Math.hypot(dx,dz)<.85){hurtHero(b.damage);b.life=0}
   if(b.life<=0||!running){scene.remove(b.obj);bossBolts.splice(i,1)}
  }
 }
