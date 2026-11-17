@@ -3,7 +3,7 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0d0b18;color:white;font-family:system-ui,sans-serif;overflow:hidden}canvas{display:block}#hud{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;font-weight:700;text-shadow:0 2px 5px #000}#panel{position:fixed;inset:0;background:#0d0b18ee;display:grid;place-items:center;z-index:5;padding:20px;overflow:auto}.card{width:min(460px,100%);background:#231b38;border:1px solid #66518a;border-radius:18px;padding:24px;text-align:center;box-shadow:0 10px 40px #0008}h1{color:#c5a4ff}button,select{background:#6745a7;color:white;border:1px solid #a889e1;border-radius:12px;padding:12px 16px;font:inherit;margin:5px;cursor:pointer}button:active{transform:scale(.96)}#controls{position:fixed;bottom:22px;left:16px;right:16px;display:none;justify-content:space-between;align-items:end;pointer-events:none}#controls button{pointer-events:auto;touch-action:none;min-width:62px;min-height:62px;font-weight:900}#joystick{width:144px;height:144px;border-radius:50%;border:3px solid #a889e1;background:#35264caa;position:relative;pointer-events:auto;touch-action:none;user-select:none;box-shadow:inset 0 0 20px #0006}#stick{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c6a7ff,#7651b2);border:2px solid #e0caff;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 3px 12px #0009}#attack{background:#aa315f}#weapons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:12px 0}#weapons button{font-size:13px;margin:0;padding:10px 5px}#weapons button.selected{border:2px solid #eac5ff;background:#8557b8}small{color:#c6bdd8}#error{position:fixed;bottom:4px;color:#ffb8b8;left:10px;font-size:12px}
 </style></head><body>
-<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><div id="shop"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space or button • Mobile: drag the joystick to move</small></p></div></div>
+<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><div id="shop"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space or button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
 <div id="controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div></div><button id="attack">ATTACK</button></div><div id="error"></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
@@ -23,7 +23,7 @@ const weaponGroup=new THREE.Group();weaponGroup.position.set(.75,1.25,.1);hero.a
 const weapons={
  sword:{name:'⚔ Sword',price:0,damage:1,range:2.8,cooldown:430,arc:1.4},
  axe:{name:'🪓 Battle Axe',price:25,damage:2,range:2.45,cooldown:800,arc:1.8},
- spear:{name:'🔱 Spear',price:35,damage:1,range:4.1,cooldown:550,arc:.75},
+ bow:{name:'🏹 Hunter Bow',price:35,damage:1,range:11,cooldown:620,arc:6.3},
  staff:{name:'✨ Magic Staff',price:50,damage:1,range:8.5,cooldown:750,arc:6.3}
 };
 function buildWeapon(){
@@ -39,9 +39,12 @@ function buildWeapon(){
   part(new THREE.CylinderGeometry(.085,.09,1.7,8),0x6b4930,0,.35,0);
   part(new THREE.BoxGeometry(.76,.57,.17),0xaebcc7,.28,1.04,0);
   part(new THREE.BoxGeometry(.12,.66,.22),0xe0ebf2,.65,1.04,0);
- }else if(type==='spear'){
-  part(new THREE.CylinderGeometry(.055,.07,2.2,8),0x7d5735,0,.5,0);
-  part(new THREE.ConeGeometry(.19,.65,6),0xd8e5f0,0,1.92,0);
+ }else if(type==='bow'){
+  const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,-.6,0),new THREE.Vector3(-.28,-.3,0),new THREE.Vector3(-.38,.3,0),new THREE.Vector3(-.28,.9,0),new THREE.Vector3(0,1.2,0)]);
+  part(new THREE.TubeGeometry(curve,16,.07,6,false),0x9c643b,0,0,0);
+  const string=part(new THREE.CylinderGeometry(.018,.018,1.8,5),0xe9e2cb,0,.3,0);
+  string.position.set(0,.3,0);
+  part(new THREE.CylinderGeometry(.025,.025,1.1,6),0xc7ad7b,-.12,.35,.13).rotation.x=Math.PI/2;
  }else{
   part(new THREE.CylinderGeometry(.075,.09,1.8,8),0x674377,0,.4,0);
   part(new THREE.TorusGeometry(.22,.06,8,16),0xd4a4ff,0,1.4,0);
@@ -51,14 +54,14 @@ function buildWeapon(){
 function drawWeapons(){
  const el=$('weapons');el.innerHTML='';
  if(!Array.isArray(data.ownedWeapons))data.ownedWeapons=['sword'];
- if(!weapons[data.weapon])data.weapon='sword';
+ if(data.weapon==='spear')data.weapon='bow';if(!weapons[data.weapon])data.weapon='sword';if(data.ownedWeapons.includes('spear')&&!data.ownedWeapons.includes('bow'))data.ownedWeapons.push('bow');
  for(const [id,w] of Object.entries(weapons)){
   const owned=data.ownedWeapons.includes(id),selected=data.weapon===id;
   const b=document.createElement('button');b.className=selected?'selected':'';
   b.textContent=w.name+' · '+(selected?'Equipped':owned?'Equip':w.price+' gold');
   b.onclick=()=>{
    if(!owned){if(data.gold<w.price){$('message').textContent='Not enough gold for '+w.name;return}data.gold-=w.price;data.ownedWeapons.push(id)}
-   data.weapon=id;persist();buildWeapon();drawWeapons();refresh();
+   data.weapon=id;persist();if(data.weapon==='spear')data.weapon='bow';if(Array.isArray(data.ownedWeapons)&&data.ownedWeapons.includes('spear')&&!data.ownedWeapons.includes('bow'))data.ownedWeapons.push('bow');buildWeapon();drawWeapons();refresh();
   };
   el.appendChild(b);
  }
@@ -156,42 +159,72 @@ function spawn(){
  refresh();
 }
 function show(message){resetStick();running=false;$('panel').style.display='grid';$('controls').style.display='none';$('message').textContent=message;refresh()}
-function attack(){
- const w=weapons[data.weapon]||weapons.sword;
- if(!running||performance.now()-lastAttack<w.cooldown)return;
- lastAttack=performance.now();
- weaponGroup.rotation.z=-.9;
- setTimeout(()=>weaponGroup.rotation.z=0,170);
- const forward=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
- const targets=[];
- for(const e of enemies){
-  const delta=new THREE.Vector3().subVectors(e.obj.position,hero.position);delta.y=0;
-  const dist=delta.length();
-  if(dist>w.range||dist<.01)continue;
-  const angle=Math.acos(THREE.MathUtils.clamp(forward.dot(delta.clone().normalize()),-1,1));
-  if(angle<=w.arc/2)targets.push({e,dist});
- }
- if(data.weapon==='staff')targets.sort((a,b)=>a.dist-b.dist);
- for(const {e} of (data.weapon==='staff'?targets.slice(0,1):targets)){
-  e.hp-=w.damage;e.obj.scale.setScalar(1.13);
-  if(data.weapon==='staff'){
-   const bolt=mesh(new THREE.SphereGeometry(.19,8,8),0x8dfff4);
-   bolt.position.copy(e.obj.position);bolt.position.y+=1.1;scene.add(bolt);
-   setTimeout(()=>{scene.remove(bolt);bolt.geometry.dispose();bolt.material.dispose()},180);
+const projectiles=[];
+function damageEnemy(e,amount){
+ if(!enemies.includes(e))return;
+ e.hp-=amount;e.obj.scale.setScalar(1.13);
+ if(e.hp<=0){
+  scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
+  data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();
+  if(!enemies.length){
+   level++;hp=Math.min(100,hp+25);spawn();
+   show('Floor cleared! +25 health. Gold is yours to keep. Continue to the next floor!');
+   $('start').textContent='Next Floor';
   }
-  if(e.hp<=0){
-   scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
-   data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();
-  }
- }
- if(!enemies.length){
-  level++;hp=Math.min(100,hp+25);spawn();
-  show('Floor cleared! +25 health. Gold is yours to keep. Continue to the next floor!');
-  $('start').textContent='Next Floor';
  }
  refresh();
 }
-$('start').onclick=()=>{if(!running){if(hp<=0){hp=100;level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;$('panel').style.display='none';$('controls').style.display='flex';refresh()}};
+function attack(){
+ const w=weapons[data.weapon]||weapons.sword;
+ if(!running||performance.now()-lastAttack<w.cooldown)return;
+ const forward=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
+ const candidates=enemies.map(e=>{
+  const delta=new THREE.Vector3().subVectors(e.obj.position,hero.position);delta.y=0;
+  return {e,delta,dist:delta.length()};
+ }).filter(t=>t.dist<=w.range&&t.dist>.01).sort((a,b)=>a.dist-b.dist);
+ if(!candidates.length)return;
+ lastAttack=performance.now();
+ const chosen=candidates[0];
+ // Auto aim rotates the hero toward the closest monster in weapon range.
+ hero.rotation.y=Math.atan2(chosen.delta.x,chosen.delta.z);
+ weaponGroup.rotation.z=-.8;
+ setTimeout(()=>weaponGroup.rotation.z=0,160);
+ if(data.weapon==='bow'||data.weapon==='staff'){
+  const isBow=data.weapon==='bow';
+  const obj=isBow?new THREE.Group():mesh(new THREE.SphereGeometry(.19,10,8),0x8dfff4);
+  if(isBow){
+   const shaft=mesh(new THREE.CylinderGeometry(.035,.035,.78,6),0xd6b481);shaft.rotation.x=Math.PI/2;obj.add(shaft);
+   const tip=mesh(new THREE.ConeGeometry(.11,.25,6),0xdce9f2);tip.rotation.x=Math.PI/2;tip.position.z=.48;obj.add(tip);
+   const fletch=mesh(new THREE.BoxGeometry(.22,.12,.15),0x8a55d2);fletch.position.z=-.32;obj.add(fletch);
+  }
+  obj.position.copy(hero.position);obj.position.y=1.45;
+  scene.add(obj);
+  projectiles.push({obj,target:chosen.e,damage:w.damage,speed:isBow?17:12,life:1.5});
+ }else{
+  const aim=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
+  for(const t of candidates){
+   const angle=Math.acos(THREE.MathUtils.clamp(aim.dot(t.delta.clone().normalize()),-1,1));
+   if(angle<=w.arc/2)damageEnemy(t.e,w.damage);
+  }
+ }
+}
+function updateProjectiles(dt){
+ for(let i=projectiles.length-1;i>=0;i--){
+  const p=projectiles[i];p.life-=dt;
+  if(!running||!enemies.includes(p.target)||p.life<=0){
+   scene.remove(p.obj);projectiles.splice(i,1);continue;
+  }
+  const destination=p.target.obj.position.clone().add(new THREE.Vector3(0,1.2,0));
+  const delta=destination.sub(p.obj.position),distance=delta.length();
+  if(distance<Math.max(.45,p.speed*dt)){
+   scene.remove(p.obj);projectiles.splice(i,1);damageEnemy(p.target,p.damage);
+  }else{
+   p.obj.position.addScaledVector(delta.normalize(),p.speed*dt);
+   p.obj.rotation.y=Math.atan2(delta.x,delta.z);
+  }
+ }
+}
+$('start').onclick=()=>{if(!running){for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;if(hp<=0){hp=100;level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;$('panel').style.display='none';$('controls').style.display='flex';refresh()}};
 $('heroColor').onchange=refresh;refresh();spawn();
 const clock=new THREE.Clock();
 function hurtHero(amount){if(!running||invuln>0)return;hp=Math.max(0,hp-amount);invuln=.85;if(hp<=0){show('You fell in battle! Your gold and purchased cosmetics are saved. Try again.');$('start').textContent='Retry Dungeon'}}
@@ -249,6 +282,7 @@ function frame(){
    }
    e.obj.rotation.y=Math.atan2(dx,dz);
   }
+  updateProjectiles(dt);
   refresh();
  }
  camera.position.lerp(new THREE.Vector3(hero.position.x,9,hero.position.z+12),.09);
