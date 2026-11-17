@@ -135,7 +135,7 @@ button:focus-visible,select:focus-visible {
 
 /* Fantasy tabletop-adventure artwork on the lobby/menu only. */
 #panel {
- background:linear-gradient(90deg,rgba(7,5,19,.62),rgba(12,8,27,.35),rgba(7,5,19,.62)),url("./menu-fantasy.svg") center center / cover no-repeat;
+ background:linear-gradient(90deg,rgba(2,12,22,.59),rgba(4,20,34,.36),rgba(2,12,22,.62)),url("./menu-moonlit.svg") center center / cover no-repeat;
 }
 #panel .card {
  background:rgba(25,17,43,.89);
@@ -143,4 +143,30 @@ button:focus-visible,select:focus-visible {
  box-shadow:0 16px 65px #000c,0 0 35px #5c2c8b44;
  backdrop-filter:blur(5px);
  -webkit-backdrop-filter:blur(5px);
+}
+
+/* Built-in main menu background themes. Moonlit Gate is the default. */
+#panel[data-menu-theme="ember"] {
+ background:linear-gradient(90deg,rgba(24,5,13,.60),rgba(35,9,17,.39),rgba(24,5,13,.66)),url("./menu-ember.svg") center center / cover no-repeat;
+}
+#panel[data-menu-theme="ember"] .card { background:rgba(35,16,25,.90); border-color:#b95d46; }
+#panel:not([data-menu-theme="ember"]) .card { background:rgba(8,26,39,.88); border-color:#6ac9c3; }
+.menu-theme-switch {
+ display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:5px 8px;
+ margin:7px 0 14px; padding:5px 0 9px; border-bottom:1px solid var(--sd-border);
+}
+.menu-theme-switch > span { flex:1 1 100%; font-size:.82rem; color:var(--sd-muted); font-weight:650; }
+.menu-theme-switch button {
+ flex:1 1 130px; min-height:40px; margin:0; padding:8px 11px;
+ border:1px solid #ffffff44; background:#080e1a94; color:var(--sd-text);
+ font-size:clamp(.77rem,1.5vw,.88rem);
+}
+.menu-theme-switch button[aria-pressed="true"] {
+ border-color:#79e7d5; background:#164c50; box-shadow:inset 0 0 0 1px #5edcc855;
+}
+#panel[data-menu-theme="ember"] .menu-theme-switch button[aria-pressed="true"] {
+ border-color:#ffb47b; background:#753521; box-shadow:inset 0 0 0 1px #ffb47b55;
+}
+@media (max-width:480px){
+ .menu-theme-switch button { flex-basis:calc(50% - 5px); padding:9px 5px; }
 }
