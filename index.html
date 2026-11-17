@@ -726,6 +726,10 @@ function buildWeapon(){
   part(new THREE.TorusGeometry(.22,.06,8,16),0xd4a4ff,0,1.4,0);
   part(new THREE.SphereGeometry(.19,12,10),0x7dffed,0,1.4,0);
  }
+ // All models use their grip as the origin, not the center of the blade or bow.
+ // This puts the hand around the handle instead of beside the weapon.
+ const grip=type==='sword'?{x:0,y:-.40}:type==='axe'?{x:0,y:-.30}:type==='bow'?{x:-.34,y:.30}:{x:0,y:-.35};
+ for(const child of weaponGroup.children){child.position.x-=grip.x;child.position.y-=grip.y}
 }
 function drawWeapons(){
  const el=$('weapons');el.innerHTML='';
@@ -906,6 +910,9 @@ function buildBellWeapon(){
   const ring=part(new THREE.TorusGeometry(.24,.038,8,20),bellGold,0,1.63,0);
   ring.rotation.y=.25;
  }
+ // Center the grip of Bell's equipped weapon inside her palm.
+ const grip=type==='sword'?{x:0,y:-.35}:type==='axe'?{x:0,y:-.30}:type==='bow'?{x:-.34,y:.30}:{x:0,y:-.35};
+ for(const child of bellStaff.children){child.position.x-=grip.x;child.position.y-=grip.y}
 }
 buildWeapon();
 const bellSigil=bellPart(bellVisual,new THREE.IcosahedronGeometry(.12,1),0x76f7a0,0,1.68,.29);
