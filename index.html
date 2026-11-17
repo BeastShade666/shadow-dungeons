@@ -74,9 +74,7 @@
 </div>
 <div id="controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div></div><div id="attackButtons"><button id="dash" aria-label="Quick dodge dash">DASH</button><button id="characterAttack">SCYTHE SWEEP</button><button id="special">SPECIAL</button><button id="attack">ATTACK</button></div></div><div id="error"></div>
 <script type="module">
-import * as THREE from 'three';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {clone as cloneSkinnedModel} from 'three/addons/utils/SkeletonUtils.js';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const $=id=>document.getElementById(id);
 const saved=()=>{try{return JSON.parse(localStorage.getItem('shadow-save')||'{}')}catch{return {}}};
 const leaderboardKey='shadow-dungeons-floor-leaderboard-v1';
@@ -559,6 +557,7 @@ const weaponGroup=new THREE.Group();weaponGroup.position.set(.75,1.25,.1);hero.a
 // Stream the asset from the official Three.js example; do not duplicate a binary in this repo.
 // Source: github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Soldier.glb
 const spaceMarineVisual=new THREE.Group();hero.add(spaceMarineVisual);
+let cloneSkinnedModel=null;
 const spaceMarineURLs=[
  'https://threejs.org/examples/models/gltf/Soldier.glb',
  'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/Soldier.glb'
@@ -580,11 +579,24 @@ function updateSpaceMarineAnimation(dt,movement){
  playSpaceMarineMotion(running?(characterSwing?.marine||dashTime>0?'Run':movement>.10?'Walk':'Idle'):'Idle');
  spaceMarineMixer.update(dt);
 }
-function requestSpaceMarineModel(){
+async function requestSpaceMarineModel(){
  if(spaceMarineState==='loading'||spaceMarineState==='ready')return;
  spaceMarineState='loading';
  refresh();
- const loader=new GLTFLoader();
+ let loader;
+ try{
+  // Optional dependencies must never prevent the main menu from initializing.
+  const [{GLTFLoader},{clone}]=await Promise.all([
+   import('three/addons/loaders/GLTFLoader.js'),
+   import('three/addons/utils/SkeletonUtils.js')
+  ]);
+  cloneSkinnedModel=clone;
+  loader=new GLTFLoader();
+ }catch(error){
+  console.warn('Space Marine optional modules failed to load:',error);
+  spaceMarineState='error';lastPortraitKey='';refresh();
+  return;
+ }
  function attempt(urlIndex){
   loader.load(spaceMarineURLs[urlIndex],gltf=>{
    try{
@@ -908,7 +920,7 @@ function updateCharacterPortrait(){
  $('characterPreviewDetail').textContent=id==='spacemarine'?'Original animated Soldier GLB · Idle / Walk / Run':id==='bellshade'?'Forest guardian · Grasping Vines':id==='kitsune'?'Nine-tailed fox guardian · Twin dagger flurry':id==='werewolf'?'Feral guardian · Double-bladed tail axe':'Shadowbound warrior · Hooded reaper';
  portraitCanvas.setAttribute('aria-label','3D preview: '+$('characterPreviewName').textContent);
  $('characterPreviewNote').textContent='Aura: '+auraShop[auraChoice].name+(data.ownedAuras.includes(auraChoice)?(data.auraColor===auraChoice?' · Equipped':' · Owned'):' · Preview only — buy to equip')+'. Tap an aura color to preview its glow.';
- if(id==='spacemarine'&&spaceMarineState!=='ready'){
+ if(id==='spacemarine'&&(spaceMarineState!=='ready'||!cloneSkinnedModel)){
   portraitCanvas.hidden=true;
   $('characterPreviewNote').textContent=spaceMarineState==='error'?'Original Soldier GLB failed to load. Use the button below to retry.':'Loading original detailed 3D Soldier model from the Three.js example…';
   return;
