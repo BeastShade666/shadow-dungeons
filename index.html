@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
 <link rel="stylesheet" href="./root.css?v=character-portrait-20261117a">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script></head><body class="menu-open">
-<div id="hud"><span id="stats"></span><span id="stage"></span></div>
+<div id="hud"><span id="stats"></span><div id="runHudActions"><span id="stage"></span><button id="endRun" type="button" aria-label="End current dungeon run and return to main menu" title="End current run and return to menu">End Run</button></div></div>
 <div id="panel" data-menu-theme="moonlit">
   <header class="menu-preview-top">
     <div class="preview-logo">⚔ SHADOW DUNGEONS <span class="preview-logo-note">/ MAIN MENU</span></div>
@@ -1404,6 +1404,30 @@ function spawn(){
  refresh();
 }
 function show(message){bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
+function endDungeonRun(){
+ if(!running)return;
+ // End this run voluntarily; save its score and permanent upgrades, not the floor.
+ const completedFloor=level,keptGold=data.gold;
+ recordLeaderboardFloor(completedFloor);
+ clearSpaceMarineAim();clearBellVines();
+ for(const e of enemies)scene.remove(e.obj);
+ enemies=[];
+ for(const p of projectiles)scene.remove(p.obj);
+ projectiles.length=0;
+ for(const bolt of bossBolts)scene.remove(bolt.obj);
+ bossBolts.length=0;
+ for(const effect of bossExplosions)scene.remove(effect.group);
+ bossExplosions.length=0;
+ for(const fx of specialEffects){scene.remove(fx.ring);fx.ring.geometry.dispose();fx.ring.material.dispose()}
+ specialEffects.length=0;
+ swing=null;characterSwing=null;kitsuneDaggerActive=false;kitsuneDaggersVisible();
+ weaponGroup.rotation.set(0,0,0);scytheRig.rotation.set(0,0,0);
+ tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0);bellStaff.rotation.set(0,0,0);
+ level=1;hp=maxHealth();invuln=0;dashTime=0;dashCooldown=0;
+ persist();
+ show('Run ended on Floor '+completedFloor+'. You kept '+keptGold+' gold and all permanent upgrades. Ready for a fresh dungeon?');
+}
+$('endRun').addEventListener('click',endDungeonRun);
 const projectiles=[];const bossBolts=[];let swing=null;
 function launchBossBolt(e){
  // Fire a clearly visible orb away from the boss, aimed at the hero's current position.
