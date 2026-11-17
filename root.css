@@ -347,3 +347,17 @@ body.menu-open #pauseRun{display:none}
 #resumeRun{min-height:50px;padding:12px 24px;border-radius:12px;border:1px solid #dfc88a;background:#7754c8;color:white;font-weight:850;font-size:1rem;touch-action:manipulation}
 @media(max-width:700px){#pauseRun{min-width:70px;min-height:44px;padding:9px;font-size:.76rem}}
 @media(max-height:480px) and (orientation:landscape){#pauseRun{min-height:38px;padding:7px 10px}.pause-card{padding:15px 20px}.pause-card h2{font-size:1.3rem}}
+
+/* Keep both run controls visible on narrow Android landscape viewports.
+   They no longer compete with the potentially long floor name in the HUD. */
+body:not(.menu-open) #runHudActions{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;gap:5px;max-width:calc(100vw - 130px);width:auto;flex:none}
+body:not(.menu-open) #stage{max-width:min(52vw,310px);font-size:clamp(10px,2.3vw,13px);line-height:1.15;overflow-wrap:anywhere}
+body:not(.menu-open) #pauseRun,body:not(.menu-open) #endRun{display:flex;position:relative;flex:none;visibility:visible;opacity:1;z-index:10;margin:0;min-width:94px;min-height:40px}
+body:not(.menu-open) #pauseRun{order:1}
+body:not(.menu-open) #endRun{order:2}
+body:not(.menu-open) #stage{order:3}
+@media(max-height:480px) and (orientation:landscape){
+ body:not(.menu-open) #runHudActions{flex-direction:row;flex-wrap:wrap;max-width:calc(100vw - 115px);gap:4px}
+ body:not(.menu-open) #pauseRun,body:not(.menu-open) #endRun{min-width:75px;min-height:38px;padding:7px 9px}
+ body:not(.menu-open) #stage{order:3;flex-basis:100%;max-width:100%;text-align:right}
+}
