@@ -96,3 +96,18 @@ button:focus-visible,select:focus-visible {
 @media (prefers-reduced-motion:reduce) {
   button:active { transform:none; }
 }
+
+/* Clearly visible Aura Shop dropdown arrow on Android and desktop. */
+#shop #auraSelect {
+  appearance:none;
+  -webkit-appearance:none;
+  padding-right:44px;
+  min-height:46px;
+  max-width:100%;
+  background-color:var(--sd-accent);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m5 9 7 7 7-7' fill='none' stroke='%23ffffff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 13px center;
+  background-size:20px 20px;
+  cursor:pointer;
+}
