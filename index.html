@@ -842,7 +842,11 @@ function resetStick(){joy.x=joy.z=0;stick.style.transform='translate(-50%,-50%)'
 joystick.addEventListener('pointerdown',e=>{e.preventDefault();joystick.setPointerCapture(e.pointerId);moveStick(e)});
 joystick.addEventListener('pointermove',e=>{if(joystick.hasPointerCapture(e.pointerId))moveStick(e)});
 for(const type of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(type,resetStick);
-$('attack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();attack()});$('special').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();specialAttack()});$('characterAttack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();characterAttack()});$('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash()});
+const attackButton=$('attack');let attackHeld=false,attackPointer=null;
+attackButton.style.touchAction='none';
+attackButton.addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();attackHeld=true;attackPointer=e.pointerId;try{attackButton.setPointerCapture(e.pointerId)}catch{}attack()});
+function releaseAttack(e){if(attackPointer!==null&&e.pointerId!==attackPointer)return;attackHeld=false;attackPointer=null}
+for(const type of ['pointerup','pointercancel','lostpointercapture'])attackButton.addEventListener(type,releaseAttack);$('special').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();specialAttack()});$('characterAttack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();characterAttack()});$('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash()});
 
 // Bell Shade: forest druid with leaf mantle, carved staff, glowing emerald sigil,
 // braided hair and animated cloth. Built from lightweight game geometry.
@@ -1572,9 +1576,9 @@ function attack(){
  const candidates=enemies.map(e=>{
   const delta=new THREE.Vector3().subVectors(e.obj.position,hero.position);delta.y=0;
   return {e,delta,dist:delta.length()};
- }).filter(t=>t.dist<=w.range&&t.dist>.01).sort((a,b)=>a.dist-b.dist);
- if(!candidates.length){lastAttack=performance.now();weaponGroup.rotation.z=-.8;setTimeout(()=>{if(!swing)weaponGroup.rotation.z=0},160);return;}
+ }).filter(t=>t.dist<=w.range+.35&&t.dist>.01).sort((a,b)=>a.dist-b.dist);
  lastAttack=performance.now();
+ if(!candidates.length){swing={elapsed:0,duration:.3,hit:true,damage:0,range:0,arc:0};return;}
  const chosen=candidates[0];
  // Auto aim rotates the hero toward the closest monster in weapon range.
  if(data.character==='spacemarine')aimSpaceMarineAt(chosen.e,Math.max(600,w.cooldown+180));
@@ -1584,8 +1588,7 @@ function attack(){
   swing={elapsed:0,duration:.56,hit:false,damage:w.damage,range:w.range,arc:w.arc};
   weaponGroup.rotation.set(0,0,0);
  }else{
-  weaponGroup.rotation.z=-.8;
-  setTimeout(()=>{if(!swing)weaponGroup.rotation.z=0},160);
+  swing={elapsed:0,duration:.28,hit:true,damage:0,range:0,arc:0};
  }
  if(data.weapon==='bow'||data.weapon==='staff'){
   const isBow=data.weapon==='bow';
@@ -1968,6 +1971,7 @@ function frame(){
  const dt=Math.min(clock.getDelta(),.05);
  bodyMoveTarget=0;
  if(running){
+  if(attackHeld)attack();
   let x=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+joy.x;
   let z=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+joy.z;
   const len=Math.max(1,Math.hypot(x,z));x/=len;z/=len;
