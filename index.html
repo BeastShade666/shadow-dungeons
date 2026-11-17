@@ -557,6 +557,9 @@ const weaponGroup=new THREE.Group();weaponGroup.position.set(.75,1.25,.1);hero.a
 // Stream the asset from the official Three.js example; do not duplicate a binary in this repo.
 // Source: github.com/mrdoob/three.js/blob/dev/examples/models/gltf/Soldier.glb
 const spaceMarineVisual=new THREE.Group();hero.add(spaceMarineVisual);
+// Soldier faces -Z in the original demo; our player movement/aim considers +Z forward.
+// Align the visual-only container without editing the imported model or animations.
+spaceMarineVisual.rotation.y=Math.PI;
 let cloneSkinnedModel=null;
 const spaceMarineURLs=[
  'https://threejs.org/examples/models/gltf/Soldier.glb',
@@ -564,6 +567,26 @@ const spaceMarineURLs=[
 ];
 let spaceMarineModel=null,spaceMarineMixer=null,spaceMarineState='idle',spaceMarineMotion='Idle',spaceMarineActive=null;
 const spaceMarineActions={};
+// Keep Space Marine looking at the current enemy during an attack, even while strafing.
+let spaceMarineAimTarget=null,spaceMarineAimUntil=0;
+function aimSpaceMarineAt(target,holdMs=650){
+ if(data.character!=='spacemarine'||!target)return;
+ const dx=target.obj.position.x-hero.position.x,dz=target.obj.position.z-hero.position.z;
+ if(dx*dx+dz*dz<.0001)return;
+ spaceMarineAimTarget=target;spaceMarineAimUntil=performance.now()+holdMs;
+ hero.rotation.y=Math.atan2(dx,dz);
+}
+function updateSpaceMarineFacing(){
+ if(data.character!=='spacemarine'||!spaceMarineAimTarget)return false;
+ if(performance.now()>=spaceMarineAimUntil||!enemies.includes(spaceMarineAimTarget)){
+  spaceMarineAimTarget=null;return false;
+ }
+ const dx=spaceMarineAimTarget.obj.position.x-hero.position.x;
+ const dz=spaceMarineAimTarget.obj.position.z-hero.position.z;
+ if(dx*dx+dz*dz>.0001)hero.rotation.y=Math.atan2(dx,dz);
+ return true;
+}
+function clearSpaceMarineAim(){spaceMarineAimTarget=null;spaceMarineAimUntil=0;}
 function playSpaceMarineMotion(name){
  if(!spaceMarineMixer||!spaceMarineActions[name]||spaceMarineMotion===name&&spaceMarineActive)return;
  const next=spaceMarineActions[name];
@@ -928,7 +951,10 @@ function updateCharacterPortrait(){
  if(!portraitContext||!portraitImage)return;
  if(portraitModel){portraitScene.remove(portraitModel);for(const material of portraitAuraMaterials)material.dispose();portraitAuraMaterials.length=0;}
  portraitModel=new THREE.Group();
- portraitModel.add(id==='spacemarine'?cloneSkinnedModel(spaceMarineModel):(id==='bellshade'?bellVisual:id==='kitsune'?kitsuneVisual:id==='werewolf'?wolfVisual:reaperVisual).clone(true));
+ if(id==='spacemarine'){
+  const facing=new THREE.Group();facing.rotation.y=spaceMarineVisual.rotation.y;
+  facing.add(cloneSkinnedModel(spaceMarineModel));portraitModel.add(facing);
+ }else portraitModel.add((id==='bellshade'?bellVisual:id==='kitsune'?kitsuneVisual:id==='werewolf'?wolfVisual:reaperVisual).clone(true));
  portraitModel.add(weaponGroup.clone(true));
  // Clone existing aura materials before tinting so unowned preview colors never alter gameplay.
  const previewAura=aura.clone(true);previewAura.visible=true;
@@ -1444,7 +1470,8 @@ function attack(){
  lastAttack=performance.now();
  const chosen=candidates[0];
  // Auto aim rotates the hero toward the closest monster in weapon range.
- hero.rotation.y=Math.atan2(chosen.delta.x,chosen.delta.z);
+ if(data.character==='spacemarine')aimSpaceMarineAt(chosen.e,Math.max(600,w.cooldown+180));
+ else hero.rotation.y=Math.atan2(chosen.delta.x,chosen.delta.z);
  if(data.weapon==='axe'){
   // Heavy wind-up followed by a wide, visible forward cleave.
   swing={elapsed:0,duration:.56,hit:false,damage:w.damage,range:w.range,arc:w.arc};
@@ -1491,7 +1518,10 @@ function characterAttack(){
  lastCharacterAttack=performance.now();
  const wolf=data.character==='werewolf',kitsune=data.character==='kitsune',bell=data.character==='bellshade',marine=data.character==='spacemarine';
  const nearest=enemies.map(e=>({e,d:Math.hypot(e.obj.position.x-hero.position.x,e.obj.position.z-hero.position.z)})).sort((a,b)=>a.d-b.d)[0];
- if(nearest&&nearest.d<5)hero.rotation.y=Math.atan2(nearest.e.obj.position.x-hero.position.x,nearest.e.obj.position.z-hero.position.z);
+ if(nearest&&nearest.d<5){
+  if(marine)aimSpaceMarineAt(nearest.e,850);
+  else hero.rotation.y=Math.atan2(nearest.e.obj.position.x-hero.position.x,nearest.e.obj.position.z-hero.position.z);
+ }
  characterSwing={elapsed:0,duration:marine?.65:bell?.9:kitsune?.78:wolf?.7:.62,wolf,kitsune,bell,marine,hit:false,hits:0};
  if(kitsune){kitsuneDaggerActive=true;kitsuneDaggerSlash=1;kitsuneDaggersVisible()}
  weaponSound(bell?'staff':wolf?'axe':'sword',true);
@@ -1684,7 +1714,10 @@ function specialAttack(){
  const type=data.weapon,w=weapons[type]||weapons.sword;
  const nearby=enemies.map(e=>({e,dist:Math.hypot(e.obj.position.x-hero.position.x,e.obj.position.z-hero.position.z)})).sort((a,b)=>a.dist-b.dist);
  const nearest=nearby[0];
- if(nearest)hero.rotation.y=Math.atan2(nearest.e.obj.position.x-hero.position.x,nearest.e.obj.position.z-hero.position.z);
+ if(nearest){
+  if(data.character==='spacemarine')aimSpaceMarineAt(nearest.e,950);
+  else hero.rotation.y=Math.atan2(nearest.e.obj.position.x-hero.position.x,nearest.e.obj.position.z-hero.position.z);
+ }
  const effect=(radius,color,duration=.5)=>{
   const ring=new THREE.Mesh(new THREE.TorusGeometry(radius,.11,8,48),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}));
   ring.rotation.x=Math.PI/2;ring.position.copy(hero.position);ring.position.y=.16;scene.add(ring);
@@ -1784,7 +1817,7 @@ $('characterSelect').onchange=()=>{
  data.character=['reaper','werewolf','kitsune','bellshade','spacemarine'].includes(next)?next:'reaper';
  // Kitsune can use every normal weapon; daggers are exclusive to her E attack.
  if(data.weapon==='daggers')data.weapon='sword';
- kitsuneDaggerActive=false;kitsuneDaggersVisible();bellStaff.rotation.set(0,0,0);
+ kitsuneDaggerActive=false;kitsuneDaggersVisible();bellStaff.rotation.set(0,0,0);clearSpaceMarineAim();
  buildWeapon();drawWeapons();persist();refresh();
  if(data.character==='spacemarine')requestSpaceMarineModel();
 };
@@ -1828,7 +1861,7 @@ function frame(){
   const oldX=hero.position.x,oldZ=hero.position.z;
   moveWithCollision(hero,x*dt*6*(1+.05*skillLevel('agility')),z*dt*6*(1+.05*skillLevel('agility')),.5);
   bodyMoveTarget=Math.min(1,Math.hypot(hero.position.x-oldX,hero.position.z-oldZ)/Math.max(dt*6,.0001));
-  if(x||z)hero.rotation.y=Math.atan2(x,z);
+  if(x||z&&!updateSpaceMarineFacing())hero.rotation.y=Math.atan2(x,z);
   invuln=Math.max(0,invuln-dt);
   dashCooldown=Math.max(0,dashCooldown-dt);
   if(dashTime>0){
@@ -1886,6 +1919,7 @@ function frame(){
    }
    e.obj.rotation.y=Math.atan2(dx,dz);
   }
+  updateSpaceMarineFacing();
   updateSwing(dt);
   updateCharacterSwing(dt);
   updateBellVines(dt);
