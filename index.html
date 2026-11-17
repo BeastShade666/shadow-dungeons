@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
-<link rel="stylesheet" href="./root.css?v=preview-layout-20261117a"></head><body>
+<link rel="stylesheet" href="./root.css?v=menu-scroll-c661e53"></head><body>
 <div id="hud"><span id="stats"></span><span id="stage"></span></div>
 <div id="panel" data-menu-theme="moonlit">
   <header class="menu-preview-top">
@@ -729,7 +729,7 @@ function spawn(){
  }
  refresh();
 }
-function show(message){resetStick();running=false;$('panel').style.display='flex';$('controls').style.display='none';$('message').textContent=message;refresh()}
+function show(message){resetStick();running=false;$('panel').style.display='flex';$('panel').scrollTop=0;$('controls').style.display='none';$('message').textContent=message;refresh()}
 const projectiles=[];const bossBolts=[];let swing=null;
 function launchBossBolt(e){
  const obj=new THREE.Mesh(new THREE.SphereGeometry(.27,12,10),new THREE.MeshStandardMaterial({color:0xb34cff,emissive:0x8025e0,emissiveIntensity:1.6}));
