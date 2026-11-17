@@ -993,7 +993,36 @@ function updateCharacterPortrait(){
  }
 }
 
+// Attach the actual weapon grip to each character's animated right hand.
+function attachHeldWeapons(){
+ const hand=data.character==='reaper'?reaperArms.find(a=>a.side===1)?.pivot:
+  data.character==='werewolf'?wolfArms.find(a=>a.side===1)?.pivot:
+  data.character==='kitsune'?kitsuneArms.find(a=>a.side===1)?.pivot:null;
+ if(hand){
+  if(weaponGroup.parent!==hand)hand.add(weaponGroup);
+  if(data.character==='reaper')weaponGroup.position.set(.31,-.88,.22);
+  else if(data.character==='werewolf')weaponGroup.position.set(.38,-1.11,.30);
+  else weaponGroup.position.set(.18,-.98,.20);
+ }else if(data.character==='spacemarine'&&spaceMarineModel){
+  let marineHand=null;
+  spaceMarineModel.traverse(o=>{if(o.isBone&&/right(hand|wrist)|hand[_ .-]?r(?![a-z])/i.test(o.name))marineHand=o});
+  if(marineHand){
+   if(weaponGroup.parent!==marineHand)marineHand.add(weaponGroup);
+   weaponGroup.position.set(0,0,.08);
+  }else{
+   if(weaponGroup.parent!==hero)hero.add(weaponGroup);
+   weaponGroup.position.set(.48,1.25,.32);
+  }
+ }else{
+  if(weaponGroup.parent!==hero)hero.add(weaponGroup);
+  weaponGroup.position.set(.48,1.25,.32);
+ }
+ const bellHand=bellArms.find(a=>a.side===1)?.pivot;
+ if(bellHand&&bellStaff.parent!==bellHand)bellHand.add(bellStaff);
+ bellStaff.position.set(.10,-.88,.22);
+}
 function refresh(){
+ attachHeldWeapons();
  reaperVisual.visible=data.character==='reaper';wolfVisual.visible=data.character==='werewolf';
  kitsuneVisual.visible=data.character==='kitsune';bellVisual.visible=data.character==='bellshade';
  spaceMarineVisual.visible=data.character==='spacemarine';
