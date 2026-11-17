@@ -636,6 +636,7 @@ const weapons={
  staff:{name:'✨ Magic Staff',price:50,damage:1,range:8.5,cooldown:750,arc:6.3}
 };
 function buildWeapon(){
+ buildBellWeapon();
  weaponGroup.clear();
  const type=weapons[data.weapon]?data.weapon:'sword';
  const part=(geo,color,x,y,z)=>{const m=mesh(geo,color);m.position.set(x,y,z);weaponGroup.add(m);return m};
@@ -813,10 +814,34 @@ for(let i=0;i<8;i++){
  leaf.rotation.z=Math.cos(angle)*.25;leaf.rotation.x=-Math.sin(angle)*.25;
 }
 const bellStaff=new THREE.Group();bellStaff.position.set(.65,.90,.24);bellVisual.add(bellStaff);
-bellPart(bellStaff,new THREE.CylinderGeometry(.047,.066,2.25,10),0x65462e,0,.38,0);
-bellPart(bellStaff,new THREE.IcosahedronGeometry(.19,1),0x77f5a3,0,1.63,0);
-const bellStaffRing=bellPart(bellStaff,new THREE.TorusGeometry(.24,.038,8,20),bellGold,0,1.63,0);
-bellStaffRing.rotation.y=.25;
+// Bell Shade's held weapon changes to match the equipped weapon, without duplicates.
+function buildBellWeapon(){
+ for(const child of [...bellStaff.children]){bellStaff.remove(child);child.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose()}})}
+ const type=weapons[data.weapon]?data.weapon:'sword';
+ const part=(geometry,color,x,y,z)=>bellPart(bellStaff,geometry,color,x,y,z);
+ if(type==='sword'){
+  part(new THREE.BoxGeometry(.14,1.12,.16),0xb9e9c9,0,.54,0);
+  part(new THREE.ConeGeometry(.13,.3,5),0xe6ffe6,0,1.25,0);
+  part(new THREE.BoxGeometry(.48,.13,.2),bellGold,0,-.09,0);
+  part(new THREE.CylinderGeometry(.06,.07,.45,9),0x57402e,0,-.35,0);
+ }else if(type==='axe'){
+  part(new THREE.CylinderGeometry(.07,.08,1.7,10),0x65462e,0,.36,0);
+  part(new THREE.BoxGeometry(.68,.55,.18),0x8bb99b,.27,1.07,0);
+  part(new THREE.ConeGeometry(.23,.5,5),0x6be3a1,.65,1.07,0).rotation.z=-Math.PI/2;
+ }else if(type==='bow'){
+  const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,-.65,0),new THREE.Vector3(-.34,-.28,0),new THREE.Vector3(-.43,.38,0),new THREE.Vector3(-.26,.92,0),new THREE.Vector3(0,1.2,0)]);
+  part(new THREE.TubeGeometry(curve,20,.07,8,false),0x64834a,0,0,0);
+  const string=part(new THREE.CylinderGeometry(.012,.012,1.85,6),0xd9f5d2,-.01,.28,0);
+  string.rotation.z=.05;
+  part(new THREE.ConeGeometry(.13,.32,7),0x80d79c,-.35,.35,0).rotation.z=-Math.PI/2;
+ }else{
+  part(new THREE.CylinderGeometry(.047,.066,2.25,10),0x65462e,0,.38,0);
+  part(new THREE.IcosahedronGeometry(.19,1),0x77f5a3,0,1.63,0);
+  const ring=part(new THREE.TorusGeometry(.24,.038,8,20),bellGold,0,1.63,0);
+  ring.rotation.y=.25;
+ }
+}
+buildBellWeapon();
 const bellSigil=bellPart(bellVisual,new THREE.IcosahedronGeometry(.12,1),0x76f7a0,0,1.68,.29);
 bellAccentParts.push(bellSigil);
 
