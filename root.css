@@ -361,3 +361,6 @@ body:not(.menu-open) #stage{order:3}
  body:not(.menu-open) #pauseRun,body:not(.menu-open) #endRun{min-width:75px;min-height:38px;padding:7px 9px}
  body:not(.menu-open) #stage{order:3;flex-basis:100%;max-width:100%;text-align:right}
 }
+
+/* HUD disables pointer events by default; explicitly re-enable Pause taps. */
+#hud #pauseRun{pointer-events:auto!important;touch-action:manipulation;cursor:pointer}
