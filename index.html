@@ -834,7 +834,7 @@ function frame(){
     e.obj.position.y=Math.abs(Math.sin(e.phase*4))*(e.windup>0?.32:.12);
    }else if(e.kind==='bat'){
     e.obj.position.y=.35+Math.sin(e.phase*7)*.25+(e.attackTime>0?-.24:0);
-    if(e.attackTime>0&&dist>.01){e.obj.position.x+=dx/dist*dt*3;e.obj.position.z+=dz/dist*dt*3}
+    if(e.attackTime>0&&dist>.01)moveWithCollision(e.obj,dx/dist*dt*3,dz/dist*dt*3,.45);
     e.obj.rotation.z=Math.sin(e.phase*10)*.12;
    }else if(e.kind==='skeleton'){
     e.obj.position.y=Math.abs(Math.sin(e.phase*5))*.06;
