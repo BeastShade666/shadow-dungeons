@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
-<link rel="stylesheet" href="./root.css?v=full-scroll-af786e70"></head><body class="menu-open">
+<link rel="stylesheet" href="./root.css?v=character-portrait-20261117a"></head><body class="menu-open">
 <div id="hud"><span id="stats"></span><span id="stage"></span></div>
 <div id="panel" data-menu-theme="moonlit">
   <header class="menu-preview-top">
@@ -24,6 +24,17 @@
       <h2>⚔ Shadow Dungeons</h2>
       <p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p>
       <p id="wallet"></p>
+      <figure class="character-preview" aria-label="Preview of the selected character before entering the dungeon">
+        <div class="character-preview-art">
+          <span class="character-preview-kicker">✦ HERO PORTRAIT · IN-GAME MODEL</span>
+          <canvas id="characterPreviewCanvas" width="480" height="280" role="img" aria-label="3D preview of your selected hero"></canvas>
+          <div class="character-preview-caption">
+            <strong id="characterPreviewName">Grim Reaper</strong>
+            <span id="characterPreviewDetail">Shadowbound warrior</span>
+          </div>
+        </div>
+        <figcaption id="characterPreviewNote">Select a character or hero color below to update this portrait.</figcaption>
+      </figure>
       <div class="menu-grid">
         <label>Character
           <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select>
@@ -460,7 +471,69 @@ joystick.addEventListener('pointermove',e=>{if(joystick.hasPointerCapture(e.poin
 for(const type of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(type,resetStick);
 $('attack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();attack()});$('special').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();specialAttack()});$('characterAttack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();characterAttack()});$('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash()});
 const colorMap={purple:0x8b5cf6,green:0x34d399,blue:0x38bdf8};
-function refresh(){body.material.color.setHex(colorMap[$('heroColor').value]);wolfColorAccent.material.color.setHex(colorMap[$('heroColor').value]);reaperVisual.visible=data.character!=='werewolf';wolfVisual.visible=data.character==='werewolf';aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length)}
+// A single GPU-backed character portrait using the existing game models and WebGL renderer.
+// Clones reuse mesh geometries/materials; no second WebGL context or independent scroll area.
+const portraitCanvas=$('characterPreviewCanvas');
+const portraitContext=portraitCanvas.getContext('2d');
+const portraitW=portraitCanvas.width,portraitH=portraitCanvas.height;
+const portraitScene=new THREE.Scene();
+portraitScene.add(new THREE.HemisphereLight(0xcde7ff,0x2b2439,2.6));
+const portraitKeyLight=new THREE.DirectionalLight(0xfff0e8,3.2);
+portraitKeyLight.position.set(-3,7,6);portraitScene.add(portraitKeyLight);
+const portraitRimLight=new THREE.DirectionalLight(0x58dfee,2.2);
+portraitRimLight.position.set(3,5,-5);portraitScene.add(portraitRimLight);
+const portraitStage=new THREE.Mesh(new THREE.CylinderGeometry(1.35,1.48,.14,36),new THREE.MeshStandardMaterial({color:0x243445,roughness:.72,metalness:.22}));
+portraitStage.position.y=-.09;portraitScene.add(portraitStage);
+const portraitRing=new THREE.Mesh(new THREE.TorusGeometry(1.32,.022,6,48),new THREE.MeshBasicMaterial({color:0x65dccf}));
+portraitRing.rotation.x=Math.PI/2;portraitRing.position.y=.01;portraitScene.add(portraitRing);
+const portraitCamera=new THREE.PerspectiveCamera(35,portraitW/portraitH,.1,30);
+portraitCamera.position.set(3.1,2.85,6.2);portraitCamera.lookAt(0,1.48,0);
+const portraitTarget=new THREE.WebGLRenderTarget(portraitW,portraitH,{format:THREE.RGBAFormat,type:THREE.UnsignedByteType});
+const portraitPixels=new Uint8Array(portraitW*portraitH*4);
+const portraitImage=portraitContext?.createImageData(portraitW,portraitH);
+let portraitModel=null,lastPortraitKey='';
+function updateCharacterPortrait(){
+ const id=data.character==='werewolf'?'werewolf':'reaper';
+ const color=$('heroColor').value;
+ const signature=[id,color,data.weapon,data.auraColor,data.aura].join(':');
+ if(signature===lastPortraitKey)return;
+ lastPortraitKey=signature;
+ $('characterPreviewName').textContent=id==='werewolf'?'Werewolf · Tail Axe':'Grim Reaper';
+ $('characterPreviewDetail').textContent=id==='werewolf'?'Feral guardian · Double-bladed tail axe':'Shadowbound warrior · Hooded reaper';
+ portraitCanvas.setAttribute('aria-label',id==='werewolf'?'3D preview of the Werewolf with tail axe':'3D preview of the Grim Reaper');
+ if(!portraitContext||!portraitImage)return;
+ if(portraitModel)portraitScene.remove(portraitModel);
+ portraitModel=new THREE.Group();
+ portraitModel.add((id==='werewolf'?wolfVisual:reaperVisual).clone(true));
+ portraitModel.add(weaponGroup.clone(true));
+ if(data.aura){portraitModel.add(aura.clone(true));portraitModel.add(auraLight.clone());}
+ portraitScene.add(portraitModel);
+ const accent=colorMap[color]||colorMap.purple;
+ portraitRing.material.color.setHex(accent);
+ const oldTarget=renderer.getRenderTarget(),oldColor=renderer.getClearColor(new THREE.Color()).clone(),oldAlpha=renderer.getClearAlpha();
+ try{
+  renderer.setRenderTarget(portraitTarget);
+  renderer.setClearColor(0x000000,0);
+  renderer.render(portraitScene,portraitCamera);
+  renderer.readRenderTargetPixels(portraitTarget,0,0,portraitW,portraitH,portraitPixels);
+  const stride=portraitW*4;
+  for(let y=0;y<portraitH;y++){
+   const from=(portraitH-1-y)*stride;
+   portraitImage.data.set(portraitPixels.subarray(from,from+stride),y*stride);
+  }
+  portraitContext.putImageData(portraitImage,0,0);
+  portraitCanvas.hidden=false;
+ }catch(error){
+  console.warn('Character portrait preview unavailable:',error);
+  portraitCanvas.hidden=true;
+  $('characterPreviewNote').textContent='Your selected character will appear in the dungeon.';
+ }finally{
+  renderer.setRenderTarget(oldTarget);
+  renderer.setClearColor(oldColor,oldAlpha);
+ }
+}
+
+function refresh(){body.material.color.setHex(colorMap[$('heroColor').value]);wolfColorAccent.material.color.setHex(colorMap[$('heroColor').value]);reaperVisual.visible=data.character!=='werewolf';wolfVisual.visible=data.character==='werewolf';aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length);updateCharacterPortrait()}
 function monster(kind){
  const g=new THREE.Group();
  const add=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,color);m.position.set(x,y,z);m.scale.set(sx,sy,sz);g.add(m);return m};
