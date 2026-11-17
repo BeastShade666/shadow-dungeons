@@ -1363,43 +1363,64 @@ function terrainForFloor(){
   add(new THREE.CylinderGeometry(.58,.75,3.4,8),palette.stone,x,1.7,z);
   add(new THREE.BoxGeometry(1.6,.32,1.6),palette.accent,x,3.4,z);
  }
- // Non-boss floors are connected dungeon chambers, with broad walkable doorways.
- // Boss floors remain open arenas with no interior room walls.
+ // Procedurally varied connected rooms. The floor seed changes with each level.
+ // Boss arenas intentionally stay open, with no interior room dividers.
  if(!boss){
   const wallHeight=2.85,wallThickness=.48;
-  const doorCenters=[-10,0,10],doorHalfWidth=1.9;
   const solidWall=(axis,fixed,start,end)=>{
-   const length=end-start,mid=(start+end)/2;
+   const length=end-start;if(length<.35)return;
+   const mid=(start+end)/2;
    const wall=axis==='x'
     ?add(new THREE.BoxGeometry(wallThickness,wallHeight,length),palette.stone,fixed,wallHeight/2,mid)
     :add(new THREE.BoxGeometry(length,wallHeight,wallThickness),palette.stone,mid,wallHeight/2,fixed);
    wall.material.roughness=.95;
-   // Closely spaced circular collision volumes work with existing hero and AI navigation.
+   // Solid collision along the full segment; door gaps have no blockers.
    const steps=Math.ceil(length/.38);
    for(let k=0;k<=steps;k++){
     const p=start+length*k/steps;
     obstacles.push(axis==='x'?{x:fixed,z:p,r:.30}:{x:p,z:fixed,r:.30});
    }
   };
-  for(const divider of [-6,6]){
+  const passage=(axis,fixed,center,width)=>{
+   const beam=axis==='x'
+    ?add(new THREE.BoxGeometry(.68,.62,width),palette.accent,fixed,wallHeight+.3,center)
+    :add(new THREE.BoxGeometry(width,.62,.68),palette.accent,center,wallHeight+.3,fixed);
+   beam.material.emissive.setHex(palette.accent);beam.material.emissiveIntensity=.14;
+  };
+  // Vary both the number and placement of dividers. Keep the central spawn clear.
+  const makeDividers=()=>{
+   const distance=5.4+rand()*2.4;
+   const values=[-distance,distance];
+   if(rand()<.35)values.splice(rand()<.5?0:2,0,(rand()<.5?-1:1)*(9.8+rand()*2.5));
+   return values.sort((a,b)=>a-b);
+  };
+  const vertical=makeDividers(),horizontal=makeDividers();
+  const buildDivider=(axis,fixed)=>{
+   // A guaranteed central doorway plus extra openings at varied locations.
+   const doorHalfWidth=1.75+rand()*.55;
+   const doors=[(rand()-.5)*2.0];
+   for(const side of [-1,1]){
+    doors.push(side*(8+rand()*4));
+    if(rand()<.4)doors.push(side*(4.6+rand()*1.7));
+   }
+   doors.sort((a,b)=>a-b);
+   const merged=[];
+   for(const center of doors){
+    const left=Math.max(-15.9,center-doorHalfWidth),right=Math.min(15.9,center+doorHalfWidth);
+    if(merged.length&&left<=merged[merged.length-1][1]+.5)
+     merged[merged.length-1][1]=Math.max(right,merged[merged.length-1][1]);
+    else merged.push([left,right]);
+   }
    let from=-16;
-   for(const center of doorCenters){
-    const left=center-doorHalfWidth,right=center+doorHalfWidth;
-    if(left>from){
-     solidWall('x',divider,from,left);
-     solidWall('z',divider,from,left);
-    }
-    // Arched lintels and sideposts identify every passage without blocking movement.
-    for(const axis of ['x','z']){
-     const beam=axis==='x'
-      ?add(new THREE.BoxGeometry(.68,.62,doorHalfWidth*2),palette.accent,divider,wallHeight+.3,center)
-      :add(new THREE.BoxGeometry(doorHalfWidth*2,.62,.68),palette.accent,center,wallHeight+.3,divider);
-     beam.material.emissive.setHex(palette.accent);beam.material.emissiveIntensity=.14;
-    }
+   for(const [left,right] of merged){
+    solidWall(axis,fixed,from,left);
+    passage(axis,fixed,(left+right)/2,right-left);
     from=right;
    }
-   if(from<16){solidWall('x',divider,from,16);solidWall('z',divider,from,16)}
-  }
+   solidWall(axis,fixed,from,16);
+  };
+  for(const x of vertical)buildDivider('x',x);
+  for(const z of horizontal)buildDivider('z',z);
  }
  // Keep all scenery footprints separate, including non-solid decorations.
  const sceneryFootprints=[];
