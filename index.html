@@ -57,6 +57,12 @@
       <div id="skills"></div>
       <h3 class="section-title">🗡 Weapons</h3>
       <div id="weapons"></div>
+      <section class="leaderboard" aria-label="Highest floor leaderboard">
+        <h3>🏆 Highest Floor Leaderboard</h3>
+        <p class="leaderboard-note">Local rankings on this device. Online rankings need a shared game server.</p>
+        <label class="leaderboard-name">Player Name <input id="leaderboardName" maxlength="20" placeholder="Enter your player name" autocomplete="nickname"></label>
+        <div id="leaderboardRows" aria-live="polite"></div>
+      </section>
       <button id="start" type="button">Enter Dungeon</button>
       <p class="menu-controls-help"><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E • Dash: Shift or mobile DASH button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p>
     </section>
@@ -68,6 +74,36 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const $=id=>document.getElementById(id);
 const saved=()=>{try{return JSON.parse(localStorage.getItem('shadow-save')||'{}')}catch{return {}}};
+const leaderboardKey='shadow-dungeons-floor-leaderboard-v1';
+function leaderboardEntries(){
+ try{const rows=JSON.parse(localStorage.getItem(leaderboardKey)||'[]');
+ return Array.isArray(rows)?rows.filter(r=>r&&typeof r.name==='string'&&Number.isInteger(r.floor)&&r.floor>=1).sort((a,b)=>b.floor-a.floor||a.name.localeCompare(b.name)).slice(0,20):[]}
+ catch{return []}
+}
+function leaderboardPlayerName(){
+ return ($('leaderboardName')?.value||'Adventurer').trim().slice(0,20)||'Adventurer';
+}
+function drawLeaderboard(){
+ const host=$('leaderboardRows');if(!host)return;
+ host.replaceChildren();
+ const entries=leaderboardEntries();
+ if(!entries.length){const empty=document.createElement('p');empty.textContent='No records yet. Enter the dungeon to claim the first spot!';host.append(empty);return}
+ for(const [i,entry] of entries.entries()){
+  const row=document.createElement('div');row.className='leaderboard-row';
+  const player=document.createElement('span');player.textContent=(i+1)+'. '+entry.name;
+  const floor=document.createElement('strong');floor.textContent='Floor '+entry.floor;
+  row.append(player,floor);host.append(row);
+ }
+}
+function recordLeaderboardFloor(floor){
+ const name=leaderboardPlayerName(),entries=leaderboardEntries();
+ const existing=entries.find(e=>e.name.toLowerCase()===name.toLowerCase());
+ if(existing)existing.floor=Math.max(existing.floor,floor);
+ else entries.push({name,floor});
+ entries.sort((a,b)=>b.floor-a.floor||a.name.localeCompare(b.name));
+ try{localStorage.setItem(leaderboardKey,JSON.stringify(entries.slice(0,20)))}catch{}
+ drawLeaderboard();
+}
 let data={gold:0,aura:false,weapon:'sword',ownedWeapons:['sword'],character:'reaper',skills:{},menuTheme:'moonlit',...saved()},level=1,hp=100,enemies=[],running=false,lastAttack=0,lastSpecial=-100000,lastCharacterAttack=-100000,invuln=0,dashCooldown=0,dashTime=0,dashX=0,dashZ=0;
 const skillTypes={
  power:{name:'⚔ Power',base:20,description:'+1 damage'},
@@ -983,7 +1019,7 @@ function spawn(){
  }
  refresh();
 }
-function show(message){resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
+function show(message){drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
 const projectiles=[];const bossBolts=[];let swing=null;
 function launchBossBolt(e){
  // Fire a clearly visible orb away from the boss, aimed at the hero's current position.
@@ -1092,7 +1128,7 @@ function damageEnemy(e,amount,soundType=data.weapon){
   scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
   data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();drawSkills();drawAuras();
   if(!enemies.length){
-   level++;hp=Math.min(maxHealth(),hp+25);spawn();
+   level++;recordLeaderboardFloor(level);hp=Math.min(maxHealth(),hp+25);spawn();
    show('Floor cleared! +25 health. Gold is yours to keep. Continue to the next floor!');
    $('start').textContent='Next Floor';
   }
@@ -1349,7 +1385,7 @@ function updateProjectiles(dt){
   }
  }
 }
-$('start').onclick=()=>{if(!running){swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
+$('start').onclick=()=>{if(!running){data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
 data.character=['werewolf','reaper','kitsune'].includes(data.character)?data.character:'reaper';
 if(data.character==='kitsune'&&!data.ownedWeapons.includes('daggers'))data.ownedWeapons.push('daggers');
 $('characterSelect').value=data.character;
@@ -1362,6 +1398,9 @@ $('characterSelect').onchange=()=>{
  }else if(data.weapon==='daggers')data.weapon='sword';
  buildWeapon();drawWeapons();persist();refresh();
 };
+$('leaderboardName').value=data.playerName||'Adventurer';
+$('leaderboardName').addEventListener('change',()=>{data.playerName=leaderboardPlayerName();persist();drawLeaderboard()});
+drawLeaderboard();
 $('heroColor').value=data.heroColor in colorMap?data.heroColor:'purple';$('heroColor').onchange=()=>{data.heroColor=$('heroColor').value;persist();refresh()};refresh();drawSkills();spawn();
 const clock=new THREE.Clock();
 function hurtHero(amount){
@@ -1371,7 +1410,7 @@ function hurtHero(amount){
   // Roguelike death: reset the dungeon floor only; preserve purchased skills,
   // gold, weapons, characters and auras.
   const goldKept=data.gold;
-  level=1;hp=0;
+  recordLeaderboardFloor(level);level=1;hp=0;
   data.gold=goldKept;persist();drawSkills();drawWeapons();
   show('You fell in battle! Dungeon progress resets to Floor 1, but all skill levels, '+goldKept+' gold, weapons and auras are saved. Upgrade and try again!');
   $('start').textContent='Retry Dungeon';
