@@ -729,7 +729,7 @@ function spawn(){
  }
  refresh();
 }
-function show(message){resetStick();running=false;$('panel').style.display='grid';$('controls').style.display='none';$('message').textContent=message;refresh()}
+function show(message){resetStick();running=false;$('panel').style.display='flex';$('controls').style.display='none';$('message').textContent=message;refresh()}
 const projectiles=[];let swing=null;
 // Synthesized weapon sounds: no downloads or audio assets required.
 let audioContext=null;
