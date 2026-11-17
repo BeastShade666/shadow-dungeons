@@ -364,3 +364,9 @@ body:not(.menu-open) #stage{order:3}
 
 /* HUD disables pointer events by default; explicitly re-enable Pause taps. */
 #hud #pauseRun{pointer-events:auto!important;touch-action:manipulation;cursor:pointer}
+
+/* Pause is a direct body child, not inside the non-interactive HUD. */
+body > #pauseRun{position:fixed!important;top:calc(12px + env(safe-area-inset-top,0px));right:calc(118px + env(safe-area-inset-right,0px));left:auto;z-index:80!important;display:inline-flex;align-items:center;justify-content:center;pointer-events:auto!important;touch-action:none;min-width:88px;min-height:44px;margin:0;user-select:none;-webkit-user-select:none}
+body.menu-open > #pauseRun{display:none!important}
+@media(max-width:700px){body > #pauseRun{right:calc(106px + env(safe-area-inset-right,0px));min-width:75px;min-height:40px;font-size:.76rem}}
+@media(max-height:480px) and (orientation:landscape){body > #pauseRun{top:calc(12px + env(safe-area-inset-top,0px));min-height:38px}}
