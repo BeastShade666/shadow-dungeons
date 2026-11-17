@@ -932,7 +932,7 @@ function refresh(){
  reaperVisual.visible=data.character==='reaper';wolfVisual.visible=data.character==='werewolf';
  kitsuneVisual.visible=data.character==='kitsune';bellVisual.visible=data.character==='bellshade';
  spaceMarineVisual.visible=data.character==='spacemarine';
- kitsuneDaggersVisible();weaponGroup.visible=true;aura.visible=data.aura;auraLight.visible=data.aura;
+ kitsuneDaggersVisible();weaponGroup.visible=data.character!=='bellshade';aura.visible=data.aura;auraLight.visible=data.aura;
  const marineSelected=data.character==='spacemarine';
  $('start').disabled=marineSelected&&spaceMarineState==='loading';
  $('start').textContent=marineSelected&&spaceMarineState==='loading'?'Loading Space Marine…':marineSelected&&spaceMarineState==='error'?'Retry Space Marine Model':hp<=0?'Retry Dungeon':'Enter Dungeon';
