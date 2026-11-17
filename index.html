@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
-<link rel="stylesheet" href="./root.css?v=end-run-82954940">
+<link rel="stylesheet" href="./root.css?v=attack-hold-7a04f7aa">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script></head><body class="menu-open">
 <div id="hud"><span id="stats"></span><div id="runHudActions"><span id="stage"></span><button id="endRun" type="button" aria-label="End current dungeon run and return to main menu" title="End current run and return to menu">End Run</button></div></div>
 <div id="panel" data-menu-theme="moonlit">
@@ -953,8 +953,10 @@ joystick.addEventListener('pointermove',e=>{if(joystick.hasPointerCapture(e.poin
 for(const type of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(type,resetStick);
 const attackButton=$('attack');let attackHeld=false,attackPointer=null;
 attackButton.style.touchAction='none';
-attackButton.addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();attackHeld=true;attackPointer=e.pointerId;try{attackButton.setPointerCapture(e.pointerId)}catch{}attack()});
-function releaseAttack(e){if(attackPointer!==null&&e.pointerId!==attackPointer)return;attackHeld=false;attackPointer=null}
+attackButton.addEventListener('contextmenu',e=>e.preventDefault());
+attackButton.addEventListener('selectstart',e=>e.preventDefault());
+attackButton.addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();attackHeld=true;attackPointer=e.pointerId;attackButton.classList.add('is-held');try{attackButton.setPointerCapture(e.pointerId)}catch{}attack()});
+function releaseAttack(e){if(attackPointer!==null&&e.pointerId!==attackPointer)return;attackHeld=false;attackPointer=null;attackButton.classList.remove('is-held')}
 for(const type of ['pointerup','pointercancel','lostpointercapture'])attackButton.addEventListener(type,releaseAttack);$('special').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();specialAttack()});$('characterAttack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();characterAttack()});$('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash()});
 
 // Bell Shade: forest druid with leaf mantle, carved staff, glowing emerald sigil,
