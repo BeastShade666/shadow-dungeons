@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
 <link rel="stylesheet" href="./root.css"></head><body>
-<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><h3>Aura Shop</h3><div id="shop"><label for="auraSelect">Aura color</label><select id="auraSelect"></select><button id="auraAction" type="button"></button></div><h3>Skill Upgrades</h3><p id="skillInfo"><small>Spend gold to improve your hero permanently. Prices rise with each purchase.</small></p><div id="skills"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E or blue button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
+<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><h3>Aura Shop</h3><div id="shop"><span class="shop-label">Aura color</span><details id="auraPicker" class="aura-picker"><summary id="auraToggle">Choose aura</summary><div id="auraOptions" class="aura-options" role="group" aria-label="Available aura colors"></div></details><button id="auraAction" type="button"></button></div><h3>Skill Upgrades</h3><p id="skillInfo"><small>Spend gold to improve your hero permanently. Prices rise with each purchase.</small></p><div id="skills"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E or blue button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
 <div id="controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div></div><div id="attackButtons"><button id="characterAttack">SCYTHE SWEEP</button><button id="special">SPECIAL</button><button id="attack">ATTACK</button></div></div><div id="error"></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
@@ -284,30 +284,31 @@ data.ownedAuras=data.ownedAuras.filter(id=>Object.hasOwn(auraShop,id));
 if(!auraColors[data.auraColor])data.auraColor='violet';
 if(!data.ownedAuras.includes(data.auraColor))data.auraColor=data.ownedAuras[0]||'violet';
 data.aura=data.ownedAuras.length>0;
+let selectedAuraId=data.auraColor;
 function drawAuras(){
- const select=$('auraSelect'),action=$('auraAction');
- const chosen=auraShop[select.value]?select.value:data.auraColor;
- select.innerHTML='';
+ const picker=$('auraPicker'),toggle=$('auraToggle'),options=$('auraOptions'),action=$('auraAction');
+ const chosen=Object.hasOwn(auraShop,selectedAuraId)?selectedAuraId:data.auraColor;
+ selectedAuraId=chosen;
+ const selected=auraShop[chosen],owned=data.ownedAuras.includes(chosen);
+ const accent='#'+auraColors[chosen].toString(16).padStart(6,'0');
+ toggle.textContent=selected.name+' — '+selected.price+' gold';
+ toggle.style.borderColor=accent;
+ options.replaceChildren();
  for(const [id,item] of Object.entries(auraShop).sort((a,b)=>a[1].price-b[1].price)){
-  const owned=data.ownedAuras.includes(id);
-  const option=document.createElement('option');
-  option.value=id;
-  option.textContent=item.name+' — '+item.price+' gold'+(owned?(data.auraColor===id?' · Equipped':' · Owned'):'');
-  select.appendChild(option);
+  const hasAura=data.ownedAuras.includes(id),choice=document.createElement('button');
+  choice.type='button';
+  choice.className='aura-choice'+(id===chosen?' selected':'');
+  choice.style.setProperty('--aura-color','#'+auraColors[id].toString(16).padStart(6,'0'));
+  choice.setAttribute('aria-pressed',id===chosen?'true':'false');
+  choice.textContent=item.name+' — '+item.price+' gold'+(hasAura?(data.auraColor===id?' · Equipped':' · Owned'):'');
+  choice.onclick=()=>{selectedAuraId=id;picker.open=false;drawAuras()};
+  options.appendChild(choice);
  }
- select.value=chosen;
- const updateAction=()=>{
-  const id=select.value,item=auraShop[id],owned=data.ownedAuras.includes(id);
-  if(!item)return;
-  action.textContent=owned?(data.auraColor===id?'Equipped':'Equip Aura'):'Buy Aura · '+item.price+' gold';
-  action.disabled=(owned&&data.auraColor===id)||(!owned&&data.gold<item.price);
-  const accent='#'+auraColors[id].toString(16).padStart(6,'0');
-  action.style.borderColor=accent;
-  select.style.borderColor=accent;
- };
- select.onchange=updateAction;
+ action.textContent=owned?(data.auraColor===chosen?'Equipped':'Equip Aura'):'Buy Aura · '+selected.price+' gold';
+ action.disabled=(owned&&data.auraColor===chosen)||(!owned&&data.gold<selected.price);
+ action.style.borderColor=accent;
  action.onclick=()=>{
-  const id=select.value,item=auraShop[id];
+  const id=selectedAuraId,item=auraShop[id];
   if(!item)return;
   if(!data.ownedAuras.includes(id)){
    if(data.gold<item.price){$('message').textContent='Not enough gold for '+item.name;return}
@@ -316,7 +317,6 @@ function drawAuras(){
   data.auraColor=id;data.aura=true;setAuraColor();persist();
   drawAuras();drawWeapons();drawSkills();refresh();
  };
- updateAction();
 }
 
 const aura=new THREE.Group();hero.add(aura);
