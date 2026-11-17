@@ -688,7 +688,7 @@ function drawWeapons(){
   b.textContent=w.name+' · '+(selected?'Equipped':owned?'Equip':w.price+' gold');
   b.onclick=()=>{
    if(!owned){if(data.gold<w.price){$('message').textContent='Not enough gold for '+w.name;return}data.gold-=w.price;data.ownedWeapons.push(id)}
-   data.weapon=id;persist();if(data.weapon==='spear')data.weapon='bow';if(Array.isArray(data.ownedWeapons)&&data.ownedWeapons.includes('spear')&&!data.ownedWeapons.includes('bow'))data.ownedWeapons.push('bow');buildWeapon();drawWeapons();drawSkills();drawAuras();refresh();
+   data.weapon=id;persist();if(data.weapon==='spear')data.weapon='bow';if(Array.isArray(data.ownedWeapons)&&data.ownedWeapons.includes('spear')&&!data.ownedWeapons.includes('bow'))data.ownedWeapons.push('bow');drawWeapons();drawSkills();drawAuras();refresh();
   };
   el.appendChild(b);
  }
@@ -855,7 +855,7 @@ function buildBellWeapon(){
   ring.rotation.y=.25;
  }
 }
-buildBellWeapon();
+buildWeapon();
 const bellSigil=bellPart(bellVisual,new THREE.IcosahedronGeometry(.12,1),0x76f7a0,0,1.68,.29);
 bellAccentParts.push(bellSigil);
 
