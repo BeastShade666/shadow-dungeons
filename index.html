@@ -159,7 +159,7 @@ function spawn(){
  refresh();
 }
 function show(message){resetStick();running=false;$('panel').style.display='grid';$('controls').style.display='none';$('message').textContent=message;refresh()}
-const projectiles=[];
+const projectiles=[];let swing=null;
 function damageEnemy(e,amount){
  if(!enemies.includes(e))return;
  e.hp-=amount;e.obj.scale.setScalar(1.13);
@@ -187,8 +187,14 @@ function attack(){
  const chosen=candidates[0];
  // Auto aim rotates the hero toward the closest monster in weapon range.
  hero.rotation.y=Math.atan2(chosen.delta.x,chosen.delta.z);
- weaponGroup.rotation.z=-.8;
- setTimeout(()=>weaponGroup.rotation.z=0,160);
+ if(data.weapon==='axe'){
+  // Heavy wind-up followed by a wide, visible forward cleave.
+  swing={elapsed:0,duration:.56,hit:false,damage:w.damage,range:w.range,arc:w.arc};
+  weaponGroup.rotation.set(0,0,0);
+ }else{
+  weaponGroup.rotation.z=-.8;
+  setTimeout(()=>{if(!swing)weaponGroup.rotation.z=0},160);
+ }
  if(data.weapon==='bow'||data.weapon==='staff'){
   const isBow=data.weapon==='bow';
   const obj=isBow?new THREE.Group():mesh(new THREE.SphereGeometry(.19,10,8),0x8dfff4);
@@ -200,13 +206,40 @@ function attack(){
   obj.position.copy(hero.position);obj.position.y=1.45;
   scene.add(obj);
   projectiles.push({obj,target:chosen.e,damage:w.damage,speed:isBow?17:12,life:1.5});
- }else{
+ }else if(data.weapon!=='axe'){
   const aim=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
   for(const t of candidates){
    const angle=Math.acos(THREE.MathUtils.clamp(aim.dot(t.delta.clone().normalize()),-1,1));
    if(angle<=w.arc/2)damageEnemy(t.e,w.damage);
   }
  }
+}
+function updateSwing(dt){
+ if(!swing)return;
+ const a=swing;a.elapsed+=dt;
+ const t=Math.min(1,a.elapsed/a.duration);
+ // Rotate around the hero's hand: lift back, then sweep through the target.
+ if(t<.3){
+  const u=t/.3;
+  weaponGroup.rotation.set(-.25*u,0,.95*u);
+ }else{
+  const u=(t-.3)/.7;
+  const eased=u*u*(3-2*u);
+  weaponGroup.rotation.set(-.25+.6*eased,-.3*eased,.95-2.35*eased);
+ }
+ if(!a.hit&&t>=.58){
+  a.hit=true;
+  const aim=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
+  for(const e of [...enemies]){
+   const d=new THREE.Vector3().subVectors(e.obj.position,hero.position);d.y=0;
+   const distance=d.length();
+   if(distance>.01&&distance<=a.range){
+    const angle=Math.acos(THREE.MathUtils.clamp(aim.dot(d.normalize()),-1,1));
+    if(angle<=a.arc/2)damageEnemy(e,a.damage);
+   }
+  }
+ }
+ if(t>=1){swing=null;weaponGroup.rotation.set(0,0,0)}
 }
 function updateProjectiles(dt){
  for(let i=projectiles.length-1;i>=0;i--){
@@ -224,7 +257,7 @@ function updateProjectiles(dt){
   }
  }
 }
-$('start').onclick=()=>{if(!running){for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;if(hp<=0){hp=100;level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;$('panel').style.display='none';$('controls').style.display='flex';refresh()}};
+$('start').onclick=()=>{if(!running){swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;if(hp<=0){hp=100;level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;$('panel').style.display='none';$('controls').style.display='flex';refresh()}};
 $('heroColor').onchange=refresh;refresh();spawn();
 const clock=new THREE.Clock();
 function hurtHero(amount){if(!running||invuln>0)return;hp=Math.max(0,hp-amount);invuln=.85;if(hp<=0){show('You fell in battle! Your gold and purchased cosmetics are saved. Try again.');$('start').textContent='Retry Dungeon'}}
@@ -282,6 +315,7 @@ function frame(){
    }
    e.obj.rotation.y=Math.atan2(dx,dz);
   }
+  updateSwing(dt);
   updateProjectiles(dt);
   refresh();
  }
