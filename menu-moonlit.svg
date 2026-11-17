@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#030b1e"/><stop offset=".52" stop-color="#10334c"/><stop offset="1" stop-color="#040c19"/></linearGradient>
+ <radialGradient id="moon"><stop stop-color="#b9fff3" stop-opacity=".83"/><stop offset=".38" stop-color="#66d4da" stop-opacity=".2"/><stop offset="1" stop-color="#40c1d0" stop-opacity="0"/></radialGradient>
+ <linearGradient id="mist" x2="0" y2="1"><stop stop-color="#64d7c9" stop-opacity="0"/><stop offset="1" stop-color="#74c7c9" stop-opacity=".17"/></linearGradient>
+ <linearGradient id="portal" x2="0" y2="1"><stop stop-color="#0c4d61"/><stop offset=".5" stop-color="#102b54"/><stop offset="1" stop-color="#070b24"/></linearGradient>
+ <filter id="glow"><feGaussianBlur stdDeviation="20"/></filter>
+ <filter id="soft"><feGaussianBlur stdDeviation="40"/></filter>
+</defs>
+<rect width="1600" height="900" fill="url(#sky)"/>
+<ellipse cx="530" cy="230" rx="410" ry="330" fill="url(#moon)"/>
+<circle cx="540" cy="216" r="77" fill="#bbffee" opacity=".9"/>
+<circle cx="564" cy="196" r="71" fill="#badde5" opacity=".28"/>
+<g fill="#b5f7e8" opacity=".65">
+ <circle cx="97" cy="118" r="2.5"/><circle cx="270" cy="205" r="2"/><circle cx="355" cy="90" r="2"/><circle cx="765" cy="129" r="2.8"/><circle cx="908" cy="204" r="2"/><circle cx="1120" cy="107" r="2.4"/><circle cx="1300" cy="155" r="1.7"/><circle cx="1492" cy="77" r="2.6"/><circle cx="149" cy="304" r="1.8"/><circle cx="812" cy="282" r="2"/><circle cx="1180" cy="256" r="1.8"/>
+</g>
+<path d="M0 530L130 420 245 492 390 355 520 472 670 326 826 488 980 376 1110 455 1290 347 1440 473 1600 382V900H0Z" fill="#0a2639"/>
+<path d="M0 605L145 490 300 573 470 447 615 578 775 458 962 595 1100 497 1240 558 1430 487 1600 575V900H0Z" fill="#0a1b2d"/>
+<ellipse cx="820" cy="625" rx="850" ry="125" fill="#6edee0" opacity=".11" filter="url(#soft)"/>
+<path d="M0 720Q340 598 660 694T1600 645V900H0Z" fill="#081b23"/>
+<!-- ruined luminous gate -->
+<g transform="translate(405 520)">
+ <ellipse rx="208" ry="260" fill="#2adfd6" opacity=".29" filter="url(#glow)"/>
+ <path d="M-163 198V-74A163 163 0 0 1 163-74V198Z" fill="#071626" stroke="#183d4b" stroke-width="48"/>
+ <path d="M-141 194V-73A141 141 0 0 1 141-73V194Z" fill="url(#portal)" stroke="#5ae6d5" stroke-width="7"/>
+ <ellipse cx="0" cy="15" rx="108" ry="205" fill="#65efe3" opacity=".12" filter="url(#soft)"/>
+ <path d="M-142 190V-75A142 142 0 0 1 142-75V190" fill="none" stroke="#74faea" stroke-width="4" stroke-dasharray="10 15" opacity=".75"/>
+ <path d="M-200 205H200L245 258H-245Z" fill="#122e39" stroke="#426a70" stroke-width="7"/>
+ <path d="M-230 258H230L279 310H-279Z" fill="#0b1c29" stroke="#3a5c62" stroke-width="7"/>
+ <path d="M-273 310H273L320 358H-320Z" fill="#081722" stroke="#2b4a52" stroke-width="5"/>
+ <g fill="#72f1df" opacity=".86"><circle cx="-154" cy="-101" r="6"/><circle cx="0" cy="-209" r="7"/><circle cx="154" cy="-101" r="6"/><circle cx="-150" cy="110" r="5"/><circle cx="150" cy="110" r="5"/></g>
+</g>
+<!-- tall gnarled woods -->
+<g fill="#06121b" stroke="#09222d" stroke-width="9">
+<path d="M-22 900L45 468 15 120 65 280 128 75 96 353 186 212 117 488 193 900Z"/>
+<path d="M1282 900L1353 495 1322 178 1380 330 1450 89 1419 401 1545 213 1443 543 1512 900Z"/>
+<path d="M120 900L185 595 155 406 206 501 256 324 232 582 292 900Z"/>
+</g>
+<g stroke="#0a2a32" stroke-width="14" fill="none" opacity=".85">
+ <path d="M48 290Q210 210 317 258M1335 315Q1170 239 1020 298M1600 420Q1400 372 1300 433"/>
+</g>
+<g fill="#79f9d9" opacity=".95">
+ <circle cx="103" cy="535" r="5"/><circle cx="156" cy="615" r="3"/><circle cx="629" cy="442" r="5"/><circle cx="740" cy="559" r="3"/><circle cx="908" cy="476" r="5"/><circle cx="1166" cy="593" r="4"/><circle cx="1491" cy="517" r="4"/>
+</g>
+<g fill="#61ffd8" opacity=".55" filter="url(#glow)">
+ <circle cx="103" cy="535" r="23"/><circle cx="629" cy="442" r="24"/><circle cx="908" cy="476" r="25"/><circle cx="1166" cy="593" r="22"/>
+</g>
+<rect y="615" width="1600" height="285" fill="url(#mist)"/>
+<rect width="1600" height="900" fill="#020815" opacity=".14"/>
+</svg>
