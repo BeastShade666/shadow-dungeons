@@ -1640,6 +1640,11 @@ function updateCharacterSwing(dt){
  // Wind up, then sweep the scythe or axe-tipped tail across the character's front.
  const sweep=t<.22?-1.0*t/.22:-1+2.65*Math.min(1,(t-.22)/.63);
  if(a.wolf){
+  // Spin the entire werewolf model through one full turn, not just the tail.
+  // Rotate the visual rig rather than hero so movement and aim remain stable.
+  const spin=t<.16?0:t<.88?((t-.16)/.72)*Math.PI*2:Math.PI*2;
+  wolfVisual.rotation.y=spin;
+  wolfVisual.rotation.x=Math.sin(t*Math.PI)*.10;
   tailRig.rotation.y=sweep;
   tailRig.rotation.x=-.12+Math.sin(t*Math.PI)*.30;
   tailAxe.rotation.z=Math.sin(t*Math.PI)*.7;
@@ -1706,6 +1711,7 @@ function updateCharacterSwing(dt){
  if(t>=1){
   characterSwing=null;scytheRig.rotation.set(0,0,0);
   tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0);
+  if(a.wolf)wolfVisual.rotation.y=0;
   bellStaff.rotation.set(0,0,0);
   if(a.kitsune){kitsuneDaggerActive=false;kitsuneDaggersVisible()}
  }
