@@ -1235,6 +1235,22 @@ function animateHeroBody(dt,t){
   tailRig.rotation.y=Math.sin(t*2.2)*(.09+move*.16);
   tailRig.rotation.x=Math.sin(t*1.6+1)*(.028+move*.038);
  }
+ // Kitsune: independently animated arms, footfalls and nine swaying tails.
+ kitsuneVisual.position.y=Math.abs(stride)*move*.026+inhale*.012;
+ kitsuneVisual.rotation.z=stride*move*.018;
+ kitHead.rotation.x=inhale*.024;kitHead.rotation.y=Math.sin(t*.8)*.045;
+ kitsuneDaggerSlash=Math.max(0,kitsuneDaggerSlash-dt*4.0);
+ const strike=Math.sin(kitsuneDaggerSlash*Math.PI);
+ const flurry=characterSwing?.kitsune?Math.sin(Math.min(1,characterSwing.elapsed/characterSwing.duration)*Math.PI):0;
+ kitsuneArms.forEach(({side,pivot})=>{
+  pivot.rotation.x=-side*stride*move*.34+strike*(side>0?-1.15:.89)-flurry*(.9+side*.24);
+  pivot.rotation.z=side*(-.12+strike*.26+flurry*.42);
+ });
+ kitsuneLegs.forEach(({side,hip})=>{hip.rotation.x=Math.sin(heroGait+(side>0?Math.PI:0))*move*.42});
+ kitsuneTails.forEach(({tail,spread},i)=>{
+  tail.rotation.z=Math.sin(t*1.7+i*.52)*(.045+move*.05)+flurry*spread*.04;
+  tail.rotation.x=Math.sin(t*1.2+i*.3)*.04;
+ });
 }
 const specialEffects=[];
 function specialAttack(){
