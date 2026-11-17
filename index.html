@@ -18,7 +18,7 @@ const skillTypes={
 };
 if(!data.skills||typeof data.skills!=='object')data.skills={};
 const skillLevel=id=>Math.max(0,Math.floor(Number(data.skills[id])||0));
-const skillCost=id=>Math.ceil(skillTypes[id].base*Math.pow(1.55,skillLevel(id)));
+const skillCost=id=>Math.ceil(skillTypes[id].base*Math.pow(1.20,skillLevel(id)));
 const maxHealth=()=>100+20*skillLevel('vitality');
 const attackPower=()=>1+skillLevel('power');
 const attackSpeed=()=>Math.pow(.95,skillLevel('haste'));
