@@ -20,6 +20,9 @@
 html,body { width:100%; min-height:100%; }
 html { -webkit-text-size-adjust:100%; }
 body { overscroll-behavior:none; }
+/* Menu is a real vertically scrolling document; gameplay remains viewport-locked. */
+body.menu-open { overflow-x:hidden; overflow-y:auto; overscroll-behavior-y:auto; touch-action:pan-y; -webkit-overflow-scrolling:touch; }
+body > canvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
 button,select { -webkit-tap-highlight-color:transparent; }
 button:focus-visible,select:focus-visible {
   outline:3px solid #d5b5ff;
@@ -138,7 +141,7 @@ button:focus-visible,select:focus-visible {
  --menu-accent:#72e9d2;--menu-bright:#c8fff0;--menu-border:#6ac9c3;
  --menu-bg:rgba(8,26,39,.88);--menu-ink:#eafcf9;--menu-muted:#b5d3d4;
  display:flex;flex-direction:column;align-items:stretch;justify-content:stretch;
- overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:clamp(12px,2.8vw,36px);
+ position:relative;inset:auto;width:100%;height:auto;min-height:100vh;min-height:100dvh;max-height:none;overflow:visible;overscroll-behavior:auto;touch-action:pan-y;padding:clamp(12px,2.8vw,36px);
  color:var(--menu-ink);
  background:linear-gradient(90deg,rgba(1,8,18,.18),rgba(4,11,23,.21) 42%,rgba(4,11,23,.55)),url("./menu-moonlit.svg") center/cover no-repeat;
 }
@@ -157,7 +160,7 @@ button:focus-visible,select:focus-visible {
 #panel .scene-title p{max-width:450px;font-size:clamp(.95rem,1.45vw,1.17rem);line-height:1.6;color:#e4e6ed;}
 #panel .card.menu-card{
  width:100%;min-width:0;max-width:none;max-height:none;
- padding:clamp(18px,2.4vw,30px);overflow:visible;overscroll-behavior:auto;
+ padding:clamp(18px,2.4vw,30px);overflow:visible;overscroll-behavior:auto;touch-action:pan-y;
  border:1px solid var(--menu-border);border-radius:24px;background:var(--menu-bg);
  backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px);
  box-shadow:0 20px 75px #000b,0 0 38px #0007;text-align:left;color:var(--menu-ink);
@@ -222,4 +225,20 @@ button:focus-visible,select:focus-visible {
 @media (prefers-reduced-motion:no-preference){
  #panel .menu-card{animation:menu-emerge .6s ease-out both;}
  @keyframes menu-emerge{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+}
+
+/* Swipes scroll the whole screen even when initiated on a menu control.
+   Touch interactions remain native; actions activate only on deliberate taps. */
+body.menu-open #panel button,
+body.menu-open #panel select,
+body.menu-open #panel summary,
+body.menu-open #panel label,
+body.menu-open #panel .aura-choice {
+ touch-action:pan-y;
+}
+body.menu-open #panel .menu-preview-stage,
+body.menu-open #panel .menu-card,
+body.menu-open #panel #shop,
+body.menu-open #panel .menu-theme-options {
+ overscroll-behavior:auto;
 }
