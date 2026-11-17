@@ -1,0 +1,98 @@
+/* Shadow Dungeons: single shared stylesheet for mobile and desktop.
+   Centralized CSS variables keep layouts consistent between platforms. */
+:root {
+  color-scheme: dark;
+  --sd-bg: #0d0b18;
+  --sd-panel: #231b38;
+  --sd-text: #ffffff;
+  --sd-muted: #c6bdd8;
+  --sd-accent: #6745a7;
+  --sd-accent-soft: #c5a4ff;
+  --sd-border: #66518a;
+  --sd-radius: 18px;
+  --sd-gutter: clamp(10px, 2vw, 24px);
+}
+
+/* Existing game styles moved here in full; no duplicate inline CSS. */
+*{box-sizing:border-box}body{margin:0;background:var(--sd-bg);color:var(--sd-text);font-family:system-ui,sans-serif;overflow:hidden}canvas{display:block}#hud{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;font-weight:700;text-shadow:0 2px 5px #000}#panel{position:fixed;inset:0;background:#0d0b18ee;display:grid;place-items:center;z-index:5;padding:20px;overflow:auto}.card{width:min(460px,100%);background:var(--sd-panel);border:1px solid var(--sd-border);border-radius:18px;padding:24px;text-align:center;box-shadow:0 10px 40px #0008}h1{color:var(--sd-accent-soft)}button,select{background:var(--sd-accent);color:var(--sd-text);border:1px solid #a889e1;border-radius:12px;padding:12px 16px;font:inherit;margin:5px;cursor:pointer}button:active{transform:scale(.96)}#controls{position:fixed;bottom:22px;left:16px;right:16px;display:none;justify-content:space-between;align-items:end;pointer-events:none}#controls button{pointer-events:auto;touch-action:none;min-width:62px;min-height:62px;font-weight:900}#joystick{width:144px;height:144px;border-radius:50%;border:3px solid #a889e1;background:#35264caa;position:relative;pointer-events:auto;touch-action:none;user-select:none;box-shadow:inset 0 0 20px #0006}#stick{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c6a7ff,#7651b2);border:2px solid #e0caff;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 3px 12px #0009}#attack{background:#aa315f}#special{background:#5635a6;border-color:#c6a4ff;min-width:78px!important}#special:disabled{opacity:.5}#attackButtons{display:flex;flex-direction:column;align-items:end;gap:4px;pointer-events:auto}#attackButtons button{margin:2px}#characterAttack{background:#315b79;border-color:#8be9ff;font-size:12px}#characterAttack:disabled{opacity:.5}#skills{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:10px 0}#skills button{font-size:12px;padding:9px 5px;margin:0}#skills button:disabled{opacity:.55}#weapons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:12px 0}#weapons button{font-size:13px;margin:0;padding:10px 5px}#weapons button.selected{border:2px solid #eac5ff;background:#8557b8}small{color:#c6bdd8}#error{position:fixed;bottom:4px;color:#ffb8b8;left:10px;font-size:12px}
+
+/* Shared accessibility, device-inset and layout rules. */
+html,body { width:100%; min-height:100%; }
+html { -webkit-text-size-adjust:100%; }
+body { overscroll-behavior:none; }
+button,select { -webkit-tap-highlight-color:transparent; }
+button:focus-visible,select:focus-visible {
+  outline:3px solid #d5b5ff;
+  outline-offset:2px;
+}
+#panel {
+  max-height:100vh;
+  max-height:100dvh;
+  padding:
+    calc(12px + env(safe-area-inset-top, 0px))
+    calc(12px + env(safe-area-inset-right, 0px))
+    calc(12px + env(safe-area-inset-bottom, 0px))
+    calc(12px + env(safe-area-inset-left, 0px));
+}
+.card {
+  width:min(520px,100%);
+  max-height:calc(100vh - 24px);
+  max-height:calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  padding:clamp(14px,3vw,26px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+}
+.card h1 { margin-top:0; }
+#hud {
+  top:calc(10px + env(safe-area-inset-top, 0px));
+  left:calc(var(--sd-gutter) + env(safe-area-inset-left, 0px));
+  right:calc(var(--sd-gutter) + env(safe-area-inset-right, 0px));
+  font-size:clamp(.75rem,1.7vw,1rem);
+}
+#controls {
+  z-index:3;
+  left:calc(var(--sd-gutter) + env(safe-area-inset-left, 0px));
+  right:calc(var(--sd-gutter) + env(safe-area-inset-right, 0px));
+  bottom:calc(12px + env(safe-area-inset-bottom, 0px));
+  gap:10px;
+}
+#attackButtons { max-width:48vw; }
+#attackButtons button { max-width:100%; line-height:1.1; }
+#shop { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:4px; }
+#shop label { font-size:.9rem; }
+#shop select { min-width:128px; }
+
+/* Phones, including portrait and landscape Android browsers. */
+@media (max-width:700px) {
+  .card { width:100%; }
+  .card h1 { font-size:clamp(1.35rem,5vw,1.75rem); }
+  #joystick { width:128px; height:128px; flex:none; }
+  #stick { width:48px; height:48px; }
+  #controls button { min-width:52px; min-height:48px; padding:9px 10px; font-size:.78rem; }
+  #characterAttack { font-size:.72rem; }
+  #attackButtons { gap:2px; }
+  #weapons button,#skills button { min-height:42px; }
+  #hud { font-size:.78rem; }
+}
+@media (max-height:480px) and (orientation:landscape) {
+  #panel { place-items:center; }
+  .card { padding:12px 16px; }
+  .card h1 { margin-bottom:6px; }
+  #controls { bottom:calc(5px + env(safe-area-inset-bottom, 0px)); }
+  #controls button { min-height:40px; padding:6px 8px; font-size:.72rem; }
+  #attackButtons { gap:0; }
+  #attackButtons button { margin:2px; }
+}
+
+/* Widescreen PC layouts: larger selection panel and compact multi-column shop. */
+@media (min-width:1024px) {
+  .card { width:min(660px,92vw); }
+  #weapons,#skills { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  #controls { bottom:24px; }
+  #attackButtons button { min-width:105px; }
+  #hud { font-size:1rem; }
+}
+@media (prefers-reduced-motion:reduce) {
+  button:active { transform:none; }
+}
