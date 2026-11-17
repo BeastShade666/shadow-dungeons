@@ -701,6 +701,14 @@ async function requestSpaceMarineModel(){
 // Grim Reaper v2 auto-rigged by Meshy; only the selected hero loads these files.
 // Existing static GLB and original procedural Reaper remain available as fallbacks.
 const reaperV2Visual=new THREE.Group();hero.add(reaperV2Visual);
+// Wrist-follow mount stays under the existing character, but the attack scythe
+// is parented to this mount, not to the torso. Keep the scene's weapon unique.
+const reaperV2ScytheMount=new THREE.Group();reaperV2Visual.add(reaperV2ScytheMount);
+const reaperV2PalmPosition=new THREE.Vector3();
+const reaperV2HandWorldQuaternion=new THREE.Quaternion();
+const reaperV2VisualWorldQuaternion=new THREE.Quaternion();
+const reaperV2RestHandInverse=new THREE.Quaternion();
+let reaperV2HandCalibrated=false;
 const reaperV2URL='https://v3b.fal.media/files/b/0ab2e247/dv1YcPvIgxE_T2M6LUlBQ_base_basic_pbr.glb';
 const reaperV2RigURLs={
  Idle:'https://v3b.fal.media/files/b/0ab2e2ad/LS2dnEWdpb6N62g_tXL82_animation.glb',
@@ -787,12 +795,25 @@ function updateReaperV2Animation(dt,movement){
  clearReaperV2AttackOffsets();
  reaperV2Mixer.update(dt);
  applyReaperV2AttackPose();
- // Follow the animated right hand, after applying the attack pose.
- if(reaperV2RightHand&&scytheRig.parent===reaperV2Visual){
-  const palm=reaperV2RightHand.getWorldPosition(new THREE.Vector3());
-  reaperV2Visual.worldToLocal(palm);
-  scytheRig.position.copy(palm).add(new THREE.Vector3(.12,-.42,.14));
-  if(weaponGroup.parent===reaperV2Visual)weaponGroup.position.copy(palm).add(new THREE.Vector3(.10,-.35,.17));
+ // The weapon follows both the hand position and the hand's actual rotation.
+ // Neutral-rest calibration preserves an upright scythe even if the rig's
+ // wrist-bone local axes differ from the shaft's geometry axes.
+ if(reaperV2RightHand){
+  reaperV2Visual.updateWorldMatrix(true,false);
+  reaperV2RightHand.updateWorldMatrix(true,false);
+  reaperV2RightHand.getWorldPosition(reaperV2PalmPosition);
+  reaperV2ScytheMount.position.copy(reaperV2Visual.worldToLocal(reaperV2PalmPosition));
+  reaperV2RightHand.getWorldQuaternion(reaperV2HandWorldQuaternion);
+  reaperV2Visual.getWorldQuaternion(reaperV2VisualWorldQuaternion);
+  const localHand=reaperV2VisualWorldQuaternion.invert().multiply(reaperV2HandWorldQuaternion);
+  if(!reaperV2HandCalibrated){
+   reaperV2RestHandInverse.copy(localHand).invert();
+   reaperV2HandCalibrated=true;
+  }
+  reaperV2ScytheMount.quaternion.copy(localHand).multiply(reaperV2RestHandInverse);
+  // Standard weapons remain attached using the existing system.
+  if(weaponGroup.parent===reaperV2Visual)
+   weaponGroup.position.copy(reaperV2PalmPosition).add(new THREE.Vector3(.10,-.35,.17));
  }
 }
 async function requestReaperV2Model(){
@@ -840,6 +861,7 @@ async function requestReaperV2Model(){
     });
     reaperV2Visual.add(model);
     reaperV2Model=model;reaperV2IsRigged=rigged;reaperV2RightHand=hand;
+    reaperV2HandCalibrated=false;
     if(rigged){collectReaperV2AttackBones(model);reaperV2RightHand=reaperV2AttackBones.rightHand||hand;}
     if(rigged){
      reaperV2Mixer=new THREE.AnimationMixer(model);
@@ -1260,17 +1282,26 @@ function attachHeldWeapons(){
 }
 function refresh(){
  // Reparent one shared signature scythe between original and test Reaper.
- const scytheHost=data.character==='reaper2'&&reaperV2State==='ready'?reaperV2Visual:reaperVisual;
+ const scytheHost=data.character==='reaper2'&&reaperV2State==='ready'
+  ?(reaperV2RightHand?reaperV2ScytheMount:reaperV2Visual):reaperVisual;
  if(scytheRig.parent!==scytheHost){
   scytheHost.add(scytheRig);
-  if(scytheHost===reaperVisual)scytheRig.position.set(.58,1.15,.28);
+  scytheRig.rotation.set(0,0,0);
+  // The shaft's origin is its grip; the wrist mount tracks the hand bone.
+  if(scytheHost===reaperV2ScytheMount)scytheRig.position.set(0,-.08,.12);
+  else scytheRig.position.set(.58,1.15,.28);
  }
+ const reaperScytheSwing=Boolean(running&&!paused&&characterSwing
+  &&!characterSwing.wolf&&!characterSwing.kitsune
+  &&!characterSwing.bell&&!characterSwing.marine
+  &&(data.character==='reaper'||data.character==='reaper2'));
+ scytheRig.visible=reaperScytheSwing;
  attachHeldWeapons();
  reaperVisual.visible=data.character==='reaper'||data.character==='reaper2'&&reaperV2State!=='ready';wolfVisual.visible=data.character==='werewolf';
  reaperV2Visual.visible=data.character==='reaper2'&&reaperV2State==='ready';
  kitsuneVisual.visible=data.character==='kitsune';bellVisual.visible=data.character==='bellshade';
  spaceMarineVisual.visible=data.character==='spacemarine';
- kitsuneDaggersVisible();weaponGroup.visible=data.character!=='bellshade';aura.visible=data.aura;auraLight.visible=data.aura;
+ kitsuneDaggersVisible();weaponGroup.visible=data.character!=='bellshade'&&!reaperScytheSwing;aura.visible=data.aura;auraLight.visible=data.aura;
  const marineSelected=data.character==='spacemarine';
  $('start').disabled=marineSelected&&spaceMarineState==='loading';
  $('start').textContent=marineSelected&&spaceMarineState==='loading'?'Loading Space Marine…':marineSelected&&spaceMarineState==='error'?'Retry Space Marine Model':hp<=0?'Retry Dungeon':'Enter Dungeon';
@@ -2028,7 +2059,7 @@ function attack(){
 // Character-specific attacks use an independent cooldown and visible weapon animations.
 // One premium Reaper signature weapon shared across original and rigged Reaper.
 // Obsidian crescent, silvered cutting edge, wrapped hilt, ferrule, soul gem, rune glow.
-const scytheRig=new THREE.Group();scytheRig.position.set(.58,1.15,.28);reaperVisual.add(scytheRig);
+const scytheRig=new THREE.Group();scytheRig.position.set(.58,1.15,.28);scytheRig.visible=false;reaperVisual.add(scytheRig);
 const scytheWood=new THREE.MeshStandardMaterial({color:0x211922,roughness:.74,metalness:.18});
 const scytheGrip=new THREE.MeshStandardMaterial({color:0x0a0910,roughness:.94,metalness:.08});
 const scytheIron=new THREE.MeshStandardMaterial({color:0x434a59,metalness:.86,roughness:.31});
@@ -2056,26 +2087,27 @@ for(const y of [1.45,1.83]){
 const scytheBlade=new THREE.Group();scytheBlade.position.set(-.01,1.72,.02);scytheRig.add(scytheBlade);
 // Concave hooked crescent: broad forged root, tapering to a needle tip.
 const scytheShape=new THREE.Shape();
-scytheShape.moveTo(.06,-.15);
-scytheShape.bezierCurveTo(-.28,.25,-.93,.66,-1.74,.71);
-scytheShape.bezierCurveTo(-1.37,.47,-1.23,.03,-.91,-.22);
-scytheShape.bezierCurveTo(-.63,-.38,-.27,-.29,.06,-.15);
+// A proper long, narrow harvesting-scythe crescent, not a broad axe blade.
+scytheShape.moveTo(.04,-.065);
+scytheShape.bezierCurveTo(-.30,.04,-1.00,.27,-1.80,.46);
+scytheShape.bezierCurveTo(-1.43,.31,-.94,.095,-.48,-.095);
+scytheShape.bezierCurveTo(-.23,-.14,-.07,-.11,.04,-.065);
 const scytheBladeMesh=new THREE.Mesh(new THREE.ExtrudeGeometry(scytheShape,{
- depth:.065,steps:1,bevelEnabled:true,bevelThickness:.012,bevelSize:.016,bevelSegments:2,curveSegments:18
+ depth:.024,steps:1,bevelEnabled:true,bevelThickness:.003,bevelSize:.003,bevelSegments:1,curveSegments:24
 }),scytheObsidian);
-scytheBladeMesh.position.z=-.032;scytheBlade.add(scytheBladeMesh);
+scytheBladeMesh.position.z=-.012;scytheBlade.add(scytheBladeMesh);
 const scytheEdgeCurve=new THREE.CatmullRomCurve3([
- new THREE.Vector3(.01,-.11,.07),new THREE.Vector3(-.27,.26,.07),
- new THREE.Vector3(-.79,.56,.07),new THREE.Vector3(-1.25,.71,.07),new THREE.Vector3(-1.73,.71,.07)
+ new THREE.Vector3(.03,-.066,.018),new THREE.Vector3(-.47,-.094,.018),
+ new THREE.Vector3(-.94,.095,.018),new THREE.Vector3(-1.43,.31,.018),new THREE.Vector3(-1.79,.46,.018)
 ]);
-const scytheEdge=new THREE.Mesh(new THREE.TubeGeometry(scytheEdgeCurve,30,.026,6,false),scytheSilver);
+const scytheEdge=new THREE.Mesh(new THREE.TubeGeometry(scytheEdgeCurve,32,.009,5,false),scytheSilver);
 scytheBlade.add(scytheEdge);
 const scytheRunes=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
- new THREE.Vector3(-.20,-.10,.075),new THREE.Vector3(-.47,.02,.075),
- new THREE.Vector3(-.84,.22,.075),new THREE.Vector3(-1.18,.38,.075)
-]),22,.018,5,false),scytheEnergy);
+ new THREE.Vector3(-.16,-.055,.018),new THREE.Vector3(-.43,-.025,.018),
+ new THREE.Vector3(-.75,.085,.018),new THREE.Vector3(-1.07,.19,.018)
+]),22,.009,4,false),scytheEnergy);
 scytheBlade.add(scytheRunes);
-const scytheRearSpike=new THREE.Mesh(new THREE.ConeGeometry(.072,.36,8),scytheSilver);
+const scytheRearSpike=new THREE.Mesh(new THREE.ConeGeometry(.045,.25,8),scytheSilver);
 scytheRearSpike.position.set(.15,-.06,0);scytheRearSpike.rotation.z=-1.15;scytheBlade.add(scytheRearSpike);
 const scytheGem=new THREE.Mesh(new THREE.OctahedronGeometry(.125,1),scytheGemMaterial);
 scytheGem.position.set(0,1.44,.10);scytheRig.add(scytheGem);
@@ -2106,6 +2138,7 @@ function characterAttack(){
   else hero.rotation.y=Math.atan2(nearest.e.obj.position.x-hero.position.x,nearest.e.obj.position.z-hero.position.z);
  }
  characterSwing={elapsed:0,duration:marine?.65:bell?.9:kitsune?.78:wolf?.7:.62,wolf,kitsune,bell,marine,hit:false,hits:0};
+ if((data.character==='reaper'||data.character==='reaper2')&&!paused)scytheRig.visible=true;
  if(kitsune){kitsuneDaggerActive=true;kitsuneDaggerSlash=1;kitsuneDaggersVisible()}
  weaponSound(bell?'staff':wolf?'axe':'sword',true);
 }
