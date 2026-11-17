@@ -992,7 +992,9 @@ function updateCharacterPortrait(){
   const facing=new THREE.Group();facing.rotation.y=spaceMarineVisual.rotation.y;
   facing.add(cloneSkinnedModel(spaceMarineModel));portraitModel.add(facing);
  }else portraitModel.add((id==='bellshade'?bellVisual:id==='kitsune'?kitsuneVisual:id==='werewolf'?wolfVisual:reaperVisual).clone(true));
- portraitModel.add(weaponGroup.clone(true));
+ // Weapons are children of the animated hand, already included in the cloned
+ // character. Adding a second copy at the portrait root breaks grip alignment.
+ if(id==='spacemarine')portraitModel.add(weaponGroup.clone(true));
  // Clone existing aura materials before tinting so unowned preview colors never alter gameplay.
  const previewAura=aura.clone(true);previewAura.visible=true;
  const tint=new THREE.Color(auraColors[auraChoice]||auraColors.violet);
@@ -1037,6 +1039,7 @@ function attachHeldWeapons(){
   data.character==='kitsune'?kitsuneArms.find(a=>a.side===1)?.pivot:null;
  if(hand){
   if(weaponGroup.parent!==hand)hand.add(weaponGroup);
+  hand.updateWorldMatrix(true,false);
   if(data.character==='reaper')weaponGroup.position.set(.31,-.88,.22);
   else if(data.character==='werewolf')weaponGroup.position.set(.38,-1.11,.30);
   else weaponGroup.position.set(.18,-.98,.20);
@@ -1057,6 +1060,10 @@ function attachHeldWeapons(){
  const bellHand=bellArms.find(a=>a.side===1)?.pivot;
  if(bellHand&&bellStaff.parent!==bellHand)bellHand.add(bellStaff);
  bellStaff.position.set(.10,-.88,.22);
+ // Visibility must be restored when changing characters: Three.js hides all
+ // descendants of an inactive character, including its equipped weapon.
+ weaponGroup.visible=data.character!=='bellshade';
+ bellStaff.visible=data.character==='bellshade';
 }
 function refresh(){
  attachHeldWeapons();
