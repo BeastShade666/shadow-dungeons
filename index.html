@@ -1040,9 +1040,19 @@ function attachHeldWeapons(){
  if(hand){
   if(weaponGroup.parent!==hand)hand.add(weaponGroup);
   hand.updateWorldMatrix(true,false);
+  weaponGroup.rotation.set(0,0,0);
   if(data.character==='reaper')weaponGroup.position.set(.31,-.88,.22);
-  else if(data.character==='werewolf')weaponGroup.position.set(.38,-1.11,.30);
-  else weaponGroup.position.set(.18,-.98,.20);
+  else if(data.character==='werewolf'){
+   // The wolf's forearm is wide: move the hilt forward of the knuckles
+   // and angle the blade away from the arm instead of up through it.
+   weaponGroup.position.set(.43,-1.12,.52);
+   weaponGroup.rotation.set(.30,0,-.60);
+  }else{
+   // Kitsune's puff sleeve crosses a vertical sword; put the grip in her
+   // gloved palm and point the blade forward/outward of the sleeve.
+   weaponGroup.position.set(.20,-.98,.37);
+   weaponGroup.rotation.set(.30,0,-.58);
+  }
  }else if(data.character==='spacemarine'&&spaceMarineModel){
   let marineHand=null;
   spaceMarineModel.traverse(o=>{if(o.isBone&&/right(hand|wrist)|hand[_ .-]?r(?![a-z])/i.test(o.name))marineHand=o});
