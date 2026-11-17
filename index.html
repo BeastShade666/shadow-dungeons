@@ -40,7 +40,7 @@
           <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select>
         </label>
         <label>Hero Color
-          <select id="heroColor" aria-label="Character model color"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option><option value="red">Crimson</option><option value="orange">Inferno</option><option value="gold">Gold</option><option value="pink">Rose</option><option value="cyan">Frost</option><option value="white">Silver</option><option value="black">Obsidian</option></select>
+          <select id="heroColor" aria-label="Character model color"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option><option value="red">Crimson</option><option value="orange">Inferno</option><option value="gold">Gold</option><option value="pink">Rose</option><option value="cyan">Frost</option><option value="white">Silver</option><option value="black">Obsidian</option><option value="navy">Midnight Navy</option><option value="teal">Deep Teal</option><option value="lime">Venom Lime</option><option value="forest">Forest</option><option value="brown">Earth Brown</option><option value="gray">Storm Gray</option><option value="lavender">Lavender</option><option value="magenta">Magenta</option><option value="maroon">Blood Moon</option><option value="ice">Ice Blue</option><option value="peach">Peach</option><option value="bronze">Bronze</option></select>
         </label>
       </div>
       <h3 class="section-title">✦ Aura Shop</h3>
@@ -304,6 +304,43 @@ for(const side of [-1,1]){
  wolfArms.push({side,pivot:arm});
 }
 const wolfHeadPivot=avatarPivot(wolfVisual,wolfHeadParts,0,2.27,.14);
+// Smooth, higher-resolution wolf anatomy and layered fur detail.
+// These shapes follow the existing animation pivots and retain recolorable fur materials.
+const smoothWolf=(parent,geometry,color,x,y,z,scale)=>{
+ const part=mesh(geometry,color);part.position.set(x,y,z);
+ if(scale)part.scale.set(...scale);
+ parent.add(part);return part;
+};
+smoothWolf(wolfVisual,new THREE.SphereGeometry(.48,24,18),wolfFur,0,1.37,-.01,[1,1.25,.92]);
+smoothWolf(wolfVisual,new THREE.SphereGeometry(.46,24,18),wolfLight,0,1.47,.28,[.82,1.07,.67]);
+smoothWolf(wolfVisual,new THREE.SphereGeometry(.52,24,18),wolfDark,0,1.84,-.10,[1.17,.52,.82]);
+for(const side of [-1,1]){
+ smoothWolf(wolfHeadPivot,new THREE.SphereGeometry(.19,20,14),wolfLight,side*.26,-.08,.35,[1.05,.85,.75]);
+ smoothWolf(wolfHeadPivot,new THREE.SphereGeometry(.16,20,14),wolfFur,side*.29,.13,.24,[.95,1.22,.75]);
+ const brow=smoothWolf(wolfHeadPivot,new THREE.SphereGeometry(.16,16,12),wolfDark,side*.2,.18,.39,[1,.32,.56]);
+ brow.rotation.z=side*.12;
+ for(let i=0;i<4;i++){
+  const cheek=smoothWolf(wolfHeadPivot,new THREE.ConeGeometry(.075,.22,9),i%2?wolfLight:wolfFur,side*(.30+i*.025),-.16-i*.085,.27-i*.035);
+  cheek.rotation.z=-side*.5;
+ }
+}
+for(let i=0;i<9;i++){
+ const x=(i-4)*.105;
+ const tuft=smoothWolf(wolfVisual,new THREE.ConeGeometry(.065,.22,8),i%3===0?wolfFur:wolfLight,x,1.1+Math.abs(x)*.1,.53);
+ tuft.rotation.z=x*.45;
+}
+for(const leg of wolfLegs){
+ smoothWolf(leg.hip,new THREE.SphereGeometry(.28,20,14),wolfFur,0,-.20,.02,[1,1.32,.95]);
+ smoothWolf(leg.knee,new THREE.SphereGeometry(.20,20,14),wolfDark,0,-.13,.03,[1,1.18,.94]);
+}
+for(const arm of wolfArms){
+ smoothWolf(arm.pivot,new THREE.SphereGeometry(.25,20,14),wolfFur,0,-.22,.04,[1,1.4,.95]);
+}
+wolfVisual.traverse(o=>{if(o.isMesh&&o.geometry?.type==='SphereGeometry'&&o.geometry.attributes.position.count<180){
+ // Keep existing silhouettes while making the new surface pieces blend smoothly.
+ o.material.roughness=.92;
+}});
+
 const wolfColorAccent=wolfPart(new THREE.OctahedronGeometry(.17),0x8b5cf6,0,1.63,.64);
 wolfColorAccent.material.emissive.setHex(0x211031);wolfColorAccent.material.emissiveIntensity=.45;
 // The tail sweeps backward and to the right, with an axe permanently fixed to its end.
@@ -470,7 +507,7 @@ joystick.addEventListener('pointerdown',e=>{e.preventDefault();joystick.setPoint
 joystick.addEventListener('pointermove',e=>{if(joystick.hasPointerCapture(e.pointerId))moveStick(e)});
 for(const type of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(type,resetStick);
 $('attack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();attack()});$('special').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();specialAttack()});$('characterAttack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();characterAttack()});$('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash()});
-const colorMap={purple:0x8b5cf6,green:0x34d399,blue:0x38bdf8,red:0xe64b60,orange:0xff8438,gold:0xeec24f,pink:0xf77cce,cyan:0x65e8f1,white:0xe3e8f1,black:0x45405b};
+const colorMap={purple:0x8b5cf6,green:0x34d399,blue:0x38bdf8,red:0xe64b60,orange:0xff8438,gold:0xeec24f,pink:0xf77cce,cyan:0x65e8f1,white:0xe3e8f1,black:0x45405b,navy:0x263e82,teal:0x168d89,lime:0xb3e33b,forest:0x286b43,brown:0x82563b,gray:0x89909c,lavender:0xb49cf1,magenta:0xe43bb0,maroon:0x8b243d,ice:0xb4ecff,peach:0xffb58c,bronze:0xba8245};
 // Store original model material colors once. Recolor fabric and fur, not bones,
 // teeth, eyes, weapons or other distinct details.
 const modelColorParts=[];
