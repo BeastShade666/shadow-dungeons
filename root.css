@@ -132,3 +132,15 @@ button:focus-visible,select:focus-visible {
   #shop .aura-picker { flex-basis:100%; }
   #shop .aura-options { max-height:min(34vh,220px); }
 }
+
+/* Fantasy tabletop-adventure artwork on the lobby/menu only. */
+#panel {
+ background:linear-gradient(90deg,rgba(7,5,19,.62),rgba(12,8,27,.35),rgba(7,5,19,.62)),url("./menu-fantasy.svg") center center / cover no-repeat;
+}
+#panel .card {
+ background:rgba(25,17,43,.89);
+ border-color:#a27cc7;
+ box-shadow:0 16px 65px #000c,0 0 35px #5c2c8b44;
+ backdrop-filter:blur(5px);
+ -webkit-backdrop-filter:blur(5px);
+}
