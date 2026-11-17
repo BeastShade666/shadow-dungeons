@@ -60,8 +60,7 @@ button:focus-visible,select:focus-visible {
 #attackButtons { max-width:48vw; }
 #attackButtons button { max-width:100%; line-height:1.1; }
 #shop { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:4px; }
-#shop label { font-size:.9rem; }
-#shop select { min-width:128px; }
+#shop .shop-label { font-size:.9rem; }
 
 /* Phones, including portrait and landscape Android browsers. */
 @media (max-width:700px) {
@@ -97,17 +96,39 @@ button:focus-visible,select:focus-visible {
   button:active { transform:none; }
 }
 
-/* Clearly visible Aura Shop dropdown arrow on Android and desktop. */
-#shop #auraSelect {
-  appearance:none;
-  -webkit-appearance:none;
-  padding-right:44px;
-  min-height:46px;
-  max-width:100%;
-  background-color:var(--sd-accent);
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m5 9 7 7 7-7' fill='none' stroke='%23ffffff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;
-  background-position:right 13px center;
-  background-size:20px 20px;
-  cursor:pointer;
+/* Inline Aura Shop picker: matches the main menu and never opens an OS popup. */
+#shop .aura-picker { flex:1 1 230px; min-width:min(220px,100%); max-width:100%; }
+#shop .aura-picker > summary {
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  list-style:none; cursor:pointer; min-height:46px; padding:10px 14px;
+  color:var(--sd-text); background:var(--sd-panel);
+  border:1px solid var(--sd-border); border-radius:12px;
+  text-align:left;
+}
+#shop .aura-picker > summary::-webkit-details-marker { display:none; }
+#shop .aura-picker > summary::after { content:"⌄"; font-size:1.3rem; line-height:1; }
+#shop .aura-picker[open] > summary::after { transform:rotate(180deg); }
+#shop .aura-options {
+  margin-top:4px; padding:5px; border:1px solid var(--sd-border);
+  border-radius:12px; background:var(--sd-panel);
+  max-height:min(38vh,260px); overflow-y:auto; overscroll-behavior:contain;
+}
+#shop .aura-choice {
+  display:flex; align-items:center; gap:10px; width:100%; min-height:44px;
+  margin:0; padding:9px 12px; text-align:left; font-size:.9rem;
+  border:1px solid transparent; border-radius:8px;
+  color:var(--sd-text); background:var(--sd-panel);
+}
+#shop .aura-choice::before {
+  content:""; display:block; flex:none; width:15px; height:15px;
+  border-radius:50%; border:1px solid #ffffff77; background:var(--aura-color);
+}
+#shop .aura-choice.selected { border-color:var(--sd-accent-soft); }
+#shop .aura-choice:hover { border-color:var(--sd-border); }
+#shop .aura-choice:focus-visible,#shop .aura-picker > summary:focus-visible {
+  outline:3px solid var(--sd-accent-soft); outline-offset:2px;
+}
+@media (max-width:700px) {
+  #shop .aura-picker { flex-basis:100%; }
+  #shop .aura-options { max-height:min(34vh,220px); }
 }
