@@ -288,7 +288,7 @@ function drawAuras(){
  const select=$('auraSelect'),action=$('auraAction');
  const chosen=auraShop[select.value]?select.value:data.auraColor;
  select.innerHTML='';
- for(const [id,item] of Object.entries(auraShop)){
+ for(const [id,item] of Object.entries(auraShop).sort((a,b)=>a[1].price-b[1].price)){
   const owned=data.ownedAuras.includes(id);
   const option=document.createElement('option');
   option.value=id;
@@ -301,7 +301,9 @@ function drawAuras(){
   if(!item)return;
   action.textContent=owned?(data.auraColor===id?'Equipped':'Equip Aura'):'Buy Aura · '+item.price+' gold';
   action.disabled=(owned&&data.auraColor===id)||(!owned&&data.gold<item.price);
-  action.style.borderColor='#'+auraColors[id].toString(16).padStart(6,'0');
+  const accent='#'+auraColors[id].toString(16).padStart(6,'0');
+  action.style.borderColor=accent;
+  select.style.borderColor=accent;
  };
  select.onchange=updateAction;
  action.onclick=()=>{
@@ -340,6 +342,7 @@ function setAuraColor(){
  auraLight.color.setHex(color);
 }
 setAuraColor();
+drawAuras(); // Populate the Aura Shop on first load, not only after purchases.
 function animateAura(t){
  if(!aura.visible)return;
  const pulse=1+Math.sin(t*3.4)*.075;
