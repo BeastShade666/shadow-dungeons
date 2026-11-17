@@ -32,34 +32,70 @@ $('attack').addEventListener('pointerdown',e=>{e.preventDefault();attack()});
 const colorMap={purple:0x8b5cf6,green:0x34d399,blue:0x38bdf8};
 function refresh(){body.material.color.setHex(colorMap[$('heroColor').value]);aura.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('shop').innerHTML=data.aura?'✨ Violet Aura owned':'<button id="buy">Buy Violet Aura — 30 gold</button>';if(!data.aura)$('buy').onclick=()=>{if(data.gold<30){$('message').textContent='Earn 30 gold by defeating monsters!';return}data.gold-=30;data.aura=true;persist();refresh()};$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length)}
 function monster(kind){
- const g=new THREE.Group();const add=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,color);m.position.set(x,y,z);m.scale.set(sx,sy,sz);g.add(m);return m};
- const ball=(r,c,x,y,z)=>add(new THREE.SphereGeometry(r,12,9),c,x,y,z);
+ const g=new THREE.Group();
+ const add=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,color);m.position.set(x,y,z);m.scale.set(sx,sy,sz);g.add(m);return m};
+ const ball=(r,c,x,y,z,sx=1,sy=1,sz=1)=>add(new THREE.SphereGeometry(r,16,12),c,x,y,z,sx,sy,sz);
+ const box=(w,h,d,c,x,y,z)=>add(new THREE.BoxGeometry(w,h,d),c,x,y,z);
+ const cone=(r,h,c,x,y,z,tilt=0)=>{const m=add(new THREE.ConeGeometry(r,h,9),c,x,y,z);m.rotation.z=tilt;return m};
+ const tube=(r1,r2,h,c,x,y,z,tilt=0)=>{const m=add(new THREE.CylinderGeometry(r1,r2,h,9),c,x,y,z);m.rotation.z=tilt;return m};
+ const eye=(x,y,z,color=0xff4d5b,r=.12)=>{ball(r,0x160e21,x,y,z);ball(r*.68,color,x,y,z+.065);ball(r*.22,0xffffff,x-.025,y+.03,z+.12)};
  if(kind==='slime'){
-  ball(.76,0x54db78,0,.65,0).scale.set(1.15,.7,1);
-  ball(.13,0x10191b,-.27,.8,.55);ball(.13,0x10191b,.27,.8,.55);
-  ball(.055,0xffffff,-.23,.85,.66);ball(.055,0xffffff,.31,.85,.66);
+  ball(.78,0x2da866,0,.62,0,1.15,.76,1.05);
+  ball(.68,0x66e79a,0,.76,.09,1.13,.7,1.03);
+  ball(.42,0xa3ffd0,-.21,.96,.38,.7,.38,.35);
+  for(const x of [-.29,.29])eye(x,.83,.72,0x101d26,.145);
+  add(new THREE.TorusGeometry(.19,.038,6,14,Math.PI),0x145b4b,0,.58,.78).rotation.z=Math.PI;
+  for(let i=0;i<5;i++){const x=Math.sin(i*2.4)*.55,z=Math.cos(i*2.4)*.47;ball(.12,0x3fc681,x,.2,z)}
+  ball(.17,0x8bffbb,.42,1.17,-.04,.9,.5,.8);
  }else if(kind==='skeleton'){
-  ball(.48,0xe9e3cc,0,1.72,0);add(new THREE.BoxGeometry(.7,.65,.3),0xd3cbb5,0,1.02,0);
-  for(const x of [-.2,.2]){add(new THREE.BoxGeometry(.16,.62,.18),0xc9c3b5,x,.37,0);ball(.16,0x12101b,x,1.78,.39)}
-  add(new THREE.BoxGeometry(.22,.15,.13),0x17131f,0,1.49,.42);
-  for(const x of [-.47,.47])add(new THREE.BoxGeometry(.15,.72,.16),0xd7d0bd,x,1.03,0);
+  const bone=0xe9dfc7,shade=0xb8a78d;
+  ball(.46,bone,0,1.83,0,1,.98,.85);
+  box(.72,.26,.38,bone,0,1.51,.02);
+  for(const x of [-.19,.19]){eye(x,1.85,.39,0x70f5f0,.15);box(.1,.18,.12,shade,x,1.44,.29)}
+  cone(.12,.19,shade,0,1.68,.42,Math.PI);
+  tube(.12,.16,.63,shade,0,1.02,0);
+  for(let i=0;i<4;i++){const y=1.32-i*.14;box(.76-i*.08,.075,.27,bone,0,y,.09)}
+  for(const side of [-1,1]){
+   ball(.18,bone,side*.42,1.37,0);
+   tube(.095,.075,.68,bone,side*.52,1.02,0,side*.13);
+   ball(.12,shade,side*.58,.68,0);
+   tube(.12,.1,.68,bone,side*.22,.36,0,side*.08);
+   ball(.13,shade,side*.23,.1,.12);
+  }
+  box(.58,.19,.28,shade,0,.72,0);
+  box(.17,.86,.16,0x674b45,.69,1.15,.12);
+  box(.48,.09,.3,0xaab9c8,.69,1.55,.12);
  }else if(kind==='bat'){
-  ball(.46,0x58316f,0,1.3,0);for(const side of [-1,1]){
-   const wing=add(new THREE.ConeGeometry(.72,1.35,3),0x8a4a9d,side*.9,1.45,0);
-   wing.rotation.z=side*Math.PI/2;
-   add(new THREE.ConeGeometry(.17,.42,4),0x59316c,side*.23,1.83,0);
+  ball(.5,0x402450,0,1.3,0,1,.88,.75);
+  ball(.38,0x75438e,0,1.5,.22);
+  for(const side of [-1,1]){
+   const wingShape=new THREE.Shape();wingShape.moveTo(0,0);wingShape.lineTo(side*.65,.38);wingShape.lineTo(side*1.58,.52);wingShape.lineTo(side*1.36,-.16);wingShape.lineTo(side*.95,-.02);wingShape.lineTo(side*.56,-.35);wingShape.lineTo(0,-.12);
+   const wing=new THREE.Mesh(new THREE.ShapeGeometry(wingShape),new THREE.MeshStandardMaterial({color:0x8b509f,side:THREE.DoubleSide,roughness:.8}));wing.position.set(0,1.43,-.1);g.add(wing);
+   cone(.19,.46,0x75438e,side*.31,1.98,.02,side*.23);
+   ball(.17,0x30203c,side*.22,1.54,.48);eye(side*.22,1.54,.62,0xff3868,.13);
+   cone(.085,.2,0xf4d4cf,side*.13,1.18,.4,Math.PI);
   }
-  for(const x of [-.18,.18])ball(.1,0xff456f,x,1.38,.4);
+  ball(.16,0xb98bc3,0,1.26,.4);
+  for(const x of [-.2,.2])cone(.13,.3,0x37213f,x,.91,.05,Math.PI);
  }else{
-  ball(.9,0x71392c,0,1.25,0).scale.set(1,.95,.75);
-  ball(.68,0xa45c38,0,2.25,.08);
-  for(const x of [-.44,.44]){
-   const horn=add(new THREE.ConeGeometry(.24,.85,7),0xe9c992,x,2.93,0);horn.rotation.z=x>0?-.3:.3;
-   ball(.16,0xff512a,x,2.32,.58);
-   add(new THREE.BoxGeometry(.36,1.05,.38),0x6c3229,x*1.9,1.25,0);
+  ball(.98,0x67352e,0,1.3,0,1,.98,.78);
+  ball(.79,0x9d5541,0,2.3,.12,1,.94,.83);
+  ball(.57,0x4b2929,0,1.1,.64,1,.6,.26);
+  for(const side of [-1,1]){
+   ball(.34,0x4a2a2c,side*.85,1.86,0);
+   tube(.26,.32,1.13,0x713a32,side*1.04,1.21,0,side*.15);
+   ball(.3,0x3a2228,side*1.12,.65,.14);
+   tube(.28,.34,.85,0x59302c,side*.46,.47,0,side*.09);
+   cone(.29,1.03,0xd8b78c,side*.54,3.18,.02,-side*.35);
+   cone(.15,.44,0xe9d7b4,side*.4,1.94,.79,Math.PI);
+   eye(side*.36,2.43,.74,0xff572d,.2);
   }
-  add(new THREE.BoxGeometry(.7,.18,.22),0x21141a,0,1.96,.65);
+  box(.83,.24,.24,0x2a151b,0,1.98,.79);
+  for(let i=0;i<5;i++)cone(.085,.2,0xf2dcc0,(i-2)*.16,1.89,.96,Math.PI);
+  for(const x of [-.6,.6]){cone(.25,.52,0x35252d,x,2.06,-.35,x>0?-.5:.5)}
+  add(new THREE.TorusGeometry(.85,.065,6,24),0xb77a42,0,1.24,.01,1,.95,.82);
  }
+ g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
  return g;
 }
 function spawn(){
