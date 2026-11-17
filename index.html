@@ -3,7 +3,7 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0d0b18;color:white;font-family:system-ui,sans-serif;overflow:hidden}canvas{display:block}#hud{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;font-weight:700;text-shadow:0 2px 5px #000}#panel{position:fixed;inset:0;background:#0d0b18ee;display:grid;place-items:center;z-index:5;padding:20px;overflow:auto}.card{width:min(460px,100%);background:#231b38;border:1px solid #66518a;border-radius:18px;padding:24px;text-align:center;box-shadow:0 10px 40px #0008}h1{color:#c5a4ff}button,select{background:#6745a7;color:white;border:1px solid #a889e1;border-radius:12px;padding:12px 16px;font:inherit;margin:5px;cursor:pointer}button:active{transform:scale(.96)}#controls{position:fixed;bottom:22px;left:16px;right:16px;display:none;justify-content:space-between;align-items:end;pointer-events:none}#controls button{pointer-events:auto;touch-action:none;min-width:62px;min-height:62px;font-weight:900}#joystick{width:144px;height:144px;border-radius:50%;border:3px solid #a889e1;background:#35264caa;position:relative;pointer-events:auto;touch-action:none;user-select:none;box-shadow:inset 0 0 20px #0006}#stick{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c6a7ff,#7651b2);border:2px solid #e0caff;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 3px 12px #0009}#attack{background:#aa315f}#special{background:#5635a6;border-color:#c6a4ff;min-width:78px!important}#special:disabled{opacity:.5}#attackButtons{display:flex;flex-direction:column;align-items:end;gap:4px;pointer-events:auto}#attackButtons button{margin:2px}#skills{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:10px 0}#skills button{font-size:12px;padding:9px 5px;margin:0}#skills button:disabled{opacity:.55}#weapons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:12px 0}#weapons button{font-size:13px;margin:0;padding:10px 5px}#weapons button.selected{border:2px solid #eac5ff;background:#8557b8}small{color:#c6bdd8}#error{position:fixed;bottom:4px;color:#ffb8b8;left:10px;font-size:12px}
 </style></head><body>
-<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><div id="shop"></div><label>Aura color <select id="auraColor"><option value="violet">💜 Violet</option><option value="red">❤️ Crimson</option><option value="blue">💙 Sapphire</option><option value="green">💚 Emerald</option><option value="gold">💛 Golden</option><option value="cyan">🩵 Frost</option><option value="pink">🩷 Rose</option><option value="white">🤍 Celestial</option></select></label><h3>Skill Upgrades</h3><p id="skillInfo"><small>Spend gold to improve your hero permanently. Prices rise with each purchase.</small></p><div id="skills"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space • Special: Q or purple button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
+<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><h3>Aura Shop</h3><div id="shop"></div><h3>Skill Upgrades</h3><p id="skillInfo"><small>Spend gold to improve your hero permanently. Prices rise with each purchase.</small></p><div id="skills"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space • Special: Q or purple button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
 <div id="controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div></div><div id="attackButtons"><button id="special">SPECIAL</button><button id="attack">ATTACK</button></div></div><div id="error"></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
@@ -32,7 +32,7 @@ function drawSkills(){
    if(data.gold<cost)return;
    data.gold-=cost;data.skills[id]=rank+1;
    if(id==='vitality')hp=Math.min(maxHealth(),hp+20);
-   persist();drawSkills();drawWeapons();refresh();
+   persist();drawSkills();drawWeapons();drawAuras();refresh();
   };
   el.appendChild(button);
  }
@@ -201,14 +201,47 @@ function drawWeapons(){
   b.textContent=w.name+' · '+(selected?'Equipped':owned?'Equip':w.price+' gold');
   b.onclick=()=>{
    if(!owned){if(data.gold<w.price){$('message').textContent='Not enough gold for '+w.name;return}data.gold-=w.price;data.ownedWeapons.push(id)}
-   data.weapon=id;persist();if(data.weapon==='spear')data.weapon='bow';if(Array.isArray(data.ownedWeapons)&&data.ownedWeapons.includes('spear')&&!data.ownedWeapons.includes('bow'))data.ownedWeapons.push('bow');buildWeapon();drawWeapons();drawSkills();refresh();
+   data.weapon=id;persist();if(data.weapon==='spear')data.weapon='bow';if(Array.isArray(data.ownedWeapons)&&data.ownedWeapons.includes('spear')&&!data.ownedWeapons.includes('bow'))data.ownedWeapons.push('bow');buildWeapon();drawWeapons();drawSkills();drawAuras();refresh();
   };
   el.appendChild(b);
  }
 }
 buildWeapon();drawWeapons();
 const auraColors={violet:0x9b5cff,red:0xff385e,blue:0x387dff,green:0x30f0a0,gold:0xffcb45,cyan:0x43eaff,pink:0xff6cd8,white:0xeaf5ff};
+const auraShop={
+ violet:{name:'💜 Violet',price:30},red:{name:'❤️ Crimson',price:35},
+ blue:{name:'💙 Sapphire',price:40},green:{name:'💚 Emerald',price:45},
+ gold:{name:'💛 Golden',price:65},cyan:{name:'🩵 Frost',price:50},
+ pink:{name:'🩷 Rose',price:55},white:{name:'🤍 Celestial',price:80}
+};
+// Migrate existing saves: previously buying one aura unlocked every color.
+if(!Array.isArray(data.ownedAuras)){
+ data.ownedAuras=data.aura?Object.keys(auraShop):[];
+}
+data.ownedAuras=data.ownedAuras.filter(id=>Object.hasOwn(auraShop,id));
 if(!auraColors[data.auraColor])data.auraColor='violet';
+if(!data.ownedAuras.includes(data.auraColor))data.auraColor=data.ownedAuras[0]||'violet';
+data.aura=data.ownedAuras.length>0;
+function drawAuras(){
+ const el=$('shop');el.innerHTML='';
+ for(const [id,item] of Object.entries(auraShop)){
+  const owned=data.ownedAuras.includes(id),selected=owned&&data.auraColor===id;
+  const b=document.createElement('button');
+  b.textContent=item.name+' · '+(selected?'Equipped':owned?'Equip':item.price+' gold');
+  b.style.borderColor='#'+auraColors[id].toString(16).padStart(6,'0');
+  b.className=selected?'selected':'';
+  b.onclick=()=>{
+   if(!owned){
+    if(data.gold<item.price){$('message').textContent='Not enough gold for '+item.name;return}
+    data.gold-=item.price;data.ownedAuras.push(id);
+   }
+   data.auraColor=id;data.aura=true;setAuraColor();persist();
+   drawAuras();drawWeapons();drawSkills();refresh();
+  };
+  el.appendChild(b);
+ }
+}
+
 const aura=new THREE.Group();hero.add(aura);
 const glowMat=(color,opacity)=>new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
 const auraRings=[];
@@ -231,8 +264,6 @@ function setAuraColor(){
  auraParticles.forEach((p,i)=>p.material.color.setHex(i%3===0?new THREE.Color(color).lerp(new THREE.Color(0xffffff),.45).getHex():color));
  auraLight.color.setHex(color);
 }
-$('auraColor').value=data.auraColor;
-$('auraColor').onchange=()=>{data.auraColor=$('auraColor').value;persist();setAuraColor()};
 setAuraColor();
 function animateAura(t){
  if(!aura.visible)return;
@@ -252,7 +283,7 @@ joystick.addEventListener('pointermove',e=>{if(joystick.hasPointerCapture(e.poin
 for(const type of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(type,resetStick);
 $('attack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();attack()});$('special').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();specialAttack()});
 const colorMap={purple:0x8b5cf6,green:0x34d399,blue:0x38bdf8};
-function refresh(){body.material.color.setHex(colorMap[$('heroColor').value]);wolfColorAccent.material.color.setHex(colorMap[$('heroColor').value]);reaperVisual.visible=data.character!=='werewolf';wolfVisual.visible=data.character==='werewolf';aura.visible=data.aura;auraLight.visible=data.aura;$('auraColor').disabled=!data.aura;$('wallet').textContent='Gold: '+data.gold;$('shop').innerHTML=data.aura?'✨ Glowing Aura owned — choose your color below':'<button id="buy">Unlock Aura Colors — 30 gold</button>';if(!data.aura)$('buy').onclick=()=>{if(data.gold<30){$('message').textContent='Earn 30 gold by defeating monsters!';return}data.gold-=30;data.aura=true;persist();drawWeapons();drawSkills();refresh()};$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length)}
+function refresh(){body.material.color.setHex(colorMap[$('heroColor').value]);wolfColorAccent.material.color.setHex(colorMap[$('heroColor').value]);reaperVisual.visible=data.character!=='werewolf';wolfVisual.visible=data.character==='werewolf';aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length)}
 function monster(kind){
  const g=new THREE.Group();
  const add=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,color);m.position.set(x,y,z);m.scale.set(sx,sy,sz);g.add(m);return m};
@@ -448,7 +479,7 @@ function damageEnemy(e,amount,soundType=data.weapon){
  e.hp-=amount*attackPower();e.obj.scale.setScalar(1.13);
  if(e.hp<=0){
   scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
-  data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();drawSkills();
+  data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();drawSkills();drawAuras();
   if(!enemies.length){
    level++;hp=Math.min(maxHealth(),hp+25);spawn();
    show('Floor cleared! +25 health. Gold is yours to keep. Continue to the next floor!');
