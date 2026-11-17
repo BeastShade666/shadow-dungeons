@@ -1583,7 +1583,8 @@ function updateBossLoot(dt){
  bossLoot.marker.rotation.y+=dt*2.2;
  bossLoot.marker.position.y=1.65+Math.sin(bossLoot.age*3)*.16;
  const d=Math.hypot(hero.position.x-bossLoot.group.position.x,hero.position.z-bossLoot.group.position.z);
- if(d>1.65)return;
+ // Give the player a moment to see the reward before proximity collection.
+ if(bossLoot.age<1.5||d>1.65)return;
  const bonus=20+Math.floor(bossLoot.floor/3)*10;
  data.gold+=bonus;
  persist();drawWeapons();drawSkills();drawAuras();
@@ -1625,7 +1626,7 @@ function spawn(){
  }
  refresh();
 }
-function show(message){bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
+function show(message){clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
 function endDungeonRun(){
  if(!running)return;
  clearBossLoot();
@@ -1689,7 +1690,7 @@ function updateBossExplosions(dt){
 }
 function updateBossBolts(dt){
  for(let i=bossBolts.length-1;i>=0;i--){
-  const b=bossBolts[i];b.life-=dt;
+  const b=bossBolts[i];if(!b)continue;b.life-=dt;
   const oldX=b.obj.position.x,oldZ=b.obj.position.z;
   const newX=oldX+b.dir.x*11*dt,newZ=oldZ+b.dir.z*11*dt;
   const travel=Math.hypot(newX-oldX,newZ-oldZ);
@@ -1704,7 +1705,7 @@ function updateBossBolts(dt){
   b.obj.rotation.y+=dt*9;
   if(hitHero)hurtHero(b.damage);
   if(collided)explodeBossBolt(b.obj.position);
-  if(collided||b.life<=0||!running){scene.remove(b.obj);b.obj.geometry.dispose();b.obj.material.dispose();bossBolts.splice(i,1)}
+  if(collided||b.life<=0||!running){scene.remove(b.obj);b.obj.geometry.dispose();b.obj.material.dispose();const index=bossBolts.indexOf(b);if(index!==-1)bossBolts.splice(index,1)}
  }
 }
 // Synthesized weapon sounds: no downloads or audio assets required.
@@ -2115,14 +2116,14 @@ function updateSwing(dt){
 }
 function updateProjectiles(dt){
  for(let i=projectiles.length-1;i>=0;i--){
-  const p=projectiles[i];p.life-=dt;
+  const p=projectiles[i];if(!p)continue;p.life-=dt;
   if(!running||!enemies.includes(p.target)||p.life<=0){
-   scene.remove(p.obj);projectiles.splice(i,1);continue;
+   scene.remove(p.obj);const index=projectiles.indexOf(p);if(index!==-1)projectiles.splice(index,1);continue;
   }
   const destination=p.target.obj.position.clone().add(new THREE.Vector3(0,1.2,0));
   const delta=destination.sub(p.obj.position),distance=delta.length();
   if(distance<Math.max(.45,p.speed*dt)){
-   scene.remove(p.obj);projectiles.splice(i,1);damageEnemy(p.target,p.damage,p.soundType||data.weapon);
+   scene.remove(p.obj);const index=projectiles.indexOf(p);if(index!==-1)projectiles.splice(index,1);damageEnemy(p.target,p.damage,p.soundType||data.weapon);
   }else{
    p.obj.position.addScaledVector(delta.normalize(),p.speed*dt);
    p.obj.rotation.y=Math.atan2(delta.x,delta.z);
@@ -2134,7 +2135,7 @@ $('start').onclick=()=>{
   if(spaceMarineState==='error')requestSpaceMarineModel();
   return;
  }
- if(!running){clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
+ if(!running){clearBossLoot();clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
 data.character=['werewolf','reaper','reaper2','kitsune','bellshade','spacemarine'].includes(data.character)?data.character:'reaper';
 if(data.weapon==='daggers')data.weapon='sword';
 $('characterSelect').value=data.character;
