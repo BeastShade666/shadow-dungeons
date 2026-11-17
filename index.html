@@ -3,7 +3,7 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0d0b18;color:white;font-family:system-ui,sans-serif;overflow:hidden}canvas{display:block}#hud{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;font-weight:700;text-shadow:0 2px 5px #000}#panel{position:fixed;inset:0;background:#0d0b18ee;display:grid;place-items:center;z-index:5;padding:20px;overflow:auto}.card{width:min(460px,100%);background:#231b38;border:1px solid #66518a;border-radius:18px;padding:24px;text-align:center;box-shadow:0 10px 40px #0008}h1{color:#c5a4ff}button,select{background:#6745a7;color:white;border:1px solid #a889e1;border-radius:12px;padding:12px 16px;font:inherit;margin:5px;cursor:pointer}button:active{transform:scale(.96)}#controls{position:fixed;bottom:22px;left:16px;right:16px;display:none;justify-content:space-between;align-items:end;pointer-events:none}#controls button{pointer-events:auto;touch-action:none;min-width:62px;min-height:62px;font-weight:900}#joystick{width:144px;height:144px;border-radius:50%;border:3px solid #a889e1;background:#35264caa;position:relative;pointer-events:auto;touch-action:none;user-select:none;box-shadow:inset 0 0 20px #0006}#stick{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c6a7ff,#7651b2);border:2px solid #e0caff;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 3px 12px #0009}#attack{background:#aa315f}#special{background:#5635a6;border-color:#c6a4ff;min-width:78px!important}#special:disabled{opacity:.5}#attackButtons{display:flex;flex-direction:column;align-items:end;gap:4px;pointer-events:auto}#attackButtons button{margin:2px}#characterAttack{background:#315b79;border-color:#8be9ff;font-size:12px}#characterAttack:disabled{opacity:.5}#skills{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:10px 0}#skills button{font-size:12px;padding:9px 5px;margin:0}#skills button:disabled{opacity:.55}#weapons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:12px 0}#weapons button{font-size:13px;margin:0;padding:10px 5px}#weapons button.selected{border:2px solid #eac5ff;background:#8557b8}small{color:#c6bdd8}#error{position:fixed;bottom:4px;color:#ffb8b8;left:10px;font-size:12px}
 </style></head><body>
-<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><h3>Aura Shop</h3><div id="shop"></div><h3>Skill Upgrades</h3><p id="skillInfo"><small>Spend gold to improve your hero permanently. Prices rise with each purchase.</small></p><div id="skills"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E or blue button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
+<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><h3>Aura Shop</h3><div id="shop"><label for="auraSelect">Aura color</label><select id="auraSelect"></select><button id="auraAction" type="button"></button></div><h3>Skill Upgrades</h3><p id="skillInfo"><small>Spend gold to improve your hero permanently. Prices rise with each purchase.</small></p><div id="skills"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E or blue button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
 <div id="controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div></div><div id="attackButtons"><button id="characterAttack">SCYTHE SWEEP</button><button id="special">SPECIAL</button><button id="attack">ATTACK</button></div></div><div id="error"></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
@@ -285,23 +285,36 @@ if(!auraColors[data.auraColor])data.auraColor='violet';
 if(!data.ownedAuras.includes(data.auraColor))data.auraColor=data.ownedAuras[0]||'violet';
 data.aura=data.ownedAuras.length>0;
 function drawAuras(){
- const el=$('shop');el.innerHTML='';
+ const select=$('auraSelect'),action=$('auraAction');
+ const chosen=auraShop[select.value]?select.value:data.auraColor;
+ select.innerHTML='';
  for(const [id,item] of Object.entries(auraShop)){
-  const owned=data.ownedAuras.includes(id),selected=owned&&data.auraColor===id;
-  const b=document.createElement('button');
-  b.textContent=item.name+' · '+(selected?'Equipped':owned?'Equip':item.price+' gold');
-  b.style.borderColor='#'+auraColors[id].toString(16).padStart(6,'0');
-  b.className=selected?'selected':'';
-  b.onclick=()=>{
-   if(!owned){
-    if(data.gold<item.price){$('message').textContent='Not enough gold for '+item.name;return}
-    data.gold-=item.price;data.ownedAuras.push(id);
-   }
-   data.auraColor=id;data.aura=true;setAuraColor();persist();
-   drawAuras();drawWeapons();drawSkills();refresh();
-  };
-  el.appendChild(b);
+  const owned=data.ownedAuras.includes(id);
+  const option=document.createElement('option');
+  option.value=id;
+  option.textContent=item.name+' — '+(owned?(data.auraColor===id?'Equipped':'Owned'):item.price+' gold');
+  select.appendChild(option);
  }
+ select.value=chosen;
+ const updateAction=()=>{
+  const id=select.value,item=auraShop[id],owned=data.ownedAuras.includes(id);
+  if(!item)return;
+  action.textContent=owned?(data.auraColor===id?'Equipped':'Equip Aura'):'Buy Aura · '+item.price+' gold';
+  action.disabled=(owned&&data.auraColor===id)||(!owned&&data.gold<item.price);
+  action.style.borderColor='#'+auraColors[id].toString(16).padStart(6,'0');
+ };
+ select.onchange=updateAction;
+ action.onclick=()=>{
+  const id=select.value,item=auraShop[id];
+  if(!item)return;
+  if(!data.ownedAuras.includes(id)){
+   if(data.gold<item.price){$('message').textContent='Not enough gold for '+item.name;return}
+   data.gold-=item.price;data.ownedAuras.push(id);
+  }
+  data.auraColor=id;data.aura=true;setAuraColor();persist();
+  drawAuras();drawWeapons();drawSkills();refresh();
+ };
+ updateAction();
 }
 
 const aura=new THREE.Group();hero.add(aura);
