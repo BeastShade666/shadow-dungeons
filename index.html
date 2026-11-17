@@ -290,94 +290,83 @@ const wolfPart=(geo,color,x,y,z,scale)=>{
 };
 const wolfHeadParts=[],wolfArms=[],wolfLegs=[];
 const wolfHeadPart=(...args)=>{const p=wolfPart(...args);wolfHeadParts.push(p);return p};
+// Rebuilt werewolf: athletic lupine silhouette, smooth anatomy, long muzzle,
+// layered mane, digitigrade legs and articulated limbs.
 const wolfFur=0x4e4139,wolfDark=0x292630,wolfLight=0x806d60,wolfBone=0xeee5d1;
-wolfPart(new THREE.CylinderGeometry(.42,.53,1.13,12),wolfFur,0,1.32,0);
-wolfPart(new THREE.SphereGeometry(.66,14,10),wolfDark,0,1.78,0,[1,.56,.72]);
-wolfPart(new THREE.SphereGeometry(.36,12,9),wolfLight,0,1.49,.43,[1,1.27,.44]);
-// Layered chest fur and shoulder tufts give the wolf a more natural silhouette.
-for(let i=0;i<6;i++){
- const x=(i-2.5)*.13;
- const tuft=wolfPart(new THREE.ConeGeometry(.095,.31,5),i%2?wolfLight:wolfFur,x,1.24,.62);
- tuft.rotation.z=x*.23;
+const wolfSphere=(parent,color,x,y,z,sx,sy,sz)=>{
+ const m=mesh(new THREE.SphereGeometry(1,24,16),color);
+ m.position.set(x,y,z);m.scale.set(sx,sy,sz);parent.add(m);return m;
+};
+const wolfCone=(parent,color,x,y,z,r,h,segments=12)=>{
+ const m=mesh(new THREE.ConeGeometry(r,h,segments),color);
+ m.position.set(x,y,z);parent.add(m);return m;
+};
+wolfSphere(wolfVisual,wolfFur,0,1.39,-.08,.47,.73,.35);
+wolfSphere(wolfVisual,wolfDark,0,1.81,-.12,.66,.34,.40);
+wolfSphere(wolfVisual,wolfLight,0,1.48,.29,.34,.54,.14);
+wolfSphere(wolfVisual,wolfFur,0,1.08,-.06,.38,.36,.32);
+for(let i=0;i<9;i++){
+ const x=(i-4)*.108;
+ const tuft=wolfCone(wolfVisual,i%3===0?wolfFur:wolfLight,x,1.18+Math.abs(x)*.14,.42,.085,.30);
+ tuft.rotation.z=x*.42;
 }
-for(let i=0;i<5;i++){const tuft=wolfPart(new THREE.ConeGeometry(.14,.43,6),i%2?wolfDark:wolfLight,(i-2)*.15,1.07,.61);tuft.rotation.z=(i-2)*.14}
-wolfHeadPart(new THREE.SphereGeometry(.47,14,11),wolfFur,0,2.35,.14,[1,1.01,.87]);
-wolfHeadPart(new THREE.SphereGeometry(.29,12,9),wolfLight,0,2.17,.54,[1,.58,1.3]);
-wolfHeadPart(new THREE.SphereGeometry(.21,12,9),wolfDark,0,2.23,.80,[1,.62,.63]);
-wolfHeadPart(new THREE.SphereGeometry(.16,10,8),0x17141a,0,2.27,.94,[1,.61,.55]);
 for(const side of [-1,1]){
  const armParts=[],thighParts=[],shinParts=[];
- const armPart=(...args)=>{const p=wolfPart(...args);armParts.push(p);return p};
- const thighPart=(...args)=>{const p=wolfPart(...args);thighParts.push(p);return p};
- const shinPart=(...args)=>{const p=wolfPart(...args);shinParts.push(p);return p};
- const ear=wolfHeadPart(new THREE.ConeGeometry(.23,.69,7),wolfDark,side*.32,2.91,.06);ear.rotation.z=-side*.2;
- const inner=wolfHeadPart(new THREE.ConeGeometry(.115,.41,6),0x985c62,side*.32,2.93,.22);inner.rotation.z=-side*.2;
- wolfHeadPart(new THREE.SphereGeometry(.20,10,8),wolfDark,side*.2,2.48,.44,[1,.43,.60]);
- const eye=wolfHeadPart(new THREE.SphereGeometry(.085,9,8),0xf7bd55,side*.19,2.4,.52);
- eye.material.emissive.setHex(0x673000);eye.material.emissiveIntensity=.7;
- wolfHeadPart(new THREE.SphereGeometry(.037,7,6),0x181210,side*.19,2.4,.59);
- const fang=wolfHeadPart(new THREE.ConeGeometry(.066,.19,6),wolfBone,side*.18,2.04,.75);fang.rotation.z=Math.PI;
- armPart(new THREE.SphereGeometry(.29,10,9),wolfFur,side*.65,1.75,.02);
- const upper=armPart(new THREE.CylinderGeometry(.20,.15,.70,10),wolfFur,side*.79,1.43,.12);upper.rotation.z=side*.32;
- const forearm=armPart(new THREE.CylinderGeometry(.16,.22,.55,10),wolfDark,side*.94,.97,.26);forearm.rotation.z=side*.11;
- armPart(new THREE.SphereGeometry(.19,10,8),wolfDark,side*.96,.65,.34,[.95,1.05,1]);
- for(let c=0;c<3;c++){const claw=armPart(new THREE.ConeGeometry(.052,.23,5),wolfBone,side*.96+(c-1)*.105,.45,.48);claw.rotation.x=Math.PI}
- const thigh=thighPart(new THREE.CylinderGeometry(.27,.22,.75,10),wolfFur,side*.32,.86,-.07);thigh.rotation.z=-side*.23;
- shinPart(new THREE.SphereGeometry(.24,10,9),wolfDark,side*.40,.47,.16);
- const shin=shinPart(new THREE.CylinderGeometry(.18,.12,.53,10),wolfDark,side*.43,.31,-.1);shin.rotation.x=-.38;
- shinPart(new THREE.SphereGeometry(.22,10,8),wolfDark,side*.44,.12,.27,[1,.48,1.8]);
- for(let c=0;c<3;c++){const nail=shinPart(new THREE.ConeGeometry(.05,.20,5),wolfBone,side*.44+(c-1)*.13,.07,.64);nail.rotation.x=Math.PI/2}
- // Fur spikes and shaped forearm muscles move with the upper arms.
- for(let i=0;i<3;i++){
-  const furTip=armPart(new THREE.ConeGeometry(.11,.29,5),i%2?wolfLight:wolfFur,side*(.68+i*.09),1.75-i*.15,-.09);
-  furTip.rotation.z=side*.30;
+ const shoulder=wolfSphere(wolfVisual,wolfDark,side*.59,1.83,-.07,.31,.34,.31);
+ armParts.push(shoulder);
+ const upper=wolfSphere(wolfVisual,wolfFur,side*.72,1.48,.02,.23,.42,.23);
+ upper.rotation.z=side*.24;armParts.push(upper);
+ const fore=wolfSphere(wolfVisual,wolfDark,side*.88,1.01,.16,.22,.36,.22);
+ fore.rotation.z=side*.16;armParts.push(fore);
+ const paw=wolfSphere(wolfVisual,wolfFur,side*.92,.69,.23,.22,.19,.24);armParts.push(paw);
+ for(let c=0;c<3;c++){
+  const claw=wolfCone(wolfVisual,wolfBone,side*.92+(c-1)*.12,.48,.43,.046,.23,8);
+  claw.rotation.x=Math.PI;armParts.push(claw);
  }
- const muscle=armPart(new THREE.SphereGeometry(.17,9,7),wolfFur,side*.89,1.11,.23,[1,.68,.90]);
- const hip=avatarPivot(wolfVisual,thighParts,side*.32,1.12,-.07);
- const knee=avatarPivot(wolfVisual,shinParts,side*.40,.48,.16);
+ for(let j=0;j<4;j++){
+  const fur=wolfCone(wolfVisual,j%2?wolfFur:wolfDark,side*(.61+j*.07),1.78-j*.15,-.20,.10,.26);
+  fur.rotation.z=side*.5;armParts.push(fur);
+ }
+ const thigh=wolfSphere(wolfVisual,wolfFur,side*.31,.88,-.12,.29,.45,.29);
+ thigh.rotation.z=-side*.19;thighParts.push(thigh);
+ const hock=wolfSphere(wolfVisual,wolfDark,side*.41,.43,-.19,.19,.32,.20);shinParts.push(hock);
+ const foot=wolfSphere(wolfVisual,wolfFur,side*.43,.14,.23,.23,.15,.41);shinParts.push(foot);
+ for(let c=0;c<3;c++){
+  const nail=wolfCone(wolfVisual,wolfBone,side*.43+(c-1)*.13,.085,.61,.045,.18,8);
+  nail.rotation.x=Math.PI/2;shinParts.push(nail);
+ }
+ const hip=avatarPivot(wolfVisual,thighParts,side*.31,1.12,-.10);
+ const knee=avatarPivot(wolfVisual,shinParts,side*.41,.48,-.08);
  knee.position.sub(hip.position);hip.add(knee);
  wolfLegs.push({side,hip,knee});
- const arm=avatarPivot(wolfVisual,armParts,side*.65,1.75,.02);
+ const arm=avatarPivot(wolfVisual,armParts,side*.59,1.80,-.07);
  wolfArms.push({side,pivot:arm});
 }
-const wolfHeadPivot=avatarPivot(wolfVisual,wolfHeadParts,0,2.27,.14);
-// Smooth, higher-resolution wolf anatomy and layered fur detail.
-// These shapes follow the existing animation pivots and retain recolorable fur materials.
-const smoothWolf=(parent,geometry,color,x,y,z,scale)=>{
- const part=mesh(geometry,color);part.position.set(x,y,z);
- if(scale)part.scale.set(...scale);
- parent.add(part);return part;
-};
-smoothWolf(wolfVisual,new THREE.SphereGeometry(.48,24,18),wolfFur,0,1.37,-.01,[1,1.25,.92]);
-smoothWolf(wolfVisual,new THREE.SphereGeometry(.46,24,18),wolfLight,0,1.47,.28,[.82,1.07,.67]);
-smoothWolf(wolfVisual,new THREE.SphereGeometry(.52,24,18),wolfDark,0,1.84,-.10,[1.17,.52,.82]);
+const wolfHeadGroup=new THREE.Group();wolfVisual.add(wolfHeadGroup);
+const headBase=wolfSphere(wolfHeadGroup,wolfFur,0,2.34,.09,.43,.46,.40);
+wolfSphere(wolfHeadGroup,wolfLight,0,2.17,.47,.31,.20,.39);
+wolfSphere(wolfHeadGroup,wolfFur,0,2.25,.66,.23,.17,.37);
+wolfSphere(wolfHeadGroup,wolfDark,0,2.29,.94,.16,.11,.15);
+wolfSphere(wolfHeadGroup,wolfLight,0,2.10,.68,.23,.075,.28);
 for(const side of [-1,1]){
- smoothWolf(wolfHeadPivot,new THREE.SphereGeometry(.19,20,14),wolfLight,side*.26,-.08,.35,[1.05,.85,.75]);
- smoothWolf(wolfHeadPivot,new THREE.SphereGeometry(.16,20,14),wolfFur,side*.29,.13,.24,[.95,1.22,.75]);
- const brow=smoothWolf(wolfHeadPivot,new THREE.SphereGeometry(.16,16,12),wolfDark,side*.2,.18,.39,[1,.32,.56]);
- brow.rotation.z=side*.12;
- for(let i=0;i<4;i++){
-  const cheek=smoothWolf(wolfHeadPivot,new THREE.ConeGeometry(.075,.22,9),i%2?wolfLight:wolfFur,side*(.30+i*.025),-.16-i*.085,.27-i*.035);
-  cheek.rotation.z=-side*.5;
+ const ear=wolfCone(wolfHeadGroup,wolfDark,side*.31,2.91,.02,.23,.67,14);ear.rotation.z=-side*.20;
+ const inner=wolfCone(wolfHeadGroup,0x985c62,side*.31,2.94,.16,.12,.40,12);inner.rotation.z=-side*.20;
+ wolfSphere(wolfHeadGroup,wolfDark,side*.23,2.46,.36,.22,.10,.17);
+ const eye=wolfSphere(wolfHeadGroup,0xf7bd55,side*.21,2.40,.49,.087,.071,.064);
+ eye.material.emissive.setHex(0x673000);eye.material.emissiveIntensity=.7;
+ wolfSphere(wolfHeadGroup,0x181210,side*.21,2.40,.55,.033,.055,.026);
+ wolfSphere(wolfHeadGroup,wolfLight,side*.30,2.19,.40,.20,.20,.23);
+ const fang=wolfCone(wolfHeadGroup,wolfBone,side*.16,2.06,.78,.061,.19,9);fang.rotation.z=Math.PI;
+ for(let j=0;j<4;j++){
+  const cheek=wolfCone(wolfHeadGroup,j%2?wolfFur:wolfLight,side*(.36+j*.018),2.15-j*.09,.30-j*.025,.085,.22,10);
+  cheek.rotation.z=-side*.6;
  }
 }
-for(let i=0;i<9;i++){
- const x=(i-4)*.105;
- const tuft=smoothWolf(wolfVisual,new THREE.ConeGeometry(.065,.22,8),i%3===0?wolfFur:wolfLight,x,1.1+Math.abs(x)*.1,.53);
- tuft.rotation.z=x*.45;
+for(let i=0;i<5;i++){
+ const mane=wolfCone(wolfHeadGroup,i%2?wolfDark:wolfFur,(i-2)*.17,1.93,-.20,.15,.38,12);
+ mane.rotation.x=-.20;
 }
-for(const leg of wolfLegs){
- smoothWolf(leg.hip,new THREE.SphereGeometry(.28,20,14),wolfFur,0,-.20,.02,[1,1.32,.95]);
- smoothWolf(leg.knee,new THREE.SphereGeometry(.20,20,14),wolfDark,0,-.13,.03,[1,1.18,.94]);
-}
-for(const arm of wolfArms){
- smoothWolf(arm.pivot,new THREE.SphereGeometry(.25,20,14),wolfFur,0,-.22,.04,[1,1.4,.95]);
-}
-wolfVisual.traverse(o=>{if(o.isMesh&&o.geometry?.type==='SphereGeometry'&&o.geometry.attributes.position.count<180){
- // Keep existing silhouettes while making the new surface pieces blend smoothly.
- o.material.roughness=.92;
-}});
-
+const wolfHeadPivot=avatarPivot(wolfVisual,[wolfHeadGroup],0,2.27,.14);
 const wolfColorAccent=wolfPart(new THREE.OctahedronGeometry(.17),0x8b5cf6,0,1.63,.64);
 wolfColorAccent.material.emissive.setHex(0x211031);wolfColorAccent.material.emissiveIntensity=.45;
 // The tail sweeps backward and to the right, with an axe permanently fixed to its end.
