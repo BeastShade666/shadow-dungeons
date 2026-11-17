@@ -253,3 +253,8 @@ body.menu-open #panel .menu-card :is(button,select,summary,input,a):focus-visibl
  outline:3px solid var(--menu-bright);
  outline-offset:2px;
 }
+
+/* Quick dodge action: distinct from offensive abilities. */
+#dash{background:#166f79;border-color:#70e5e5;color:#f2ffff;font-size:12px;box-shadow:0 0 12px #20cbd044}
+#dash:disabled{opacity:.55;box-shadow:none}
+@media(max-height:480px) and (orientation:landscape){#dash{min-height:38px}}
