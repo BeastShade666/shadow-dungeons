@@ -2,7 +2,8 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
 <link rel="stylesheet" href="./root.css?v=attack-hold-7a04f7aa">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script></head><body class="menu-open">
-<div id="hud"><span id="stats"></span><div id="runHudActions"><span id="stage"></span><button id="endRun" type="button" aria-label="End current dungeon run and return to main menu" title="End current run and return to menu">End Run</button></div></div>
+<div id="hud"><span id="stats"></span><div id="runHudActions"><span id="stage"></span><button id="pauseRun" type="button" aria-label="Pause game">Pause</button><button id="endRun" type="button" aria-label="End current dungeon run and return to main menu" title="End current run and return to menu">End Run</button></div></div>
+<div id="pauseOverlay" hidden role="dialog" aria-modal="true" aria-label="Game paused"><div class="pause-card"><h2>⏸ Game Paused</h2><p>Your dungeon run is safe. Enemies and timers are frozen.</p><button id="resumeRun" type="button">▶ Resume Game</button></div></div>
 <div id="panel" data-menu-theme="moonlit">
   <header class="menu-preview-top">
     <div class="preview-logo">⚔ SHADOW DUNGEONS <span class="preview-logo-note">/ MAIN MENU</span></div>
@@ -1628,9 +1629,32 @@ function spawn(){
  }
  refresh();
 }
-function show(message){clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
+function show(message){setPaused(false);clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
+let paused=false,pauseStarted=0;
+function setPaused(next){
+ if(!running&&next)return;
+ if(paused===next)return;
+ if(next){
+  paused=true;pauseStarted=performance.now();
+  attackHeld=false;attackPointer=null;attackButton.classList.remove('is-held');
+  resetStick();keys.clear();
+ }else{
+  const elapsed=performance.now()-pauseStarted;
+  if(lastAttack>0)lastAttack+=elapsed;
+  if(lastSpecial>0)lastSpecial+=elapsed;
+  if(lastCharacterAttack>0)lastCharacterAttack+=elapsed;
+  if(spaceMarineAimUntil>0)spaceMarineAimUntil+=elapsed;
+  paused=false;
+ }
+ $('pauseOverlay').hidden=!paused;
+ $('pauseRun').textContent=paused?'Resume':'Pause';
+ $('pauseRun').setAttribute('aria-label',paused?'Resume game':'Pause game');
+}
+$('pauseRun').addEventListener('click',()=>setPaused(!paused));
+$('resumeRun').addEventListener('click',()=>setPaused(false));
 function endDungeonRun(){
  if(!running)return;
+ setPaused(false);
  clearBossLoot();
  // End this run voluntarily; save its score and permanent upgrades, not the floor.
  const completedFloor=level,keptGold=data.gold;
@@ -1776,7 +1800,7 @@ function damageEnemy(e,amount,soundType=data.weapon){
 }
 function attack(){
  const w=weapons[data.weapon]||weapons.sword;
- if(!running||performance.now()-lastAttack<w.cooldown*attackSpeed())return;
+ if(!running||paused||performance.now()-lastAttack<w.cooldown*attackSpeed())return;
  const forward=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
  const candidates=enemies.map(e=>{
   const delta=new THREE.Vector3().subVectors(e.obj.position,hero.position);delta.y=0;
@@ -2137,7 +2161,7 @@ $('start').onclick=()=>{
   if(spaceMarineState==='error')requestSpaceMarineModel();
   return;
  }
- if(!running){clearBossLoot();clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
+ if(!running){setPaused(false);clearBossLoot();clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
 data.character=['werewolf','reaper','reaper2','kitsune','bellshade','spacemarine'].includes(data.character)?data.character:'reaper';
 if(data.weapon==='daggers')data.weapon='sword';
 $('characterSelect').value=data.character;
@@ -2159,7 +2183,7 @@ if(data.character==='spacemarine')requestSpaceMarineModel();
 if(data.character==='reaper2')requestReaperV2Model();
 const clock=new THREE.Clock();
 function hurtHero(amount){
- if(!running||invuln>0)return;
+ if(!running||paused||invuln>0)return;
  hp=Math.max(0,hp-amount);invuln=.85;
  if(hp<=0){
   // Roguelike death: reset the dungeon floor only; preserve purchased skills,
@@ -2172,7 +2196,7 @@ function hurtHero(amount){
  }
 }
 function dash(){
- if(!running||dashCooldown>0||dashTime>0)return;
+ if(!running||paused||dashCooldown>0||dashTime>0)return;
  let x=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+joy.x;
  let z=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+joy.z;
  const length=Math.hypot(x,z);
@@ -2184,6 +2208,7 @@ function dash(){
 function frame(){
  requestAnimationFrame(frame);
  const dt=Math.min(clock.getDelta(),.05);
+ if(paused){renderer.render(scene,camera);return;}
  bodyMoveTarget=0;
  if(running){
   if(attackHeld)attack();
