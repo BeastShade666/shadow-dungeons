@@ -169,6 +169,32 @@ button:focus-visible,select:focus-visible {
 #panel .menu-card h2{color:var(--menu-ink);font-size:clamp(1.55rem,2.7vw,2.1rem);margin:6px 0 8px;line-height:1.05;letter-spacing:-.04em;}
 #panel .menu-card p{color:var(--menu-muted);font-size:.92rem;line-height:1.5;margin:0 0 15px;}
 #panel .menu-card #wallet{color:var(--menu-bright);font-weight:800;margin:0 0 12px;}
+/* Hero portrait from the actual 3D character meshes; decorative only, so swiping still scrolls the page. */
+#panel .character-preview{width:100%;margin:12px 0 16px;padding:0;pointer-events:none}
+#panel .character-preview-art{
+ position:relative;isolation:isolate;display:flex;align-items:center;justify-content:center;
+ width:100%;height:clamp(200px,24vw,272px);overflow:hidden;
+ border:1px solid var(--menu-border);border-radius:15px;
+ background:radial-gradient(ellipse 64% 80% at 50% 49%,#5bdbc13d 0%,#2a6c6d25 45%,transparent 78%),linear-gradient(140deg,#101d30,#07111c 68%,#101b32);
+ box-shadow:inset 0 0 32px #0007,0 6px 25px #0004;
+}
+#panel[data-menu-theme="ember"] .character-preview-art{
+ background:radial-gradient(ellipse 65% 85% at 50% 49%,#ff79304d 0%,#9d3a2826 45%,transparent 78%),linear-gradient(140deg,#281823,#170d18 68%,#24151b);
+}
+#panel .character-preview-art::before{
+ content:"";position:absolute;width:min(210px,55%);aspect-ratio:1;
+ border:1px solid #a6ecdf33;border-radius:50%;box-shadow:0 0 0 23px #a6ecdf08,0 0 0 52px #a6ecdf05;
+ top:51%;left:50%;transform:translate(-50%,-50%);z-index:0;
+}
+#panel[data-menu-theme="ember"] .character-preview-art::before{border-color:#ffc18b38;box-shadow:0 0 0 23px #ffc18b0a,0 0 0 52px #ffc18b05}
+#panel .character-preview-art::after{content:"";position:absolute;inset:auto 0 0;height:40%;background:linear-gradient(transparent,#040a17c9);z-index:2;pointer-events:none}
+#panel .character-preview-art canvas{display:block;position:relative;z-index:1;width:100%;height:100%;object-fit:contain;pointer-events:none;touch-action:pan-y}
+#panel .character-preview-kicker{position:absolute;z-index:3;top:11px;left:13px;color:var(--menu-bright);font-size:clamp(.62rem,1.5vw,.73rem);font-weight:850;letter-spacing:.14em;text-shadow:0 2px 6px #000}
+#panel .character-preview-caption{position:absolute;z-index:3;bottom:10px;left:13px;right:13px;display:flex;flex-direction:column;gap:2px;text-shadow:0 2px 8px #000}
+#panel .character-preview-caption strong{color:#fff;font-size:clamp(1.2rem,2.2vw,1.6rem);letter-spacing:.01em}
+#panel .character-preview-caption span{color:var(--menu-muted);font-size:.78rem}
+#panel .character-preview figcaption{margin-top:6px;color:var(--menu-muted);font-size:.76rem;text-align:center}
+@media(max-width:540px){#panel .character-preview-art{height:218px}#panel .character-preview-kicker{letter-spacing:.09em}}
 #panel .menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 #panel .menu-grid label{color:var(--menu-muted);font-size:.8rem;font-weight:750;}
 #panel .menu-grid select{display:block;width:100%;min-width:0;margin:6px 0 0;padding:10px;border:1px solid var(--menu-border);border-radius:10px;background:#070e1ab8;color:var(--menu-ink);font-size:.89rem;}
