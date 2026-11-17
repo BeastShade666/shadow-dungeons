@@ -391,19 +391,45 @@ const kitsuneVisual=new THREE.Group();hero.add(kitsuneVisual);
 const kitsuneArms=[],kitsuneLegs=[],kitsuneTails=[],kitsuneAccentParts=[];
 const kitHair=0xb4142c,kitHairLight=0xe32d48,kitDarkHair=0x611323,kitSkin=0xf1b9aa;
 const kitPart=(p,g,c,x,y,z,sc)=>{const m=mesh(g,c);m.position.set(x,y,z);if(sc)m.scale.set(...sc);p.add(m);return m};
-const kitBall=(p,r,c,x,y,z,sc)=>kitPart(p,new THREE.SphereGeometry(r,14,10),c,x,y,z,sc);
+// Smoothed higher-resolution surfaces; reused for clothing, facial forms and fur.
+const kitBall=(p,r,c,x,y,z,sc)=>kitPart(p,new THREE.SphereGeometry(r,24,18),c,x,y,z,sc);
+// Sculpted spline fur: continuous varying-radius surface, not a chain of faceted cones.
+function kitSculpt(parent,points,width,color,segments=18,sides=11){
+ const path=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
+ const frames=path.computeFrenetFrames(segments,false);
+ const vertices=[],indices=[];
+ for(let i=0;i<=segments;i++){
+  const t=i/segments,p=path.getPointAt(t);
+  const r=width*(.16+.84*Math.sin(Math.PI*Math.pow(t,.85)))*(1-.995*Math.pow(t,8));
+  for(let j=0;j<sides;j++){
+   const angle=j/sides*Math.PI*2;
+   const normal=frames.normals[i].clone().multiplyScalar(Math.cos(angle)).addScaledVector(frames.binormals[i],Math.sin(angle));
+   const v=p.clone().addScaledVector(normal,Math.max(.001,r));
+   vertices.push(v.x,v.y,v.z);
+  }
+ }
+ for(let i=0;i<segments;i++)for(let j=0;j<sides;j++){
+  const a=i*sides+j,b=i*sides+(j+1)%sides,c=(i+1)*sides+j,d=(i+1)*sides+(j+1)%sides;
+  indices.push(a,b,c,b,d,c);
+ }
+ const geo=new THREE.BufferGeometry();
+ geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+ geo.setIndex(indices);geo.computeVertexNormals();
+ const m=kitPart(parent,geo,color,0,0,0);
+ m.material.side=THREE.DoubleSide;m.material.roughness=.82;
+ return m;
+}
 const kitsuneTailRoot=new THREE.Group();kitsuneTailRoot.position.set(0,1.02,-.48);kitsuneVisual.add(kitsuneTailRoot);
 for(let i=0;i<9;i++){
- const spread=i-4,tail=new THREE.Group();kitsuneTailRoot.add(tail);kitsuneTails.push({tail,spread});
- const end=new THREE.Vector3(spread*.44,.95+(4-Math.abs(spread))*.22,-.30-Math.abs(spread)*.10);
- const mid=end.clone().multiplyScalar(.52);mid.y+=.12;const joints=[new THREE.Vector3(0,0,0),mid,end];
- for(let j=0;j<2;j++){
-  const a=joints[j],b=joints[j+1],p=a.clone().lerp(b,.5);
-  const shape=kitBall(tail,.36,j?kitHair:kitDarkHair,p.x,p.y,p.z,[j?1.08:.82,Math.max(.85,a.distanceTo(b)/.45),j?.95:.80]);
-  shape.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize());
- }
- const tip=kitPart(tail,new THREE.ConeGeometry(.19,.37,8),i%2?kitHairLight:kitHair,end.x,end.y+.12,end.z);
- tip.rotation.z=-Math.atan2(end.x,end.y)*.35;
+ const spread=i-4,abs=Math.abs(spread),tail=new THREE.Group();
+ kitsuneTailRoot.add(tail);kitsuneTails.push({tail,spread});
+ const x=spread*.47,y=1.05+(4-abs)*.21,z=-.20-abs*.10;
+ // Nine distinct fan-shaped tails, each smoothly sculpted from base to pointed tip.
+ kitSculpt(tail,[[0,.04,0],[spread*.11,.25,-.18],[spread*.30,.62,-.42],[x,y-.10,z],[x+spread*.055,y+.15,z+.06]],
+  .31+(4-abs)*.024,i%3===0?kitHairLight:i%3===1?kitHair:0xac1830,18,11);
+ // Narrow outer-fur highlights follow the natural curve without blocky capsule seams.
+ kitSculpt(tail,[[spread*.07,.24,-.11],[spread*.22,.56,-.38],[x*.93,y-.03,z+.10],[x+spread*.03,y+.16,z+.10]],
+  .075,i%2===0?0xd94a58:0x8f162c,13,7);
 }
 kitBall(kitsuneVisual,.36,kitSkin,0,1.43,.06,[1,1.17,.85]);
 kitBall(kitsuneVisual,.39,0x17131c,0,1.79,0,[1.18,.75,.86]);
@@ -441,23 +467,38 @@ const kitHead=new THREE.Group();kitHead.position.set(0,2.29,.09);kitsuneVisual.a
 kitBall(kitHead,.35,kitSkin,0,.12,.15,[1,.99,.91]);
 kitBall(kitHead,.39,kitDarkHair,0,.34,.02,[1.13,.92,1.03]);
 for(const side of [-1,1]){
- const ear=kitPart(kitHead,new THREE.ConeGeometry(.20,.59,8),kitHair,side*.31,.80,-.02);ear.rotation.z=-side*.19;
- const inner=kitPart(kitHead,new THREE.ConeGeometry(.12,.38,8),0xe8a9b0,side*.31,.81,.12);inner.rotation.z=-side*.19;
- kitBall(kitHead,.14,0x5f1524,side*.14,.14,.45,[1,.65,.35]);
- kitBall(kitHead,.097,0xef405f,side*.14,.16,.49,[1,.58,.39]);
- kitBall(kitHead,.028,0xfff4ec,side*.12,.19,.515);
- const sideLock=kitPart(kitsuneVisual,new THREE.ConeGeometry(.17,1.22,8),kitHair,side*.42,1.74,.16);sideLock.rotation.z=side*.12;
+ // Fur-backed fox ears with silky pink inner-ears and small hair tufts.
+ const ear=kitPart(kitHead,new THREE.ConeGeometry(.20,.61,18),kitHair,side*.31,.80,-.02);
+ ear.scale.z=.73;ear.rotation.z=-side*.18;
+ const inner=kitPart(kitHead,new THREE.ConeGeometry(.11,.40,16),0xe8a9b0,side*.31,.81,.115);
+ inner.scale.z=.47;inner.rotation.z=-side*.18;
+ kitSculpt(kitHead,[[side*.28,.60,.22],[side*.33,.82,.20],[side*.37,1.03,.13]],.056,0xffd2ca,9,7);
+ kitBall(kitHead,.142,0x481523,side*.145,.135,.45,[1,.63,.33]);
+ kitBall(kitHead,.112,0xea3850,side*.145,.145,.482,[1,.62,.35]);
+ kitBall(kitHead,.061,0xff7890,side*.148,.135,.520,[.92,.85,.26]);
+ kitBall(kitHead,.027,0xffffff,side*.122,.192,.528,[1,.9,.30]);
+ kitBall(kitHead,.015,0xffffff,side*.179,.11,.532);
+ // Long gently curved side locks frame the face down to the waist.
+ kitSculpt(kitsuneVisual,[[side*.31,2.63,.10],[side*.46,2.31,.25],[side*.50,1.91,.19],[side*.61,1.47,.16]],
+  .135,side<0?kitHairLight:kitHair,18,10);
+ // Sharp dark upper eyelid defines the eyes in an anime silhouette.
+ kitSculpt(kitHead,[[side*.06,.245,.479],[side*.17,.245,.487],[side*.25,.205,.449]],.029,0x37121e,9,7);
 }
-kitBall(kitHead,.043,0x9c545d,0,-.09,.47,[1,.5,.6]);
-for(let i=0;i<9;i++){
- const x=(i-4)*.10;
- const lock=kitPart(kitHead,new THREE.ConeGeometry(.12,.49+(i%3)*.12,7),i%3===0?kitHairLight:kitHair,x,.25,.37);
- lock.rotation.z=(i-4)*.11;
+// Delicate nose, mouth, blush and cheek forms add facial definition.
+kitBall(kitHead,.040,0xb66c71,0,-.06,.482,[1,.44,.48]);
+kitSculpt(kitHead,[[-.063,-.154,.451],[0,-.165,.463],[.063,-.154,.451]],.012,0x9d5059,8,6);
+for(const side of [-1,1])kitBall(kitHead,.105,0xee8a8b,side*.228,-.03,.389,[1,.42,.33]);
+// Layered scarlet bangs, shaped as flowing strands rather than stiff cones.
+for(let i=0;i<11;i++){
+ const x=(i-5)*.073,drop=.12+(i%3)*.045;
+ kitSculpt(kitHead,[[x*.87,.49,.31],[x,.38,.42],[x+(i-5)*.014,.19-drop,.44]],.083,
+  i%4===0?kitHairLight:i%4===1?0x921326:kitHair,11,8);
 }
-for(let i=0;i<9;i++){
- const x=(i-4)*.085;
- const strand=kitPart(kitsuneVisual,new THREE.ConeGeometry(.11,.76+(i%3)*.17,7),i%4?kitHair:kitHairLight,x,1.81,-.30);
- strand.rotation.z=x*.5;
+// Full cascading back hair with smooth individual locks and color variation.
+for(let i=0;i<13;i++){
+ const x=(i-6)*.080;
+ kitSculpt(kitsuneVisual,[[x*.68,2.65,-.22],[x*.91,2.31,-.39],[x,1.93,-.47],[x*1.18,1.32-(i%4)*.09,-.40]],
+  .12,i%4===0?kitHairLight:i%4===1?kitDarkHair:kitHair,17,9);
 }
 let kitsuneDaggerSlash=0;
 // Twin daggers are included in the model and show only when her signature weapon is equipped.
