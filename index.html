@@ -267,12 +267,14 @@ function drawWeapons(){
  }
 }
 buildWeapon();drawWeapons();
-const auraColors={violet:0x9b5cff,red:0xff385e,blue:0x387dff,green:0x30f0a0,gold:0xffcb45,cyan:0x43eaff,pink:0xff6cd8,white:0xeaf5ff};
+const auraColors={violet:0x9b5cff,red:0xff385e,blue:0x387dff,green:0x30f0a0,gold:0xffcb45,cyan:0x43eaff,pink:0xff6cd8,white:0xeaf5ff,orange:0xff812b,teal:0x00c9bb,shadow:0x7334b8,lime:0xbaff35};
 const auraShop={
  violet:{name:'💜 Violet',price:30},red:{name:'❤️ Crimson',price:35},
  blue:{name:'💙 Sapphire',price:40},green:{name:'💚 Emerald',price:45},
  gold:{name:'💛 Golden',price:65},cyan:{name:'🩵 Frost',price:50},
- pink:{name:'🩷 Rose',price:55},white:{name:'🤍 Celestial',price:80}
+ pink:{name:'🩷 Rose',price:55},white:{name:'🤍 Celestial',price:80},
+ orange:{name:'🧡 Inferno',price:60},teal:{name:'🩵 Mystic Teal',price:70},
+ shadow:{name:'💜 Shadow',price:75},lime:{name:'💚 Venom',price:90}
 };
 // Migrate existing saves: previously buying one aura unlocked every color.
 if(!Array.isArray(data.ownedAuras)){
@@ -290,7 +292,7 @@ function drawAuras(){
   const owned=data.ownedAuras.includes(id);
   const option=document.createElement('option');
   option.value=id;
-  option.textContent=item.name+' — '+(owned?(data.auraColor===id?'Equipped':'Owned'):item.price+' gold');
+  option.textContent=item.name+' — '+item.price+' gold'+(owned?(data.auraColor===id?' · Equipped':' · Owned'):'');
   select.appendChild(option);
  }
  select.value=chosen;
