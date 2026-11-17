@@ -295,3 +295,7 @@ body.menu-open #panel .menu-card :is(button,select,summary,input,a):focus-visibl
 .leaderboard-row{display:flex;justify-content:space-between;gap:10px;padding:8px 4px;border-bottom:1px solid #ffffff22;font-size:14px}
 .leaderboard-row:first-child{color:#f4d681}
 .leaderboard-row strong{white-space:nowrap}
+
+/* Keep leaderboard obvious on compact mobile menus. */
+.leaderboard{margin:8px 0 14px;border:2px solid #c5a4ff;box-shadow:0 0 18px #6745a733}
+.leaderboard h3{font-size:1.1rem}
