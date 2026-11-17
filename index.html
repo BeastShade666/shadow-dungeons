@@ -1688,22 +1688,29 @@ function updateProjectiles(dt){
   }
  }
 }
-$('start').onclick=()=>{if(!running){clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
-data.character=['werewolf','reaper','kitsune','bellshade'].includes(data.character)?data.character:'reaper';
+$('start').onclick=()=>{
+ if(data.character==='spacemarine'&&spaceMarineState!=='ready'){
+  if(spaceMarineState==='error')requestSpaceMarineModel();
+  return;
+ }
+ if(!running){clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
+data.character=['werewolf','reaper','kitsune','bellshade','spacemarine'].includes(data.character)?data.character:'reaper';
 if(data.weapon==='daggers')data.weapon='sword';
 $('characterSelect').value=data.character;
 $('characterSelect').onchange=()=>{
  const next=$('characterSelect').value;
- data.character=['reaper','werewolf','kitsune','bellshade'].includes(next)?next:'reaper';
+ data.character=['reaper','werewolf','kitsune','bellshade','spacemarine'].includes(next)?next:'reaper';
  // Kitsune can use every normal weapon; daggers are exclusive to her E attack.
  if(data.weapon==='daggers')data.weapon='sword';
  kitsuneDaggerActive=false;kitsuneDaggersVisible();bellStaff.rotation.set(0,0,0);
  buildWeapon();drawWeapons();persist();refresh();
+ if(data.character==='spacemarine')requestSpaceMarineModel();
 };
 $('leaderboardName').value=data.playerName||'Adventurer';
 $('leaderboardName').addEventListener('change',()=>{data.playerName=leaderboardPlayerName();persist();drawLeaderboard()});
 drawLeaderboard();
 $('heroColor').value=data.heroColor in colorMap?data.heroColor:'purple';$('heroColor').onchange=()=>{data.heroColor=$('heroColor').value;persist();recolorCharacterModels();refresh()};recolorCharacterModels();refresh();drawSkills();spawn();
+if(data.character==='spacemarine')requestSpaceMarineModel();
 const clock=new THREE.Clock();
 function hurtHero(amount){
  if(!running||invuln>0)return;
@@ -1811,9 +1818,10 @@ function frame(){
  $('dash').disabled=!running||dashCooldown>0;
  $('dash').textContent=dashCooldown>0?'DASH '+dashCooldown.toFixed(1)+'s':'DASH';
  $('characterAttack').disabled=!running||characterRemain>0;
- $('characterAttack').textContent=(data.character==='bellshade'?'GRASPING VINES':data.character==='kitsune'?'DAGGER FLURRY':data.character==='werewolf'?'TAIL AXE':'SCYTHE SWEEP')+(characterRemain>0?' '+characterRemain.toFixed(1)+'s':'');
+ $('characterAttack').textContent=(data.character==='spacemarine'?'MARINE STRIKE':data.character==='bellshade'?'GRASPING VINES':data.character==='kitsune'?'DAGGER FLURRY':data.character==='werewolf'?'TAIL AXE':'SCYTHE SWEEP')+(characterRemain>0?' '+characterRemain.toFixed(1)+'s':'');
  animateAura(clock.elapsedTime);
  animateHeroBody(dt,clock.elapsedTime);
+ updateSpaceMarineAnimation(dt,bodyMoveBlend);
  camera.position.lerp(new THREE.Vector3(hero.position.x,9,hero.position.z+12),.09);
  camera.lookAt(hero.position.x,1,hero.position.z);
  renderer.render(scene,camera);
