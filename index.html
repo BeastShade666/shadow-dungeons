@@ -1,13 +1,13 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
 <link rel="stylesheet" href="./root.css"></head><body>
-<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><h3>Aura Shop</h3><div id="shop"><span class="shop-label">Aura color</span><details id="auraPicker" class="aura-picker"><summary id="auraToggle">Choose aura</summary><div id="auraOptions" class="aura-options" role="group" aria-label="Available aura colors"></div></details><button id="auraAction" type="button"></button></div><h3>Skill Upgrades</h3><p id="skillInfo"><small>Spend gold to improve your hero permanently. Prices rise with each purchase.</small></p><div id="skills"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E or blue button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
+<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><div class="menu-theme-switch" id="menuThemeSwitch" role="group" aria-label="Menu background"><span>Menu Background</span><button type="button" id="menuThemeMoonlit" aria-pressed="true">🌙 Moonlit Gate</button><button type="button" id="menuThemeEmber" aria-pressed="false">🔥 Ember Citadel</button></div><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><h3>Aura Shop</h3><div id="shop"><span class="shop-label">Aura color</span><details id="auraPicker" class="aura-picker"><summary id="auraToggle">Choose aura</summary><div id="auraOptions" class="aura-options" role="group" aria-label="Available aura colors"></div></details><button id="auraAction" type="button"></button></div><h3>Skill Upgrades</h3><p id="skillInfo"><small>Spend gold to improve your hero permanently. Prices rise with each purchase.</small></p><div id="skills"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E or blue button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
 <div id="controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div></div><div id="attackButtons"><button id="characterAttack">SCYTHE SWEEP</button><button id="special">SPECIAL</button><button id="attack">ATTACK</button></div></div><div id="error"></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const $=id=>document.getElementById(id);
 const saved=()=>{try{return JSON.parse(localStorage.getItem('shadow-save')||'{}')}catch{return {}}};
-let data={gold:0,aura:false,weapon:'sword',ownedWeapons:['sword'],character:'reaper',skills:{},...saved()},level=1,hp=100,enemies=[],running=false,lastAttack=0,lastSpecial=-100000,lastCharacterAttack=-100000,invuln=0;
+let data={gold:0,aura:false,weapon:'sword',ownedWeapons:['sword'],character:'reaper',skills:{},menuTheme:'moonlit',...saved()},level=1,hp=100,enemies=[],running=false,lastAttack=0,lastSpecial=-100000,lastCharacterAttack=-100000,invuln=0;
 const skillTypes={
  power:{name:'⚔ Power',base:20,description:'+1 damage'},
  vitality:{name:'❤️ Vitality',base:25,description:'+20 max HP'},
@@ -36,6 +36,16 @@ function drawSkills(){
  }
 }
 const persist=()=>{try{localStorage.setItem('shadow-save',JSON.stringify(data))}catch{}};
+function setMenuTheme(theme){
+ data.menuTheme=theme==='ember'?'ember':'moonlit';
+ $('panel').dataset.menuTheme=data.menuTheme;
+ $('menuThemeMoonlit').setAttribute('aria-pressed',String(data.menuTheme==='moonlit'));
+ $('menuThemeEmber').setAttribute('aria-pressed',String(data.menuTheme==='ember'));
+ persist();
+}
+$('menuThemeMoonlit').onclick=()=>setMenuTheme('moonlit');
+$('menuThemeEmber').onclick=()=>setMenuTheme('ember');
+setMenuTheme(data.menuTheme);
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x141020);scene.fog=new THREE.Fog(0x141020,18,43);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,100);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);document.body.prepend(renderer.domElement);
