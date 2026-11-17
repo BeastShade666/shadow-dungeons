@@ -725,12 +725,26 @@ function spawn(){
   occupied.push(point);
   obj.position.set(point.x,0,point.z);
   scene.add(obj);
-  enemies.push({obj,kind,hp:Math.ceil((kind==='boss'?12:kind==='skeleton'?3:2)*difficulty*(bossFloor?1.4:1)),speed:Math.min(3.4,(kind==='boss'?.75:kind==='bat'?1.7:1.1)*(1+(level-1)*.055)),damageScale:1+(level-1)*.12,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0});
+  enemies.push({obj,kind,hp:Math.ceil((kind==='boss'?12:kind==='skeleton'?3:2)*difficulty*(bossFloor?1.4:1)),speed:Math.min(3.4,(kind==='boss'?.75:kind==='bat'?1.7:1.1)*(1+(level-1)*.055)),damageScale:1+(level-1)*.12,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0,dodgeCooldown:2,dodgeTime:0,attackMode:'melee'});
  }
  refresh();
 }
 function show(message){resetStick();running=false;$('panel').style.display='flex';$('controls').style.display='none';$('message').textContent=message;refresh()}
-const projectiles=[];let swing=null;
+const projectiles=[];const bossBolts=[];let swing=null;
+function launchBossBolt(e){
+ const obj=new THREE.Mesh(new THREE.SphereGeometry(.27,12,10),new THREE.MeshStandardMaterial({color:0xb34cff,emissive:0x8025e0,emissiveIntensity:1.6}));
+ obj.position.copy(e.obj.position).add(new THREE.Vector3(0,1.65,0));
+ const dir=new THREE.Vector3(hero.position.x-obj.position.x,0,hero.position.z-obj.position.z).normalize();
+ scene.add(obj);bossBolts.push({obj,dir,life:3.3,damage:Math.ceil(14*e.damageScale)});
+}
+function updateBossBolts(dt){
+ for(let i=bossBolts.length-1;i>=0;i--){
+  const b=bossBolts[i];b.life-=dt;b.obj.position.addScaledVector(b.dir,dt*8.5);b.obj.rotation.y+=dt*8;
+  const dx=b.obj.position.x-hero.position.x,dz=b.obj.position.z-hero.position.z;
+  if(Math.hypot(dx,dz)<.75){hurtHero(b.damage);b.life=0}
+  if(b.life<=0||!running){scene.remove(b.obj);bossBolts.splice(i,1)}
+ }
+}
 // Synthesized weapon sounds: no downloads or audio assets required.
 let audioContext=null;
 function unlockAudio(){
@@ -771,6 +785,13 @@ function damageEnemy(e,amount,soundType=data.weapon){
  if(!enemies.includes(e))return;
  weaponSound(soundType);
  if(!enemies.includes(e))return;
+ if(e.kind==='boss'&&e.dodgeTime>0)return;
+ if(e.kind==='boss'&&e.dodgeCooldown<=0&&Math.random()<.3){
+  e.dodgeCooldown=3.5;e.dodgeTime=.42;
+  const side=Math.random()<.5?-1:1,angle=e.obj.rotation.y+Math.PI/2;
+  moveWithCollision(e.obj,Math.sin(angle)*side*2.2,Math.cos(angle)*side*2.2,.85);
+  return;
+ }
  e.hp-=amount*attackPower();e.obj.scale.setScalar(1.13);
  if(e.hp<=0){
   scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
@@ -1010,7 +1031,7 @@ function updateProjectiles(dt){
   }
  }
 }
-$('start').onclick=()=>{if(!running){swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;$('panel').style.display='none';$('controls').style.display='flex';refresh()}};
+$('start').onclick=()=>{if(!running){swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;$('panel').style.display='none';$('controls').style.display='flex';refresh()}};
 data.character=data.character==='werewolf'?'werewolf':'reaper';
 $('characterSelect').value=data.character;
 $('characterSelect').onchange=()=>{data.character=$('characterSelect').value==='werewolf'?'werewolf':'reaper';persist();refresh()};
@@ -1043,9 +1064,9 @@ function frame(){
   if(x||z)hero.rotation.y=Math.atan2(x,z);
   invuln=Math.max(0,invuln-dt);
   for(const e of enemies){
-   e.phase+=dt;e.cooldown-=dt;
+   e.phase+=dt;e.cooldown-=dt;if(e.kind==='boss'){e.dodgeCooldown-=dt;e.dodgeTime=Math.max(0,e.dodgeTime-dt)}
    const dx=hero.position.x-e.obj.position.x,dz=hero.position.z-e.obj.position.z,dist=Math.hypot(dx,dz);
-   const range=e.kind==='boss'?3.6:e.kind==='bat'?2.5:e.kind==='skeleton'?1.9:1.5;
+   const range=e.kind==='boss'?9:e.kind==='bat'?2.5:e.kind==='skeleton'?1.9:1.5;
    if(e.windup>0){
     e.windup-=dt;
     e.obj.scale.set(1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06);
@@ -1054,16 +1075,18 @@ function frame(){
      if(e.kind==='slime'){if(dist<2)hurtHero(Math.ceil(9*e.damageScale))}
      else if(e.kind==='skeleton'){if(dist<2.35)hurtHero(Math.ceil(13*e.damageScale))}
      else if(e.kind==='bat'){if(dist<2.9)hurtHero(Math.ceil(10*e.damageScale))}
-     else if(dist<4.1)hurtHero(Math.ceil(22*e.damageScale));
+     else if(e.attackMode==='ranged')launchBossBolt(e);
+      else if(dist<4.1)hurtHero(Math.ceil(22*e.damageScale));
     }
    }else{
     if(e.attackTime>0)e.attackTime=Math.max(0,e.attackTime-dt);
-    if(dist>range*.78 && e.attackTime<=0 && dist>.001){
+    if(dist>(e.kind==='boss'?3.2:range*.78) && e.attackTime<=0 && dist>.001){
      navigateMonster(e,dt);
     }
     if(e.cooldown<=0&&dist<range){
-     e.windup=e.kind==='boss'?1.05:e.kind==='skeleton'?.48:e.kind==='bat'?.36:.55;
-     e.cooldown=e.kind==='boss'?3.8:e.kind==='skeleton'?2.1:e.kind==='bat'?1.65:2.35;
+     if(e.kind==='boss')e.attackMode=dist>4.1?'ranged':(Math.random()<.4?'ranged':'melee');
+     e.windup=e.kind==='boss'?.65:e.kind==='skeleton'?.48:e.kind==='bat'?.36:.55;
+     e.cooldown=e.kind==='boss'?1.85:e.kind==='skeleton'?2.1:e.kind==='bat'?1.65:2.35;
     }
     e.obj.scale.lerp(new THREE.Vector3(1,1,1),Math.min(1,dt*9));
    }
@@ -1089,7 +1112,7 @@ function frame(){
   updateSpecialEffects(dt);
   refresh();
  }
- if(!running){updateSpecialEffects(dt);characterSwing=null;scytheRig.rotation.set(0,0,0);tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0)}
+ if(!running){for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;updateSpecialEffects(dt);characterSwing=null;scytheRig.rotation.set(0,0,0);tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0)}
  const characterRemain=Math.max(0,8-(performance.now()-lastCharacterAttack)/1000);
  $('characterAttack').disabled=!running||characterRemain>0;
  $('characterAttack').textContent=(data.character==='werewolf'?'TAIL AXE':'SCYTHE SWEEP')+(characterRemain>0?' '+characterRemain.toFixed(1)+'s':'');
