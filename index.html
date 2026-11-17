@@ -292,7 +292,7 @@ const wolfHeadParts=[],wolfArms=[],wolfLegs=[];
 const wolfHeadPart=(...args)=>{const p=wolfPart(...args);wolfHeadParts.push(p);return p};
 // Rebuilt werewolf: athletic lupine silhouette, smooth anatomy, long muzzle,
 // layered mane, digitigrade legs and articulated limbs.
-const wolfFur=0x4e4139,wolfDark=0x292630,wolfLight=0x806d60,wolfBone=0xeee5d1;
+const wolfFur=0x656774,wolfDark=0x353746,wolfLight=0x98988f,wolfBone=0xeee5d1;
 const wolfSphere=(parent,color,x,y,z,sx,sy,sz)=>{
  const m=mesh(new THREE.SphereGeometry(1,24,16),color);
  m.position.set(x,y,z);m.scale.set(sx,sy,sz);parent.add(m);return m;
@@ -301,57 +301,71 @@ const wolfCone=(parent,color,x,y,z,r,h,segments=12)=>{
  const m=mesh(new THREE.ConeGeometry(r,h,segments),color);
  m.position.set(x,y,z);parent.add(m);return m;
 };
-wolfSphere(wolfVisual,wolfFur,0,1.39,-.08,.47,.73,.35);
+wolfSphere(wolfVisual,wolfFur,0,1.39,-.08,.48,.72,.34);
 wolfSphere(wolfVisual,wolfDark,0,1.81,-.12,.66,.34,.40);
-wolfSphere(wolfVisual,wolfLight,0,1.48,.29,.34,.54,.14);
+wolfSphere(wolfVisual,wolfLight,0,1.53,.27,.43,.46,.17);
+// Sculpted pectorals and defined abdominal muscles like the reference.
+for(const side of [-1,1]){
+ wolfSphere(wolfVisual,wolfFur,side*.22,1.70,.34,.26,.20,.17);
+ for(let i=0;i<3;i++){
+  const ab=wolfSphere(wolfVisual,i%2?wolfFur:wolfLight,side*.155,1.35-i*.18,.29-i*.018,.145,.086,.12);
+  ab.rotation.z=side*.06;
+ }
+}
 wolfSphere(wolfVisual,wolfFur,0,1.08,-.06,.38,.36,.32);
 for(const side of [-1,1]){
  const armParts=[],thighParts=[],shinParts=[];
- const shoulder=wolfSphere(wolfVisual,wolfDark,side*.59,1.83,-.07,.31,.34,.31);
+ const shoulder=wolfSphere(wolfVisual,wolfDark,side*.64,1.83,-.07,.36,.37,.35);
  armParts.push(shoulder);
- const upper=wolfSphere(wolfVisual,wolfFur,side*.72,1.48,.02,.23,.42,.23);
+ const upper=wolfSphere(wolfVisual,wolfFur,side*.79,1.48,.02,.27,.42,.25);
  upper.rotation.z=side*.24;armParts.push(upper);
- const fore=wolfSphere(wolfVisual,wolfDark,side*.88,1.01,.16,.22,.36,.22);
+ const fore=wolfSphere(wolfVisual,wolfDark,side*.97,1.01,.16,.26,.37,.24);
  fore.rotation.z=side*.16;armParts.push(fore);
- const paw=wolfSphere(wolfVisual,wolfFur,side*.92,.69,.23,.22,.19,.24);armParts.push(paw);
+ const paw=wolfSphere(wolfVisual,wolfFur,side*1.02,.69,.23,.26,.21,.27);armParts.push(paw);
  for(let c=0;c<3;c++){
-  const claw=wolfCone(wolfVisual,wolfBone,side*.92+(c-1)*.12,.48,.43,.046,.23,8);
+  const claw=wolfCone(wolfVisual,wolfBone,side*1.02+(c-1)*.14,.48,.43,.046,.23,8);
   claw.rotation.x=Math.PI;armParts.push(claw);
  }
  for(let j=0;j<4;j++){
   const fur=wolfCone(wolfVisual,j%2?wolfFur:wolfDark,side*(.61+j*.07),1.78-j*.15,-.20,.10,.26);
   fur.rotation.z=side*.5;armParts.push(fur);
  }
- const thigh=wolfSphere(wolfVisual,wolfFur,side*.31,.88,-.12,.29,.45,.29);
+ const thigh=wolfSphere(wolfVisual,wolfFur,side*.35,.88,-.12,.34,.45,.32);
  thigh.rotation.z=-side*.19;thighParts.push(thigh);
- const hock=wolfSphere(wolfVisual,wolfDark,side*.41,.43,-.19,.19,.32,.20);shinParts.push(hock);
- const foot=wolfSphere(wolfVisual,wolfFur,side*.43,.14,.23,.23,.15,.41);shinParts.push(foot);
+ const hock=wolfSphere(wolfVisual,wolfDark,side*.44,.43,-.19,.22,.33,.22);shinParts.push(hock);
+ const foot=wolfSphere(wolfVisual,wolfFur,side*.45,.14,.23,.27,.16,.42);shinParts.push(foot);
  for(let c=0;c<3;c++){
-  const nail=wolfCone(wolfVisual,wolfBone,side*.43+(c-1)*.13,.085,.61,.045,.18,8);
+  const nail=wolfCone(wolfVisual,wolfBone,side*.45+(c-1)*.14,.085,.61,.045,.18,8);
   nail.rotation.x=Math.PI/2;shinParts.push(nail);
  }
- const hip=avatarPivot(wolfVisual,thighParts,side*.31,1.12,-.10);
- const knee=avatarPivot(wolfVisual,shinParts,side*.41,.48,-.08);
+ const hip=avatarPivot(wolfVisual,thighParts,side*.35,1.12,-.10);
+ const knee=avatarPivot(wolfVisual,shinParts,side*.44,.48,-.08);
  knee.position.sub(hip.position);hip.add(knee);
  wolfLegs.push({side,hip,knee});
- const arm=avatarPivot(wolfVisual,armParts,side*.59,1.80,-.07);
+ const arm=avatarPivot(wolfVisual,armParts,side*.64,1.80,-.07);
  wolfArms.push({side,pivot:arm});
 }
 const wolfHeadGroup=new THREE.Group();wolfVisual.add(wolfHeadGroup);
-const headBase=wolfSphere(wolfHeadGroup,wolfFur,0,2.34,.09,.43,.46,.40);
-wolfSphere(wolfHeadGroup,wolfLight,0,2.17,.47,.31,.20,.39);
-wolfSphere(wolfHeadGroup,wolfFur,0,2.25,.66,.23,.17,.37);
-wolfSphere(wolfHeadGroup,wolfDark,0,2.29,.94,.16,.11,.15);
-wolfSphere(wolfHeadGroup,wolfLight,0,2.10,.68,.23,.075,.28);
+const headBase=wolfSphere(wolfHeadGroup,wolfFur,0,2.36,.09,.48,.48,.42);
+wolfSphere(wolfHeadGroup,wolfLight,0,2.18,.46,.33,.22,.40);
+wolfSphere(wolfHeadGroup,wolfFur,0,2.25,.66,.27,.18,.38);
+wolfSphere(wolfHeadGroup,wolfDark,0,2.29,.96,.19,.12,.16);
+wolfSphere(wolfHeadGroup,0x211d24,0,2.105,.74,.26,.12,.25);
+wolfSphere(wolfHeadGroup,wolfLight,0,2.035,.76,.26,.07,.26);
 for(const side of [-1,1]){
- const ear=wolfCone(wolfHeadGroup,wolfDark,side*.31,2.91,.02,.23,.67,14);ear.rotation.z=-side*.20;
- const inner=wolfCone(wolfHeadGroup,0x985c62,side*.31,2.94,.16,.12,.40,12);inner.rotation.z=-side*.20;
- wolfSphere(wolfHeadGroup,wolfDark,side*.23,2.46,.36,.22,.10,.17);
- const eye=wolfSphere(wolfHeadGroup,0xf7bd55,side*.21,2.40,.49,.087,.071,.064);
+ const ear=wolfCone(wolfHeadGroup,wolfDark,side*.36,2.93,.01,.24,.66,14);ear.rotation.z=-side*.20;
+ const inner=wolfCone(wolfHeadGroup,0x985c62,side*.36,2.95,.16,.12,.41,12);inner.rotation.z=-side*.20;
+ wolfSphere(wolfHeadGroup,wolfDark,side*.24,2.47,.37,.24,.13,.18);
+ const eye=wolfSphere(wolfHeadGroup,0xf7bd55,side*.23,2.40,.52,.099,.083,.069);
  eye.material.emissive.setHex(0x673000);eye.material.emissiveIntensity=.7;
- wolfSphere(wolfHeadGroup,0x181210,side*.21,2.40,.55,.033,.055,.026);
+ wolfSphere(wolfHeadGroup,0x181210,side*.23,2.40,.59,.038,.060,.029);
  wolfSphere(wolfHeadGroup,wolfLight,side*.30,2.19,.40,.20,.20,.23);
- const fang=wolfCone(wolfHeadGroup,wolfBone,side*.16,2.06,.78,.061,.19,9);fang.rotation.z=Math.PI;
+ // Curved open snarl: dark mouth, lower jaw and prominent ivory teeth.
+ const fang=wolfCone(wolfHeadGroup,wolfBone,side*.16,2.09,.79,.065,.20,9);fang.rotation.z=Math.PI;
+ for(let t=0;t<4;t++){
+  const tooth=wolfCone(wolfHeadGroup,wolfBone,side*(.08+t*.07),2.10,.84-t*.035,.027,.095,8);
+  tooth.rotation.z=Math.PI;
+ }
  for(let j=0;j<4;j++){
   const cheek=wolfCone(wolfHeadGroup,j%2?wolfFur:wolfLight,side*(.36+j*.018),2.15-j*.09,.30-j*.025,.085,.22,10);
   cheek.rotation.z=-side*.6;
