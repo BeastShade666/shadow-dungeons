@@ -596,7 +596,19 @@ $('characterSelect').value=data.character;
 $('characterSelect').onchange=()=>{data.character=$('characterSelect').value==='werewolf'?'werewolf':'reaper';persist();refresh()};
 $('heroColor').onchange=refresh;refresh();drawSkills();spawn();
 const clock=new THREE.Clock();
-function hurtHero(amount){if(!running||invuln>0)return;hp=Math.max(0,hp-amount);invuln=.85;if(hp<=0){show('You fell in battle! Your gold and purchased cosmetics are saved. Try again.');$('start').textContent='Retry Dungeon'}}
+function hurtHero(amount){
+ if(!running||invuln>0)return;
+ hp=Math.max(0,hp-amount);invuln=.85;
+ if(hp<=0){
+  // Roguelike death: reset dungeon progress and purchased skill ranks,
+  // but keep earned gold, unlocked weapons, characters and auras.
+  const goldKept=data.gold;
+  data.skills={};level=1;hp=0;
+  data.gold=goldKept;persist();drawSkills();drawWeapons();
+  show('You fell in battle! Floor and skill levels reset to 1 / 0. Your '+goldKept+' gold and unlocked cosmetics are safe. Spend your gold and try again!');
+  $('start').textContent='Retry Dungeon';
+ }
+}
 function frame(){
  requestAnimationFrame(frame);
  const dt=Math.min(clock.getDelta(),.05);
