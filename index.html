@@ -40,7 +40,7 @@
           <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select>
         </label>
         <label>Hero Color
-          <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select>
+          <select id="heroColor" aria-label="Character model color"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option><option value="red">Crimson</option><option value="orange">Inferno</option><option value="gold">Gold</option><option value="pink">Rose</option><option value="cyan">Frost</option><option value="white">Silver</option><option value="black">Obsidian</option></select>
         </label>
       </div>
       <h3 class="section-title">✦ Aura Shop</h3>
@@ -470,7 +470,33 @@ joystick.addEventListener('pointerdown',e=>{e.preventDefault();joystick.setPoint
 joystick.addEventListener('pointermove',e=>{if(joystick.hasPointerCapture(e.pointerId))moveStick(e)});
 for(const type of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(type,resetStick);
 $('attack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();attack()});$('special').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();specialAttack()});$('characterAttack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();characterAttack()});$('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash()});
-const colorMap={purple:0x8b5cf6,green:0x34d399,blue:0x38bdf8};
+const colorMap={purple:0x8b5cf6,green:0x34d399,blue:0x38bdf8,red:0xe64b60,orange:0xff8438,gold:0xeec24f,pink:0xf77cce,cyan:0x65e8f1,white:0xe3e8f1,black:0x45405b};
+// Store original model material colors once. Recolor fabric and fur, not bones,
+// teeth, eyes, weapons or other distinct details.
+const modelColorParts=[];
+function registerModelColors(group,baseColors){
+ group.traverse(o=>{
+  if(!o.isMesh||!o.material||!o.material.color)return;
+  const original=o.material.color.getHex();
+  if(!baseColors.has(original))return;
+  o.material=o.material.clone();
+  modelColorParts.push({material:o.material,original,character:group===wolfVisual?'werewolf':'reaper'});
+ });
+}
+registerModelColors(reaperVisual,new Set([0x14121b,0x090910,0x302535,0x44364b,0x201b29,0x15121c,0x211b29,0x16131d,0x17131d,0x17141e,0x25202e,0x3a3150]));
+registerModelColors(wolfVisual,new Set([wolfFur,wolfDark,wolfLight]));
+function recolorCharacterModels(){
+ const color=$('heroColor').value in colorMap?$('heroColor').value:'purple';
+ const tint=new THREE.Color(colorMap[color]);
+ for(const p of modelColorParts){
+  const base=new THREE.Color(p.original);
+  const luminance=(base.r+base.g+base.b)/3;
+  const intensity=p.character==='werewolf'?.40+luminance*.75:.16+luminance*.65;
+  p.material.color.copy(tint).multiplyScalar(intensity);
+ }
+ body.material.color.setHex(colorMap[color]);
+ wolfColorAccent.material.color.setHex(colorMap[color]);
+}
 // A single GPU-backed character portrait using the existing game models and WebGL renderer.
 // Clones reuse mesh geometries/materials; no second WebGL context or independent scroll area.
 const portraitCanvas=$('characterPreviewCanvas');
@@ -533,7 +559,7 @@ function updateCharacterPortrait(){
  }
 }
 
-function refresh(){body.material.color.setHex(colorMap[$('heroColor').value]);wolfColorAccent.material.color.setHex(colorMap[$('heroColor').value]);reaperVisual.visible=data.character!=='werewolf';wolfVisual.visible=data.character==='werewolf';aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length);updateCharacterPortrait()}
+function refresh(){recolorCharacterModels();reaperVisual.visible=data.character!=='werewolf';wolfVisual.visible=data.character==='werewolf';aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length);updateCharacterPortrait()}
 function monster(kind){
  const g=new THREE.Group();
  const add=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,color);m.position.set(x,y,z);m.scale.set(sx,sy,sz);g.add(m);return m};
@@ -1170,7 +1196,7 @@ $('start').onclick=()=>{if(!running){swing=null;weaponGroup.rotation.set(0,0,0);
 data.character=data.character==='werewolf'?'werewolf':'reaper';
 $('characterSelect').value=data.character;
 $('characterSelect').onchange=()=>{data.character=$('characterSelect').value==='werewolf'?'werewolf':'reaper';persist();refresh()};
-$('heroColor').onchange=refresh;refresh();drawSkills();spawn();
+$('heroColor').value=data.heroColor in colorMap?data.heroColor:'purple';$('heroColor').onchange=()=>{data.heroColor=$('heroColor').value;persist();refresh()};refresh();drawSkills();spawn();
 const clock=new THREE.Clock();
 function hurtHero(amount){
  if(!running||invuln>0)return;
