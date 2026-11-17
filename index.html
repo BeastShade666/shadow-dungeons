@@ -1135,7 +1135,7 @@ function spawn(){
  }
  refresh();
 }
-function show(message){drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
+function show(message){bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
 const projectiles=[];const bossBolts=[];let swing=null;
 function launchBossBolt(e){
  // Fire a clearly visible orb away from the boss, aimed at the hero's current position.
@@ -1377,6 +1377,7 @@ function updateCharacterSwing(dt){
 
 // Bell Shade summons curling roots around enemies, dealing damage and briefly rooting them.
 const bellVines=[];
+function clearBellVines(){for(const v of bellVines){scene.remove(v.group);v.group.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose()}})}bellVines.length=0;}
 function castBellVines(){
  const targets=[...enemies].map(e=>({e,dist:Math.hypot(e.obj.position.x-hero.position.x,e.obj.position.z-hero.position.z)}))
   .filter(t=>t.dist<=7).sort((a,b)=>a.dist-b.dist).slice(0,5);
@@ -1396,7 +1397,7 @@ function castBellVines(){
    leaf.position.copy(curve.getPoint(1));leaf.rotation.z=.55;group.add(leaf);
   }
   bellVines.push({group,age:0,duration:1.65});
-  e.rootTime=Math.max(e.rootTime||0,1.45);
+  e.rootTime=Math.max(e.rootTime||0,1.45);e.windup=0;
   damageEnemy(e,3,'staff');
  }
  if(!targets.length){
@@ -1570,7 +1571,7 @@ function updateProjectiles(dt){
   }
  }
 }
-$('start').onclick=()=>{if(!running){data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
+$('start').onclick=()=>{if(!running){clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
 data.character=['werewolf','reaper','kitsune','bellshade'].includes(data.character)?data.character:'reaper';
 if(data.weapon==='daggers')data.weapon='sword';
 $('characterSelect').value=data.character;
@@ -1579,7 +1580,7 @@ $('characterSelect').onchange=()=>{
  data.character=['reaper','werewolf','kitsune','bellshade'].includes(next)?next:'reaper';
  // Kitsune can use every normal weapon; daggers are exclusive to her E attack.
  if(data.weapon==='daggers')data.weapon='sword';
- kitsuneDaggerActive=false;kitsuneDaggersVisible();
+ kitsuneDaggerActive=false;kitsuneDaggersVisible();bellStaff.rotation.set(0,0,0);
  buildWeapon();drawWeapons();persist();refresh();
 };
 $('leaderboardName').value=data.playerName||'Adventurer';
@@ -1636,7 +1637,7 @@ function frame(){
    e.phase+=dt;e.cooldown-=dt;if(e.kind==='boss'){e.dodgeCooldown-=dt;e.dodgeTime=Math.max(0,e.dodgeTime-dt)}
    const dx=hero.position.x-e.obj.position.x,dz=hero.position.z-e.obj.position.z,dist=Math.hypot(dx,dz);
    const range=e.kind==='boss'?9:e.kind==='bat'?2.5:e.kind==='skeleton'?1.9:1.5;
-   if(e.windup>0){
+   if(e.windup>0&&!e.rootTime){
     e.windup-=dt;
     e.obj.scale.set(1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06);
     if(e.windup<=0){
@@ -1652,7 +1653,7 @@ function frame(){
     if(dist>(e.kind==='boss'?3.2:range*.78) && e.attackTime<=0 && dist>.001){
      if(!e.rootTime)navigateMonster(e,dt);
     }
-    if(e.cooldown<=0&&dist<range){
+    if(e.cooldown<=0&&dist<range&&!e.rootTime){
      if(e.kind==='boss')e.attackMode=dist>4.1?'ranged':(Math.random()<.4?'ranged':'melee');
      e.windup=e.kind==='boss'?.65:e.kind==='skeleton'?.48:e.kind==='bat'?.36:.55;
      e.cooldown=e.kind==='boss'?1.85:e.kind==='skeleton'?2.1:e.kind==='bat'?1.65:2.35;
