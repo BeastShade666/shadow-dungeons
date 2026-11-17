@@ -44,7 +44,7 @@
       </figure>
       <div class="menu-grid">
         <label>Character
-          <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option><option value="kitsune">Crimson Kitsune · Twin Daggers</option></select>
+          <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option><option value="kitsune">Crimson Kitsune · Twin Daggers</option><option value="bellshade">Bell Shade · Druid of the Vines</option></select>
         </label>
         <label>Hero Color
           <select id="heroColor" aria-label="Character model color"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option><option value="red">Crimson</option><option value="orange">Inferno</option><option value="gold">Gold</option><option value="pink">Rose</option><option value="cyan">Frost</option><option value="white">Silver</option><option value="black">Obsidian</option><option value="navy">Midnight Navy</option><option value="teal">Deep Teal</option><option value="lime">Venom Lime</option><option value="forest">Forest</option><option value="brown">Earth Brown</option><option value="gray">Storm Gray</option><option value="lavender">Lavender</option><option value="magenta">Magenta</option><option value="maroon">Blood Moon</option><option value="ice">Ice Blue</option><option value="peach">Peach</option><option value="bronze">Bronze</option></select>
@@ -694,6 +694,54 @@ joystick.addEventListener('pointerdown',e=>{e.preventDefault();joystick.setPoint
 joystick.addEventListener('pointermove',e=>{if(joystick.hasPointerCapture(e.pointerId))moveStick(e)});
 for(const type of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(type,resetStick);
 $('attack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();attack()});$('special').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();specialAttack()});$('characterAttack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();characterAttack()});$('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash()});
+
+// Bell Shade: forest druid with leaf mantle, carved staff, glowing emerald sigil,
+// braided hair and animated cloth. Built from lightweight game geometry.
+const bellVisual=new THREE.Group();hero.add(bellVisual);
+const bellArms=[],bellLegs=[],bellAccentParts=[];
+const bellPart=(parent,geometry,color,x,y,z,scale)=>{
+ const m=mesh(geometry,color);m.position.set(x,y,z);
+ if(scale)m.scale.set(...scale);parent.add(m);return m;
+};
+const bellBall=(parent,color,x,y,z,sx,sy,sz)=>bellPart(parent,new THREE.SphereGeometry(1,20,14),color,x,y,z,[sx,sy,sz]);
+const bellGreen=0x244b35,bellLeaf=0x478c50,bellGold=0xc3a66a,bellSkin=0xc99678,bellHair=0x31221d;
+bellPart(bellVisual,new THREE.CylinderGeometry(.27,.57,1.13,20),bellGreen,0,.93,0);
+bellBall(bellVisual,bellGreen,0,1.63,0,.34,.52,.26);
+bellPart(bellVisual,new THREE.CylinderGeometry(.33,.44,.16,16),0x332b22,0,1.16,0);
+bellBall(bellVisual,bellSkin,0,2.33,.08,.29,.36,.27);
+bellBall(bellVisual,bellHair,0,2.58,-.05,.32,.21,.29);
+for(const side of [-1,1]){
+ const armParts=[],legParts=[];
+ armParts.push(bellBall(bellVisual,bellGreen,side*.43,1.69,0,.21,.30,.22));
+ armParts.push(bellBall(bellVisual,bellSkin,side*.50,1.20,.08,.14,.28,.15));
+ armParts.push(bellBall(bellVisual,bellSkin,side*.53,.95,.17,.13,.13,.13));
+ const sleeve=bellPart(bellVisual,new THREE.ConeGeometry(.27,.46,12),bellLeaf,side*.44,1.49,.02);
+ sleeve.rotation.z=side*.15;armParts.push(sleeve);
+ const arm=avatarPivot(bellVisual,armParts,side*.43,1.83,0);bellArms.push({side,pivot:arm});
+ legParts.push(bellBall(bellVisual,0x2b2928,side*.22,.34,.05,.16,.37,.18));
+ legParts.push(bellBall(bellVisual,0x3a2b23,side*.22,.10,.20,.19,.12,.31));
+ const hip=avatarPivot(bellVisual,legParts,side*.22,.77,0);bellLegs.push({side,hip});
+ for(let j=0;j<3;j++){
+  const leaf=bellPart(bellVisual,new THREE.ConeGeometry(.17,.43,7),j%2?bellGreen:bellLeaf,side*(.27+j*.10),1.72-j*.13,.10);
+  leaf.rotation.z=side*(.55+j*.13);
+ }
+ const braid=bellBall(bellVisual,bellHair,side*.26,2.04,-.11,.10,.36,.11);
+ braid.rotation.z=side*.12;
+ bellBall(bellVisual,0x201e1a,side*.12,2.35,.327,.036,.042,.025);
+}
+for(let i=0;i<8;i++){
+ const angle=i*Math.PI/4;
+ const leaf=bellPart(bellVisual,new THREE.ConeGeometry(.18,.54,7),i%2?bellGreen:bellLeaf,Math.cos(angle)*.36,1.18,Math.sin(angle)*.34);
+ leaf.rotation.z=Math.cos(angle)*.25;leaf.rotation.x=-Math.sin(angle)*.25;
+}
+const bellStaff=new THREE.Group();bellStaff.position.set(.65,.90,.24);bellVisual.add(bellStaff);
+bellPart(bellStaff,new THREE.CylinderGeometry(.047,.066,2.25,10),0x65462e,0,.38,0);
+bellPart(bellStaff,new THREE.IcosahedronGeometry(.19,1),0x77f5a3,0,1.63,0);
+const bellStaffRing=bellPart(bellStaff,new THREE.TorusGeometry(.24,.038,8,20),bellGold,0,1.63,0);
+bellStaffRing.rotation.y=.25;
+const bellSigil=bellPart(bellVisual,new THREE.IcosahedronGeometry(.12,1),0x76f7a0,0,1.68,.29);
+bellAccentParts.push(bellSigil);
+
 const colorMap={purple:0x8b5cf6,green:0x34d399,blue:0x38bdf8,red:0xe64b60,orange:0xff8438,gold:0xeec24f,pink:0xf77cce,cyan:0x65e8f1,white:0xe3e8f1,black:0x45405b,navy:0x263e82,teal:0x168d89,lime:0xb3e33b,forest:0x286b43,brown:0x82563b,gray:0x89909c,lavender:0xb49cf1,magenta:0xe43bb0,maroon:0x8b243d,ice:0xb4ecff,peach:0xffb58c,bronze:0xba8245};
 // Store original model material colors once. Recolor fabric and fur, not bones,
 // teeth, eyes, weapons or other distinct details.
@@ -720,7 +768,7 @@ function recolorCharacterModels(){
  }
  body.material.color.setHex(colorMap[color]);
  wolfColorAccent.material.color.setHex(colorMap[color]);
- for(const trim of kitsuneAccentParts)trim.material.color.setHex(colorMap[color]);
+ for(const trim of kitsuneAccentParts)trim.material.color.setHex(colorMap[color]);for(const gem of bellAccentParts)gem.material.color.setHex(colorMap[color]);
 }
 // A single GPU-backed character portrait using the existing game models and WebGL renderer.
 // Clones reuse mesh geometries/materials; no second WebGL context or independent scroll area.
@@ -745,20 +793,20 @@ const portraitImage=portraitContext?.createImageData(portraitW,portraitH);
 let portraitModel=null,lastPortraitKey='';
 const portraitAuraMaterials=[];
 function updateCharacterPortrait(){
- const id=['reaper','werewolf','kitsune'].includes(data.character)?data.character:'reaper';
+ const id=['reaper','werewolf','kitsune','bellshade'].includes(data.character)?data.character:'reaper';
  const color=$('heroColor').value;
  const auraChoice=auraShop[selectedAuraId]?selectedAuraId:data.auraColor;
  const signature=[id,color,data.weapon,data.auraColor,data.aura,auraChoice].join(':');
  if(signature===lastPortraitKey)return;
  lastPortraitKey=signature;
- $('characterPreviewName').textContent=id==='kitsune'?'Crimson Kitsune · Twin Daggers':id==='werewolf'?'Werewolf · Tail Axe':'Grim Reaper';
- $('characterPreviewDetail').textContent=id==='kitsune'?'Nine-tailed fox guardian · Twin dagger flurry':id==='werewolf'?'Feral guardian · Double-bladed tail axe':'Shadowbound warrior · Hooded reaper';
+ $('characterPreviewName').textContent=id==='bellshade'?'Bell Shade · Druid of the Vines':id==='kitsune'?'Crimson Kitsune · Twin Daggers':id==='werewolf'?'Werewolf · Tail Axe':'Grim Reaper';
+ $('characterPreviewDetail').textContent=id==='bellshade'?'Forest guardian · Grasping Vines':id==='kitsune'?'Nine-tailed fox guardian · Twin dagger flurry':id==='werewolf'?'Feral guardian · Double-bladed tail axe':'Shadowbound warrior · Hooded reaper';
  portraitCanvas.setAttribute('aria-label','3D preview: '+$('characterPreviewName').textContent);
  $('characterPreviewNote').textContent='Aura: '+auraShop[auraChoice].name+(data.ownedAuras.includes(auraChoice)?(data.auraColor===auraChoice?' · Equipped':' · Owned'):' · Preview only — buy to equip')+'. Tap an aura color to preview its glow.';
  if(!portraitContext||!portraitImage)return;
  if(portraitModel){portraitScene.remove(portraitModel);for(const material of portraitAuraMaterials)material.dispose();portraitAuraMaterials.length=0;}
  portraitModel=new THREE.Group();
- portraitModel.add((id==='kitsune'?kitsuneVisual:id==='werewolf'?wolfVisual:reaperVisual).clone(true));
+ portraitModel.add((id==='bellshade'?bellVisual:id==='kitsune'?kitsuneVisual:id==='werewolf'?wolfVisual:reaperVisual).clone(true));
  portraitModel.add(weaponGroup.clone(true));
  // Clone existing aura materials before tinting so unowned preview colors never alter gameplay.
  const previewAura=aura.clone(true);previewAura.visible=true;
@@ -797,7 +845,7 @@ function updateCharacterPortrait(){
  }
 }
 
-function refresh(){reaperVisual.visible=data.character==='reaper';wolfVisual.visible=data.character==='werewolf';kitsuneVisual.visible=data.character==='kitsune';kitsuneDaggersVisible();weaponGroup.visible=true;aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length);updateCharacterPortrait()}
+function refresh(){reaperVisual.visible=data.character==='reaper';wolfVisual.visible=data.character==='werewolf';kitsuneVisual.visible=data.character==='kitsune';bellVisual.visible=data.character==='bellshade';kitsuneDaggersVisible();weaponGroup.visible=true;aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length);updateCharacterPortrait()}
 function monster(kind){
  const g=new THREE.Group();
  const add=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,color);m.position.set(x,y,z);m.scale.set(sx,sy,sz);g.add(m);return m};
@@ -1260,12 +1308,12 @@ let characterSwing=null;
 function characterAttack(){
  if(!running||characterSwing||performance.now()-lastCharacterAttack<8000)return;
  lastCharacterAttack=performance.now();
- const wolf=data.character==='werewolf',kitsune=data.character==='kitsune';
+ const wolf=data.character==='werewolf',kitsune=data.character==='kitsune',bell=data.character==='bellshade';
  const nearest=enemies.map(e=>({e,d:Math.hypot(e.obj.position.x-hero.position.x,e.obj.position.z-hero.position.z)})).sort((a,b)=>a.d-b.d)[0];
  if(nearest&&nearest.d<5)hero.rotation.y=Math.atan2(nearest.e.obj.position.x-hero.position.x,nearest.e.obj.position.z-hero.position.z);
- characterSwing={elapsed:0,duration:kitsune?.78:wolf?.7:.62,wolf,kitsune,hit:false,hits:0};
+ characterSwing={elapsed:0,duration:bell?.9:kitsune?.78:wolf?.7:.62,wolf,kitsune,bell,hit:false,hits:0};
  if(kitsune){kitsuneDaggerActive=true;kitsuneDaggerSlash=1;kitsuneDaggersVisible()}
- weaponSound(wolf?'axe':'sword',true);
+ weaponSound(bell?'staff':wolf?'axe':'sword',true);
 }
 function updateCharacterSwing(dt){
  if(!characterSwing)return;
@@ -1277,13 +1325,18 @@ function updateCharacterSwing(dt){
   tailRig.rotation.y=sweep;
   tailRig.rotation.x=-.12+Math.sin(t*Math.PI)*.30;
   tailAxe.rotation.z=Math.sin(t*Math.PI)*.7;
+ }else if(a.bell){
+  bellStaff.rotation.z=-Math.sin(t*Math.PI)*.65;
+  bellStaff.rotation.x=Math.sin(t*Math.PI)*.35;
  }else if(a.kitsune){
   // Kitsune's articulated daggers animate with her arms.
  }else{
   scytheRig.rotation.y=sweep;
   scytheRig.rotation.z=-.35+Math.sin(t*Math.PI)*.48;
  }
- if(a.kitsune){
+ if(a.bell){
+  if(!a.hit&&t>=.36){a.hit=true;castBellVines()}
+ }else if(a.kitsune){
   // Three fast dagger contacts; each strike only hits enemies in a forward cone.
   const hitWindows=[.27,.49,.71];
   while(a.hits<hitWindows.length&&t>=hitWindows[a.hits]){
@@ -1317,10 +1370,48 @@ function updateCharacterSwing(dt){
  if(t>=1){
   characterSwing=null;scytheRig.rotation.set(0,0,0);
   tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0);
+  bellStaff.rotation.set(0,0,0);
   if(a.kitsune){kitsuneDaggerActive=false;kitsuneDaggersVisible()}
  }
 }
 
+// Bell Shade summons curling roots around enemies, dealing damage and briefly rooting them.
+const bellVines=[];
+function castBellVines(){
+ const targets=[...enemies].map(e=>({e,dist:Math.hypot(e.obj.position.x-hero.position.x,e.obj.position.z-hero.position.z)}))
+  .filter(t=>t.dist<=7).sort((a,b)=>a.dist-b.dist).slice(0,5);
+ for(const {e} of targets){
+  const group=new THREE.Group();group.position.copy(e.obj.position);scene.add(group);
+  for(let i=0;i<4;i++){
+   const angle=i*Math.PI/2;
+   const curve=new THREE.CatmullRomCurve3([
+    new THREE.Vector3(Math.cos(angle)*.9,.05,Math.sin(angle)*.9),
+    new THREE.Vector3(Math.cos(angle+.6)*.56,.40,Math.sin(angle+.6)*.56),
+    new THREE.Vector3(Math.cos(angle+1.2)*.39,1.05,Math.sin(angle+1.2)*.39)
+   ]);
+   const vine=new THREE.Mesh(new THREE.TubeGeometry(curve,16,.065,7,false),
+    new THREE.MeshStandardMaterial({color:i%2?0x57a75b:0x2d7947,emissive:0x123e20,roughness:.9}));
+   group.add(vine);
+   const leaf=mesh(new THREE.ConeGeometry(.13,.28,7),0x7ddf78);
+   leaf.position.copy(curve.getPoint(1));leaf.rotation.z=.55;group.add(leaf);
+  }
+  bellVines.push({group,age:0,duration:1.65});
+  e.rootTime=Math.max(e.rootTime||0,1.45);
+  damageEnemy(e,3,'staff');
+ }
+ if(!targets.length){
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.5,.09,8,40),new THREE.MeshBasicMaterial({color:0x6ae87d,transparent:true,opacity:.8}));
+  ring.rotation.x=Math.PI/2;ring.position.copy(hero.position);ring.position.y=.12;scene.add(ring);
+  specialEffects.push({ring,age:0,duration:.6});
+ }
+}
+function updateBellVines(dt){
+ for(let i=bellVines.length-1;i>=0;i--){
+  const v=bellVines[i];v.age+=dt;
+  v.group.scale.y=Math.min(1,v.age/.22);
+  if(v.age>=v.duration){scene.remove(v.group);v.group.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose()}});bellVines.splice(i,1)}
+ }
+}
 let bodyMoveTarget=0,bodyMoveBlend=0,heroGait=0;
 function animateHeroBody(dt,t){
  bodyMoveBlend=THREE.MathUtils.damp(bodyMoveBlend,bodyMoveTarget,9,dt);
@@ -1378,6 +1469,9 @@ function animateHeroBody(dt,t){
   trail.material.opacity=.35+.45*flurry;
  });
  kitsuneLegs.forEach(({side,hip})=>{hip.rotation.x=Math.sin(heroGait+(side>0?Math.PI:0))*move*.42});
+ bellVisual.position.y=Math.sin(t*1.7)*.028;
+ bellArms.forEach(({side,pivot})=>{pivot.rotation.x=-side*stride*move*.33+(characterSwing?.bell?-.65:0)});
+ bellLegs.forEach(({side,hip})=>{hip.rotation.x=Math.sin(heroGait+(side>0?Math.PI:0))*move*.42});
  kitsuneTails.forEach(({tail,spread},i)=>{
   tail.rotation.z=Math.sin(t*1.7+i*.52)*(.045+move*.05)+flurry*spread*.04;
   tail.rotation.x=Math.sin(t*1.2+i*.3)*.04;
@@ -1477,12 +1571,12 @@ function updateProjectiles(dt){
  }
 }
 $('start').onclick=()=>{if(!running){data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
-data.character=['werewolf','reaper','kitsune'].includes(data.character)?data.character:'reaper';
+data.character=['werewolf','reaper','kitsune','bellshade'].includes(data.character)?data.character:'reaper';
 if(data.weapon==='daggers')data.weapon='sword';
 $('characterSelect').value=data.character;
 $('characterSelect').onchange=()=>{
  const next=$('characterSelect').value;
- data.character=['reaper','werewolf','kitsune'].includes(next)?next:'reaper';
+ data.character=['reaper','werewolf','kitsune','bellshade'].includes(next)?next:'reaper';
  // Kitsune can use every normal weapon; daggers are exclusive to her E attack.
  if(data.weapon==='daggers')data.weapon='sword';
  kitsuneDaggerActive=false;kitsuneDaggersVisible();
@@ -1538,6 +1632,7 @@ function frame(){
    bodyMoveTarget=1;
   }
   for(const e of enemies){
+   e.rootTime=Math.max(0,(e.rootTime||0)-dt);
    e.phase+=dt;e.cooldown-=dt;if(e.kind==='boss'){e.dodgeCooldown-=dt;e.dodgeTime=Math.max(0,e.dodgeTime-dt)}
    const dx=hero.position.x-e.obj.position.x,dz=hero.position.z-e.obj.position.z,dist=Math.hypot(dx,dz);
    const range=e.kind==='boss'?9:e.kind==='bat'?2.5:e.kind==='skeleton'?1.9:1.5;
@@ -1555,7 +1650,7 @@ function frame(){
    }else{
     if(e.attackTime>0)e.attackTime=Math.max(0,e.attackTime-dt);
     if(dist>(e.kind==='boss'?3.2:range*.78) && e.attackTime<=0 && dist>.001){
-     navigateMonster(e,dt);
+     if(!e.rootTime)navigateMonster(e,dt);
     }
     if(e.cooldown<=0&&dist<range){
      if(e.kind==='boss')e.attackMode=dist>4.1?'ranged':(Math.random()<.4?'ranged':'melee');
@@ -1582,18 +1677,19 @@ function frame(){
   }
   updateSwing(dt);
   updateCharacterSwing(dt);
+  updateBellVines(dt);
   updateProjectiles(dt);
   updateBossBolts(dt);
   updateBossExplosions(dt);
   updateSpecialEffects(dt);
   refresh();
  }
- if(!running){for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;updateSpecialEffects(dt);characterSwing=null;kitsuneDaggerActive=false;kitsuneDaggersVisible();scytheRig.rotation.set(0,0,0);tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0)}
+ if(!running){updateBellVines(dt);for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;updateSpecialEffects(dt);characterSwing=null;kitsuneDaggerActive=false;kitsuneDaggersVisible();scytheRig.rotation.set(0,0,0);tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0)}
  const characterRemain=Math.max(0,8-(performance.now()-lastCharacterAttack)/1000);
  $('dash').disabled=!running||dashCooldown>0;
  $('dash').textContent=dashCooldown>0?'DASH '+dashCooldown.toFixed(1)+'s':'DASH';
  $('characterAttack').disabled=!running||characterRemain>0;
- $('characterAttack').textContent=(data.character==='kitsune'?'DAGGER FLURRY':data.character==='werewolf'?'TAIL AXE':'SCYTHE SWEEP')+(characterRemain>0?' '+characterRemain.toFixed(1)+'s':'');
+ $('characterAttack').textContent=(data.character==='bellshade'?'GRASPING VINES':data.character==='kitsune'?'DAGGER FLURRY':data.character==='werewolf'?'TAIL AXE':'SCYTHE SWEEP')+(characterRemain>0?' '+characterRemain.toFixed(1)+'s':'');
  animateAura(clock.elapsedTime);
  animateHeroBody(dt,clock.elapsedTime);
  camera.position.lerp(new THREE.Vector3(hero.position.x,9,hero.position.z+12),.09);
