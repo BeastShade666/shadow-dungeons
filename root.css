@@ -334,3 +334,16 @@ body.menu-open #endRun{display:none}
  -webkit-tap-highlight-color:transparent;
 }
 #attack.is-held{filter:brightness(1.22);transform:scale(.96)}
+
+/* Pause action beside End Run, with a modal that blocks game touches. */
+#pauseRun{display:inline-flex;align-items:center;justify-content:center;min-width:86px;min-height:44px;margin:0;padding:9px 12px;border:1px solid #b9a5ff;border-radius:11px;background:linear-gradient(145deg,#5340a2,#30256a);color:white;font-size:.86rem;font-weight:850;box-shadow:0 3px 12px #0008;touch-action:manipulation}
+#pauseRun:focus-visible,#resumeRun:focus-visible{outline:3px solid #fff3be;outline-offset:2px}
+body.menu-open #pauseRun{display:none}
+#pauseOverlay[hidden]{display:none!important}
+#pauseOverlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;background:#0d0928bb;backdrop-filter:blur(5px);touch-action:none}
+.pause-card{max-width:360px;width:100%;padding:28px 22px;text-align:center;background:#201937;border:2px solid #a68bf0;border-radius:18px;box-shadow:0 16px 55px #000a;color:#fff}
+.pause-card h2{margin:0 0 12px;font-size:1.6rem}
+.pause-card p{line-height:1.5;color:#ddd2f5}
+#resumeRun{min-height:50px;padding:12px 24px;border-radius:12px;border:1px solid #dfc88a;background:#7754c8;color:white;font-weight:850;font-size:1rem;touch-action:manipulation}
+@media(max-width:700px){#pauseRun{min-width:70px;min-height:44px;padding:9px;font-size:.76rem}}
+@media(max-height:480px) and (orientation:landscape){#pauseRun{min-height:38px;padding:7px 10px}.pause-card{padding:15px 20px}.pause-card h2{font-size:1.3rem}}
