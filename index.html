@@ -1280,6 +1280,13 @@ function updateCharacterSwing(dt){
     if(distance>.01&&distance<=3.6&&forward.dot(delta.normalize())>=Math.cos(1.15))
      damageEnemy(enemy,2,'sword');
    }
+   // A short crimson crescent marks each hit without adding a permanent scene effect.
+   const slash=new THREE.Mesh(
+    new THREE.TorusGeometry(1.28+a.hits*.10,.065,6,28,Math.PI*1.28),
+    new THREE.MeshBasicMaterial({color:a.hits===1?0xffa3bb:0xff456c,transparent:true,opacity:.83,depthWrite:false,blending:THREE.AdditiveBlending}));
+   slash.position.copy(hero.position);slash.position.y=1.28;
+   slash.rotation.y=hero.rotation.y;slash.rotation.z=a.hits*.37-.35;
+   scene.add(slash);specialEffects.push({ring:slash,age:0,duration:.27});
    a.hits++;
   }
  }else if(!a.hit&&t>=.47){
@@ -1345,9 +1352,12 @@ function animateHeroBody(dt,t){
  kitHead.rotation.x=inhale*.024;kitHead.rotation.y=Math.sin(t*.8)*.045;
  kitsuneDaggerSlash=Math.max(0,kitsuneDaggerSlash-dt*4.0);
  const strike=Math.sin(kitsuneDaggerSlash*Math.PI);
- const flurry=characterSwing?.kitsune?Math.sin(Math.min(1,characterSwing.elapsed/characterSwing.duration)*Math.PI):0;
+ // Three crisp alternating poses during the exclusive dagger flurry.
+ const skillProgress=characterSwing?.kitsune?Math.min(1,characterSwing.elapsed/characterSwing.duration):0;
+ const flurry=characterSwing?.kitsune?Math.abs(Math.sin(skillProgress*Math.PI*3)):0;
  kitsuneArms.forEach(({side,pivot,trail})=>{
-  pivot.rotation.x=-side*stride*move*.34+strike*(side>0?-1.15:.89)-flurry*(.9+side*.24);
+  const alternate=characterSwing?.kitsune?Math.sin(skillProgress*3*Math.PI)*side:0;
+  pivot.rotation.x=-side*stride*move*.34+strike*(side>0?-1.15:.89)-flurry*.52-alternate*.70;
   pivot.rotation.z=side*(-.12+strike*.26+flurry*.42);
   trail.visible=kitsuneDaggerActive;
   trail.rotation.z=side*(.48+Math.sin(t*21)*.85);
