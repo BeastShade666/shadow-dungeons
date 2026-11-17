@@ -1,7 +1,57 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
-<link rel="stylesheet" href="./root.css?v=theme-picker-20261117b"></head><body>
-<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><details class="menu-theme-picker" id="menuThemePicker"><summary id="menuThemeSummary">Menu Layout · Moonlit Gate</summary><div class="menu-theme-options" role="group" aria-label="Menu background selection"><button type="button" id="menuThemeMoonlit" aria-pressed="true">🌙 Moonlit Gate</button><button type="button" id="menuThemeEmber" aria-pressed="false">🔥 Ember Citadel</button></div></details><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><h3>Aura Shop</h3><div id="shop"><span class="shop-label">Aura color</span><details id="auraPicker" class="aura-picker"><summary id="auraToggle">Choose aura</summary><div id="auraOptions" class="aura-options" role="group" aria-label="Available aura colors"></div></details><button id="auraAction" type="button"></button></div><h3>Skill Upgrades</h3><p id="skillInfo"><small>Spend gold to improve your hero permanently. Prices rise with each purchase.</small></p><div id="skills"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E or blue button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
+<link rel="stylesheet" href="./root.css?v=preview-layout-20261117a"></head><body>
+<div id="hud"><span id="stats"></span><span id="stage"></span></div>
+<div id="panel" data-menu-theme="moonlit">
+  <header class="menu-preview-top">
+    <div class="preview-logo">⚔ SHADOW DUNGEONS <span class="preview-logo-note">/ MAIN MENU</span></div>
+    <details class="menu-theme-picker" id="menuThemePicker">
+      <summary id="menuThemeSummary">Menu Layout · 🌙 Moonlit Gate</summary>
+      <div class="menu-theme-options" role="group" aria-label="Menu background selection">
+        <button type="button" id="menuThemeMoonlit" aria-pressed="true">🌙 Moonlit Gate</button>
+        <button type="button" id="menuThemeEmber" aria-pressed="false">🔥 Ember Citadel</button>
+      </div>
+    </details>
+  </header>
+  <div class="menu-preview-stage">
+    <div class="scene-title">
+      <div class="scene-eyebrow">THE DUNGEON AWAITS · <span id="sceneNumber">01 / 02</span></div>
+      <h1 id="sceneName">ENTER THE<br>MOONLIT GATE</h1>
+      <p id="sceneDescription">A haunted forest, ancient portal and luminous teal magic. Quiet, mysterious and atmospheric.</p>
+    </div>
+    <section class="card menu-card" aria-label="Shadow Dungeons game menu">
+      <div class="menu-pretitle">Dungeon Selection</div>
+      <h2>⚔ Shadow Dungeons</h2>
+      <p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p>
+      <p id="wallet"></p>
+      <div class="menu-grid">
+        <label>Character
+          <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select>
+        </label>
+        <label>Hero Color
+          <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select>
+        </label>
+      </div>
+      <h3 class="section-title">✦ Aura Shop</h3>
+      <div id="shop">
+        <span class="shop-label">Aura color</span>
+        <details id="auraPicker" class="aura-picker">
+          <summary id="auraToggle">Choose aura</summary>
+          <div id="auraOptions" class="aura-options" role="group" aria-label="Available aura colors"></div>
+        </details>
+        <button id="auraAction" type="button"></button>
+      </div>
+      <h3 class="section-title">⚡ Skill Upgrades</h3>
+      <p id="skillInfo"><small>Spend gold to improve your hero permanently. Prices rise with each purchase.</small></p>
+      <div id="skills"></div>
+      <h3 class="section-title">🗡 Weapons</h3>
+      <div id="weapons"></div>
+      <button id="start" type="button">Enter Dungeon</button>
+      <p class="menu-controls-help"><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E or blue button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p>
+    </section>
+  </div>
+  <footer class="menu-preview-footer">Choose your hero. Upgrade your skills. Conquer the dungeon.</footer>
+</div>
 <div id="controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div></div><div id="attackButtons"><button id="characterAttack">SCYTHE SWEEP</button><button id="special">SPECIAL</button><button id="attack">ATTACK</button></div></div><div id="error"></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
@@ -51,6 +101,11 @@ function setMenuTheme(theme){
  panel.style.backgroundPosition='center center';
  panel.style.backgroundRepeat='no-repeat';
  $('menuThemeSummary').textContent='Menu Layout · '+(chosen==='ember'?'🔥 Ember Citadel':'🌙 Moonlit Gate');
+ $('sceneNumber').textContent=chosen==='ember'?'02 / 02':'01 / 02';
+ $('sceneName').innerHTML=chosen==='ember'?'DESCEND INTO<br>EMBER CITADEL':'ENTER THE<br>MOONLIT GATE';
+ $('sceneDescription').textContent=chosen==='ember'
+  ? 'An infernal stronghold above a molten chasm. Brutal, dramatic and forged in fire.'
+  : 'A haunted forest, ancient portal and luminous teal magic. Quiet, mysterious and atmospheric.';
  $('menuThemeMoonlit').setAttribute('aria-pressed',String(chosen==='moonlit'));
  $('menuThemeEmber').setAttribute('aria-pressed',String(chosen==='ember'));
  $('menuThemePicker').open=false;
