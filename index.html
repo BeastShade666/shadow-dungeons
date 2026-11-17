@@ -305,11 +305,6 @@ wolfSphere(wolfVisual,wolfFur,0,1.39,-.08,.47,.73,.35);
 wolfSphere(wolfVisual,wolfDark,0,1.81,-.12,.66,.34,.40);
 wolfSphere(wolfVisual,wolfLight,0,1.48,.29,.34,.54,.14);
 wolfSphere(wolfVisual,wolfFur,0,1.08,-.06,.38,.36,.32);
-for(let i=0;i<9;i++){
- const x=(i-4)*.108;
- const tuft=wolfCone(wolfVisual,i%3===0?wolfFur:wolfLight,x,1.18+Math.abs(x)*.14,.42,.085,.30);
- tuft.rotation.z=x*.42;
-}
 for(const side of [-1,1]){
  const armParts=[],thighParts=[],shinParts=[];
  const shoulder=wolfSphere(wolfVisual,wolfDark,side*.59,1.83,-.07,.31,.34,.31);
