@@ -871,20 +871,25 @@ const portraitImage=portraitContext?.createImageData(portraitW,portraitH);
 let portraitModel=null,lastPortraitKey='';
 const portraitAuraMaterials=[];
 function updateCharacterPortrait(){
- const id=['reaper','werewolf','kitsune','bellshade'].includes(data.character)?data.character:'reaper';
+ const id=['reaper','werewolf','kitsune','bellshade','spacemarine'].includes(data.character)?data.character:'reaper';
  const color=$('heroColor').value;
  const auraChoice=auraShop[selectedAuraId]?selectedAuraId:data.auraColor;
- const signature=[id,color,data.weapon,data.auraColor,data.aura,auraChoice].join(':');
+ const signature=[id,color,data.weapon,data.auraColor,data.aura,auraChoice,id==='spacemarine'?spaceMarineState:''].join(':');
  if(signature===lastPortraitKey)return;
  lastPortraitKey=signature;
- $('characterPreviewName').textContent=id==='bellshade'?'Bell Shade · Druid of the Vines':id==='kitsune'?'Crimson Kitsune · Twin Daggers':id==='werewolf'?'Werewolf · Tail Axe':'Grim Reaper';
- $('characterPreviewDetail').textContent=id==='bellshade'?'Forest guardian · Grasping Vines':id==='kitsune'?'Nine-tailed fox guardian · Twin dagger flurry':id==='werewolf'?'Feral guardian · Double-bladed tail axe':'Shadowbound warrior · Hooded reaper';
+ $('characterPreviewName').textContent=id==='spacemarine'?'Space Marine · Armored Soldier':id==='bellshade'?'Bell Shade · Druid of the Vines':id==='kitsune'?'Crimson Kitsune · Twin Daggers':id==='werewolf'?'Werewolf · Tail Axe':'Grim Reaper';
+ $('characterPreviewDetail').textContent=id==='spacemarine'?'Original animated Soldier GLB · Idle / Walk / Run':id==='bellshade'?'Forest guardian · Grasping Vines':id==='kitsune'?'Nine-tailed fox guardian · Twin dagger flurry':id==='werewolf'?'Feral guardian · Double-bladed tail axe':'Shadowbound warrior · Hooded reaper';
  portraitCanvas.setAttribute('aria-label','3D preview: '+$('characterPreviewName').textContent);
  $('characterPreviewNote').textContent='Aura: '+auraShop[auraChoice].name+(data.ownedAuras.includes(auraChoice)?(data.auraColor===auraChoice?' · Equipped':' · Owned'):' · Preview only — buy to equip')+'. Tap an aura color to preview its glow.';
+ if(id==='spacemarine'&&spaceMarineState!=='ready'){
+  portraitCanvas.hidden=true;
+  $('characterPreviewNote').textContent=spaceMarineState==='error'?'Original Soldier GLB failed to load. Use the button below to retry.':'Loading original detailed 3D Soldier model from the Three.js example…';
+  return;
+ }
  if(!portraitContext||!portraitImage)return;
  if(portraitModel){portraitScene.remove(portraitModel);for(const material of portraitAuraMaterials)material.dispose();portraitAuraMaterials.length=0;}
  portraitModel=new THREE.Group();
- portraitModel.add((id==='bellshade'?bellVisual:id==='kitsune'?kitsuneVisual:id==='werewolf'?wolfVisual:reaperVisual).clone(true));
+ portraitModel.add(id==='spacemarine'?cloneSkinnedModel(spaceMarineModel):(id==='bellshade'?bellVisual:id==='kitsune'?kitsuneVisual:id==='werewolf'?wolfVisual:reaperVisual).clone(true));
  portraitModel.add(weaponGroup.clone(true));
  // Clone existing aura materials before tinting so unowned preview colors never alter gameplay.
  const previewAura=aura.clone(true);previewAura.visible=true;
@@ -923,7 +928,19 @@ function updateCharacterPortrait(){
  }
 }
 
-function refresh(){reaperVisual.visible=data.character==='reaper';wolfVisual.visible=data.character==='werewolf';kitsuneVisual.visible=data.character==='kitsune';bellVisual.visible=data.character==='bellshade';kitsuneDaggersVisible();weaponGroup.visible=true;aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length);updateCharacterPortrait()}
+function refresh(){
+ reaperVisual.visible=data.character==='reaper';wolfVisual.visible=data.character==='werewolf';
+ kitsuneVisual.visible=data.character==='kitsune';bellVisual.visible=data.character==='bellshade';
+ spaceMarineVisual.visible=data.character==='spacemarine';
+ kitsuneDaggersVisible();weaponGroup.visible=true;aura.visible=data.aura;auraLight.visible=data.aura;
+ const marineSelected=data.character==='spacemarine';
+ $('start').disabled=marineSelected&&spaceMarineState==='loading';
+ $('start').textContent=marineSelected&&spaceMarineState==='loading'?'Loading Space Marine…':marineSelected&&spaceMarineState==='error'?'Retry Space Marine Model':hp<=0?'Retry Dungeon':'Enter Dungeon';
+ $('wallet').textContent='Gold: '+data.gold;
+ $('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;
+ $('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length);
+ updateCharacterPortrait();
+}
 function monster(kind){
  const g=new THREE.Group();
  const add=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,color);m.position.set(x,y,z);m.scale.set(sx,sy,sz);g.add(m);return m};
