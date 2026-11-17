@@ -1,15 +1,42 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#0d0b18;color:white;font-family:system-ui,sans-serif;overflow:hidden}canvas{display:block}#hud{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;font-weight:700;text-shadow:0 2px 5px #000}#panel{position:fixed;inset:0;background:#0d0b18ee;display:grid;place-items:center;z-index:5;padding:20px;overflow:auto}.card{width:min(460px,100%);background:#231b38;border:1px solid #66518a;border-radius:18px;padding:24px;text-align:center;box-shadow:0 10px 40px #0008}h1{color:#c5a4ff}button,select{background:#6745a7;color:white;border:1px solid #a889e1;border-radius:12px;padding:12px 16px;font:inherit;margin:5px;cursor:pointer}button:active{transform:scale(.96)}#controls{position:fixed;bottom:22px;left:16px;right:16px;display:none;justify-content:space-between;align-items:end;pointer-events:none}#controls button{pointer-events:auto;touch-action:none;min-width:62px;min-height:62px;font-weight:900}#joystick{width:144px;height:144px;border-radius:50%;border:3px solid #a889e1;background:#35264caa;position:relative;pointer-events:auto;touch-action:none;user-select:none;box-shadow:inset 0 0 20px #0006}#stick{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c6a7ff,#7651b2);border:2px solid #e0caff;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 3px 12px #0009}#attack{background:#aa315f}#special{background:#5635a6;border-color:#c6a4ff;min-width:78px!important}#special:disabled{opacity:.5}#attackButtons{display:flex;flex-direction:column;align-items:end;gap:4px;pointer-events:auto}#attackButtons button{margin:2px}#weapons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:12px 0}#weapons button{font-size:13px;margin:0;padding:10px 5px}#weapons button.selected{border:2px solid #eac5ff;background:#8557b8}small{color:#c6bdd8}#error{position:fixed;bottom:4px;color:#ffb8b8;left:10px;font-size:12px}
+*{box-sizing:border-box}body{margin:0;background:#0d0b18;color:white;font-family:system-ui,sans-serif;overflow:hidden}canvas{display:block}#hud{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;font-weight:700;text-shadow:0 2px 5px #000}#panel{position:fixed;inset:0;background:#0d0b18ee;display:grid;place-items:center;z-index:5;padding:20px;overflow:auto}.card{width:min(460px,100%);background:#231b38;border:1px solid #66518a;border-radius:18px;padding:24px;text-align:center;box-shadow:0 10px 40px #0008}h1{color:#c5a4ff}button,select{background:#6745a7;color:white;border:1px solid #a889e1;border-radius:12px;padding:12px 16px;font:inherit;margin:5px;cursor:pointer}button:active{transform:scale(.96)}#controls{position:fixed;bottom:22px;left:16px;right:16px;display:none;justify-content:space-between;align-items:end;pointer-events:none}#controls button{pointer-events:auto;touch-action:none;min-width:62px;min-height:62px;font-weight:900}#joystick{width:144px;height:144px;border-radius:50%;border:3px solid #a889e1;background:#35264caa;position:relative;pointer-events:auto;touch-action:none;user-select:none;box-shadow:inset 0 0 20px #0006}#stick{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c6a7ff,#7651b2);border:2px solid #e0caff;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 3px 12px #0009}#attack{background:#aa315f}#special{background:#5635a6;border-color:#c6a4ff;min-width:78px!important}#special:disabled{opacity:.5}#attackButtons{display:flex;flex-direction:column;align-items:end;gap:4px;pointer-events:auto}#attackButtons button{margin:2px}#skills{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:10px 0}#skills button{font-size:12px;padding:9px 5px;margin:0}#skills button:disabled{opacity:.55}#weapons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:12px 0}#weapons button{font-size:13px;margin:0;padding:10px 5px}#weapons button.selected{border:2px solid #eac5ff;background:#8557b8}small{color:#c6bdd8}#error{position:fixed;bottom:4px;color:#ffb8b8;left:10px;font-size:12px}
 </style></head><body>
-<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><div id="shop"></div><label>Aura color <select id="auraColor"><option value="violet">💜 Violet</option><option value="red">❤️ Crimson</option><option value="blue">💙 Sapphire</option><option value="green">💚 Emerald</option><option value="gold">💛 Golden</option><option value="cyan">🩵 Frost</option><option value="pink">🩷 Rose</option><option value="white">🤍 Celestial</option></select></label><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space • Special: Q or purple button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
+<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><div id="shop"></div><label>Aura color <select id="auraColor"><option value="violet">💜 Violet</option><option value="red">❤️ Crimson</option><option value="blue">💙 Sapphire</option><option value="green">💚 Emerald</option><option value="gold">💛 Golden</option><option value="cyan">🩵 Frost</option><option value="pink">🩷 Rose</option><option value="white">🤍 Celestial</option></select></label><h3>Skill Upgrades</h3><p id="skillInfo"><small>Spend gold to improve your hero permanently. Prices rise with each purchase.</small></p><div id="skills"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space • Special: Q or purple button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
 <div id="controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div></div><div id="attackButtons"><button id="special">SPECIAL</button><button id="attack">ATTACK</button></div></div><div id="error"></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const $=id=>document.getElementById(id);
 const saved=()=>{try{return JSON.parse(localStorage.getItem('shadow-save')||'{}')}catch{return {}}};
-let data={gold:0,aura:false,weapon:'sword',ownedWeapons:['sword'],character:'reaper',...saved()},level=1,hp=100,enemies=[],running=false,lastAttack=0,lastSpecial=-100000,invuln=0;
+let data={gold:0,aura:false,weapon:'sword',ownedWeapons:['sword'],character:'reaper',skills:{},...saved()},level=1,hp=100,enemies=[],running=false,lastAttack=0,lastSpecial=-100000,invuln=0;
+const skillTypes={
+ power:{name:'⚔ Power',base:20,description:'+1 damage'},
+ vitality:{name:'❤️ Vitality',base:25,description:'+20 max HP'},
+ agility:{name:'👟 Agility',base:20,description:'+5% movement speed'},
+ haste:{name:'⚡ Haste',base:30,description:'5% faster attacks'}
+};
+if(!data.skills||typeof data.skills!=='object')data.skills={};
+const skillLevel=id=>Math.max(0,Math.min(30,Math.floor(Number(data.skills[id])||0)));
+const skillCost=id=>Math.ceil(skillTypes[id].base*Math.pow(1.55,skillLevel(id)));
+const maxHealth=()=>100+20*skillLevel('vitality');
+const attackPower=()=>1+skillLevel('power');
+const attackSpeed=()=>Math.pow(.95,skillLevel('haste'));
+function drawSkills(){
+ const el=$('skills');el.innerHTML='';
+ for(const [id,skill] of Object.entries(skillTypes)){
+  const rank=skillLevel(id),cost=skillCost(id),button=document.createElement('button');
+  button.textContent=skill.name+' Lv.'+rank+' · '+skill.description+' · '+(rank>=30?'MAX':cost+' gold');
+  button.disabled=rank>=30||data.gold<cost;
+  button.onclick=()=>{
+   if(rank>=30||data.gold<cost)return;
+   data.gold-=cost;data.skills[id]=rank+1;
+   if(id==='vitality')hp=Math.min(maxHealth(),hp+20);
+   persist();drawSkills();drawWeapons();refresh();
+  };
+  el.appendChild(button);
+ }
+}
 const persist=()=>{try{localStorage.setItem('shadow-save',JSON.stringify(data))}catch{}};
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x141020);scene.fog=new THREE.Fog(0x141020,18,43);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,100);
@@ -174,7 +201,7 @@ function drawWeapons(){
   b.textContent=w.name+' · '+(selected?'Equipped':owned?'Equip':w.price+' gold');
   b.onclick=()=>{
    if(!owned){if(data.gold<w.price){$('message').textContent='Not enough gold for '+w.name;return}data.gold-=w.price;data.ownedWeapons.push(id)}
-   data.weapon=id;persist();if(data.weapon==='spear')data.weapon='bow';if(Array.isArray(data.ownedWeapons)&&data.ownedWeapons.includes('spear')&&!data.ownedWeapons.includes('bow'))data.ownedWeapons.push('bow');buildWeapon();drawWeapons();refresh();
+   data.weapon=id;persist();if(data.weapon==='spear')data.weapon='bow';if(Array.isArray(data.ownedWeapons)&&data.ownedWeapons.includes('spear')&&!data.ownedWeapons.includes('bow'))data.ownedWeapons.push('bow');buildWeapon();drawWeapons();drawSkills();refresh();
   };
   el.appendChild(b);
  }
@@ -225,7 +252,7 @@ joystick.addEventListener('pointermove',e=>{if(joystick.hasPointerCapture(e.poin
 for(const type of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(type,resetStick);
 $('attack').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();attack()});$('special').addEventListener('pointerdown',e=>{e.preventDefault();unlockAudio();specialAttack()});
 const colorMap={purple:0x8b5cf6,green:0x34d399,blue:0x38bdf8};
-function refresh(){body.material.color.setHex(colorMap[$('heroColor').value]);wolfColorAccent.material.color.setHex(colorMap[$('heroColor').value]);reaperVisual.visible=data.character!=='werewolf';wolfVisual.visible=data.character==='werewolf';aura.visible=data.aura;auraLight.visible=data.aura;$('auraColor').disabled=!data.aura;$('wallet').textContent='Gold: '+data.gold;$('shop').innerHTML=data.aura?'✨ Glowing Aura owned — choose your color below':'<button id="buy">Unlock Aura Colors — 30 gold</button>';if(!data.aura)$('buy').onclick=()=>{if(data.gold<30){$('message').textContent='Earn 30 gold by defeating monsters!';return}data.gold-=30;data.aura=true;persist();drawWeapons();refresh()};$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length)}
+function refresh(){body.material.color.setHex(colorMap[$('heroColor').value]);wolfColorAccent.material.color.setHex(colorMap[$('heroColor').value]);reaperVisual.visible=data.character!=='werewolf';wolfVisual.visible=data.character==='werewolf';aura.visible=data.aura;auraLight.visible=data.aura;$('auraColor').disabled=!data.aura;$('wallet').textContent='Gold: '+data.gold;$('shop').innerHTML=data.aura?'✨ Glowing Aura owned — choose your color below':'<button id="buy">Unlock Aura Colors — 30 gold</button>';if(!data.aura)$('buy').onclick=()=>{if(data.gold<30){$('message').textContent='Earn 30 gold by defeating monsters!';return}data.gold-=30;data.aura=true;persist();drawWeapons();drawSkills();refresh()};$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length)}
 function monster(kind){
  const g=new THREE.Group();
  const add=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,color);m.position.set(x,y,z);m.scale.set(sx,sy,sz);g.add(m);return m};
@@ -366,12 +393,13 @@ function spawn(){
  terrainForFloor();
  for(const e of enemies)scene.remove(e.obj);enemies=[];
  const bossFloor=level%3===0,count=bossFloor?1:Math.min(3+level,10);
+ const difficulty=1+(level-1)*.18;
  for(let i=0;i<count;i++){
   const kind=bossFloor?'boss':['slime','skeleton','bat'][(level+i-1)%3],obj=monster(kind);
   const a=i*Math.PI*2/count,r=7+(i%3)*1.5;
   obj.position.set(Math.cos(a)*r,0,Math.sin(a)*r);
   scene.add(obj);
-  enemies.push({obj,kind,hp:kind==='boss'?10+level*2:kind==='skeleton'?3:2,speed:kind==='boss'?.75:kind==='bat'?1.7:1+level*.07,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0});
+  enemies.push({obj,kind,hp:Math.ceil((kind==='boss'?12:kind==='skeleton'?3:2)*difficulty*(bossFloor?1.4:1)),speed:Math.min(3.4,(kind==='boss'?.75:kind==='bat'?1.7:1.1)*(1+(level-1)*.055)),damageScale:1+(level-1)*.12,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0});
  }
  refresh();
 }
@@ -417,12 +445,12 @@ function damageEnemy(e,amount,soundType=data.weapon){
  if(!enemies.includes(e))return;
  weaponSound(soundType);
  if(!enemies.includes(e))return;
- e.hp-=amount;e.obj.scale.setScalar(1.13);
+ e.hp-=amount*attackPower();e.obj.scale.setScalar(1.13);
  if(e.hp<=0){
   scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
-  data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();
+  data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();drawSkills();
   if(!enemies.length){
-   level++;hp=Math.min(100,hp+25);spawn();
+   level++;hp=Math.min(maxHealth(),hp+25);spawn();
    show('Floor cleared! +25 health. Gold is yours to keep. Continue to the next floor!');
    $('start').textContent='Next Floor';
   }
@@ -431,7 +459,7 @@ function damageEnemy(e,amount,soundType=data.weapon){
 }
 function attack(){
  const w=weapons[data.weapon]||weapons.sword;
- if(!running||performance.now()-lastAttack<w.cooldown)return;
+ if(!running||performance.now()-lastAttack<w.cooldown*attackSpeed())return;
  const forward=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
  const candidates=enemies.map(e=>{
   const delta=new THREE.Vector3().subVectors(e.obj.position,hero.position);delta.y=0;
@@ -562,11 +590,11 @@ function updateProjectiles(dt){
   }
  }
 }
-$('start').onclick=()=>{if(!running){swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;if(hp<=0){hp=100;level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;$('panel').style.display='none';$('controls').style.display='flex';refresh()}};
+$('start').onclick=()=>{if(!running){swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;$('panel').style.display='none';$('controls').style.display='flex';refresh()}};
 data.character=data.character==='werewolf'?'werewolf':'reaper';
 $('characterSelect').value=data.character;
 $('characterSelect').onchange=()=>{data.character=$('characterSelect').value==='werewolf'?'werewolf':'reaper';persist();refresh()};
-$('heroColor').onchange=refresh;refresh();spawn();
+$('heroColor').onchange=refresh;refresh();drawSkills();spawn();
 const clock=new THREE.Clock();
 function hurtHero(amount){if(!running||invuln>0)return;hp=Math.max(0,hp-amount);invuln=.85;if(hp<=0){show('You fell in battle! Your gold and purchased cosmetics are saved. Try again.');$('start').textContent='Retry Dungeon'}}
 function frame(){
@@ -576,7 +604,7 @@ function frame(){
   let x=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+joy.x;
   let z=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+joy.z;
   const len=Math.max(1,Math.hypot(x,z));x/=len;z/=len;
-  moveWithCollision(hero,x*dt*6,z*dt*6,.5);
+  moveWithCollision(hero,x*dt*6*(1+.05*skillLevel('agility')),z*dt*6*(1+.05*skillLevel('agility')),.5);
   if(x||z)hero.rotation.y=Math.atan2(x,z);
   invuln=Math.max(0,invuln-dt);
   for(const e of enemies){
@@ -588,10 +616,10 @@ function frame(){
     e.obj.scale.set(1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06);
     if(e.windup<=0){
      e.attackTime=.35;
-     if(e.kind==='slime'){if(dist<2)hurtHero(9)}
-     else if(e.kind==='skeleton'){if(dist<2.35)hurtHero(13)}
-     else if(e.kind==='bat'){if(dist<2.9)hurtHero(10)}
-     else if(dist<4.1)hurtHero(22);
+     if(e.kind==='slime'){if(dist<2)hurtHero(Math.ceil(9*e.damageScale))}
+     else if(e.kind==='skeleton'){if(dist<2.35)hurtHero(Math.ceil(13*e.damageScale))}
+     else if(e.kind==='bat'){if(dist<2.9)hurtHero(Math.ceil(10*e.damageScale))}
+     else if(dist<4.1)hurtHero(Math.ceil(22*e.damageScale));
     }
    }else{
     if(e.attackTime>0)e.attackTime=Math.max(0,e.attackTime-dt);
