@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#130810"/><stop offset=".55" stop-color="#541b23"/><stop offset="1" stop-color="#120b13"/></linearGradient>
+ <radialGradient id="fire"><stop stop-color="#ffaf4f" stop-opacity=".7"/><stop offset=".25" stop-color="#ff6b33" stop-opacity=".34"/><stop offset="1" stop-color="#e5382d" stop-opacity="0"/></radialGradient>
+ <linearGradient id="lava" x2="0" y2="1"><stop stop-color="#ffb45f"/><stop offset=".4" stop-color="#ff5a28"/><stop offset="1" stop-color="#a31c20"/></linearGradient>
+ <linearGradient id="stone" x2="0" y2="1"><stop stop-color="#34202b"/><stop offset="1" stop-color="#0d0c18"/></linearGradient>
+ <filter id="glow"><feGaussianBlur stdDeviation="23"/></filter>
+ <filter id="blur"><feGaussianBlur stdDeviation="55"/></filter>
+</defs>
+<rect width="1600" height="900" fill="url(#sky)"/>
+<ellipse cx="440" cy="530" rx="600" ry="450" fill="url(#fire)"/>
+<circle cx="540" cy="350" r="225" fill="#fa5b30" opacity=".12" filter="url(#blur)"/>
+<path d="M0 542L130 382 200 464 350 250 485 451 652 290 820 500 940 359 1120 507 1260 322 1430 462 1600 297V900H0Z" fill="#261620"/>
+<path d="M0 610L180 490 315 573 474 385 621 547 806 441 976 610 1130 462 1330 561 1510 425 1600 520V900H0Z" fill="#1b1320"/>
+<!-- fortress with glowing windows -->
+<g stroke="#1a0b15" stroke-width="7" fill="#110d17">
+ <path d="M225 675V425H294V370H355V425H397V285H463V245H531V285H588V425H659V380H716V425H775V675Z"/>
+ <path d="M207 425V397H226V411H244V397H270V425M384 284V253H408V268H426V253H447V284M536 284V253H555V268H570V253H590V284M660 425V396H681V411H702V396H724V425"/>
+</g>
+<g fill="#ffab52" opacity=".85">
+ <path d="M430 320H468V386H430ZM547 320H582V386H547ZM296 462H330V513H296ZM673 463H706V515H673Z"/>
+</g>
+<g fill="#ff682e" opacity=".38" filter="url(#glow)">
+ <rect x="421" y="315" width="55" height="78"/><rect x="544" y="315" width="47" height="78"/><rect x="286" y="453" width="56" height="70"/>
+</g>
+<!-- rocky cliff silhouettes -->
+<path d="M0 680L125 550 240 648 367 566 488 698 610 591 730 705 860 576 985 668 1160 546 1295 670 1445 541 1600 637V900H0Z" fill="#17121c"/>
+<path d="M0 739L90 659 200 723 300 678 428 756 530 698 695 765 800 687 932 773 1080 713 1240 783 1406 670 1600 758V900H0Z" fill="#0c0c15"/>
+<!-- molten chasm -->
+<path d="M105 900L253 736 375 782 480 683 605 755 690 667 781 753 900 716 1040 840 1133 755 1270 900Z" fill="url(#lava)"/>
+<path d="M132 900L268 760 371 799 476 712 598 777 696 695 782 781 892 742 1030 864 1122 781 1255 900" fill="none" stroke="#ffd083" stroke-width="12" stroke-linejoin="round" opacity=".78"/>
+<path d="M0 818L215 740 365 835 531 739 700 820 891 765 1100 848 1300 760 1600 844V900H0Z" fill="#100c14" opacity=".83"/>
+<!-- central chains and iron torches -->
+<g stroke="#2f2324" stroke-width="17" fill="none">
+ <path d="M115 0L122 420M1520 0L1498 515"/>
+</g>
+<g fill="#1a1119" stroke="#53323a" stroke-width="5">
+ <path d="M85 580L122 508 164 580 151 638H101Z"/>
+ <path d="M1449 626L1501 546 1543 626 1526 692H1462Z"/>
+</g>
+<g fill="#ffb45c" opacity=".8">
+ <path d="M102 555Q60 495 121 440Q116 505 156 466Q173 531 146 556Z"/>
+ <path d="M1462 604Q1427 554 1496 479Q1478 554 1529 522Q1559 586 1512 612Z"/>
+</g>
+<g fill="#ff682c" opacity=".5" filter="url(#glow)">
+ <circle cx="125" cy="515" r="58"/><circle cx="1499" cy="561" r="75"/>
+</g>
+<!-- sparks -->
+<g fill="#ffcd83">
+ <circle cx="95" cy="342" r="4"/><circle cx="261" cy="181" r="3"/><circle cx="362" cy="493" r="4"/><circle cx="675" cy="206" r="4"/><circle cx="792" cy="392" r="3"/><circle cx="970" cy="248" r="4"/><circle cx="1203" cy="384" r="3"/><circle cx="1378" cy="166" r="4"/><circle cx="1532" cy="326" r="3"/>
+</g>
+<rect width="1600" height="900" fill="#090611" opacity=".2"/>
+</svg>
