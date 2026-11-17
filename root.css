@@ -138,7 +138,7 @@ button:focus-visible,select:focus-visible {
  --menu-accent:#72e9d2;--menu-bright:#c8fff0;--menu-border:#6ac9c3;
  --menu-bg:rgba(8,26,39,.88);--menu-ink:#eafcf9;--menu-muted:#b5d3d4;
  display:flex;flex-direction:column;align-items:stretch;justify-content:stretch;
- overflow-y:auto;overflow-x:hidden;padding:clamp(12px,2.8vw,36px);
+ overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:clamp(12px,2.8vw,36px);
  color:var(--menu-ink);
  background:linear-gradient(90deg,rgba(1,8,18,.18),rgba(4,11,23,.21) 42%,rgba(4,11,23,.55)),url("./menu-moonlit.svg") center/cover no-repeat;
 }
@@ -156,8 +156,8 @@ button:focus-visible,select:focus-visible {
 #panel .scene-title h1{margin:10px 0;max-width:600px;color:#fff;font-size:clamp(2.6rem,5.5vw,5.4rem);line-height:.98;letter-spacing:-.05em;text-shadow:0 4px 35px #000d;}
 #panel .scene-title p{max-width:450px;font-size:clamp(.95rem,1.45vw,1.17rem);line-height:1.6;color:#e4e6ed;}
 #panel .card.menu-card{
- width:100%;min-width:0;max-width:none;max-height:min(76vh,790px);
- padding:clamp(18px,2.4vw,30px);overflow-y:auto;overflow-x:hidden;
+ width:100%;min-width:0;max-width:none;max-height:none;
+ padding:clamp(18px,2.4vw,30px);overflow:visible;overscroll-behavior:auto;
  border:1px solid var(--menu-border);border-radius:24px;background:var(--menu-bg);
  backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px);
  box-shadow:0 20px 75px #000b,0 0 38px #0007;text-align:left;color:var(--menu-ink);
@@ -174,7 +174,7 @@ button:focus-visible,select:focus-visible {
 #panel #shop .shop-label{flex:1 1 100%;font-size:.78rem;font-weight:700;color:var(--menu-muted);}
 #panel #shop .aura-picker{flex:1 1 185px;min-width:0;border:1px solid var(--menu-border);border-radius:11px;}
 #panel #shop .aura-picker>summary{border:0!important;border-radius:10px;padding:12px;background:#050a12a3;color:var(--menu-ink);font-size:.9rem;font-weight:750;}
-#panel #shop .aura-options{border:0;border-radius:8px;background:var(--menu-bg);max-height:190px;}
+#panel #shop .aura-options{border:0;border-radius:8px;background:var(--menu-bg);max-height:none;overflow:visible;overscroll-behavior:auto;}
 #panel #shop .aura-choice{min-height:40px;font-weight:650;color:var(--menu-ink);}
 #panel #shop .aura-choice:hover{background:#ffffff14;border-color:var(--menu-border);}
 #panel #shop #auraAction{flex:0 1 auto;min-height:46px;margin:0;padding:8px 12px;background:#07111eb8;border:1px solid var(--menu-border);color:var(--menu-ink);font-size:.85rem;}
@@ -204,7 +204,7 @@ button:focus-visible,select:focus-visible {
  #panel .scene-title{align-self:auto;padding:14px 3px 3px;}
  #panel .scene-title h1{font-size:clamp(2rem,9vw,3.2rem);max-width:440px;}
  #panel .scene-title p{max-width:400px;margin:5px 0;font-size:.9rem;}
- #panel .card.menu-card{padding:17px;max-height:none;}
+ #panel .card.menu-card{padding:17px;}
 }
 @media (max-width:540px){
  #panel .menu-preview-top{align-items:stretch;}
@@ -217,7 +217,7 @@ button:focus-visible,select:focus-visible {
  #panel .scene-title h1{font-size:clamp(1.8rem,4.2vw,3rem);}
  #panel .scene-title p{font-size:.82rem;}
  #panel .scene-title{padding:6px;}
- #panel .card.menu-card{max-height:calc(100dvh - 90px);padding:13px 16px;}
+ #panel .card.menu-card{padding:13px 16px;}
 }
 @media (prefers-reduced-motion:no-preference){
  #panel .menu-card{animation:menu-emerge .6s ease-out both;}
