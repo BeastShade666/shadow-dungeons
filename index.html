@@ -3,13 +3,13 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0d0b18;color:white;font-family:system-ui,sans-serif;overflow:hidden}canvas{display:block}#hud{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;font-weight:700;text-shadow:0 2px 5px #000}#panel{position:fixed;inset:0;background:#0d0b18ee;display:grid;place-items:center;z-index:5;padding:20px;overflow:auto}.card{width:min(460px,100%);background:#231b38;border:1px solid #66518a;border-radius:18px;padding:24px;text-align:center;box-shadow:0 10px 40px #0008}h1{color:#c5a4ff}button,select{background:#6745a7;color:white;border:1px solid #a889e1;border-radius:12px;padding:12px 16px;font:inherit;margin:5px;cursor:pointer}button:active{transform:scale(.96)}#controls{position:fixed;bottom:22px;left:16px;right:16px;display:none;justify-content:space-between;align-items:end;pointer-events:none}#controls button{pointer-events:auto;touch-action:none;min-width:62px;min-height:62px;font-weight:900}#joystick{width:144px;height:144px;border-radius:50%;border:3px solid #a889e1;background:#35264caa;position:relative;pointer-events:auto;touch-action:none;user-select:none;box-shadow:inset 0 0 20px #0006}#stick{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c6a7ff,#7651b2);border:2px solid #e0caff;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 3px 12px #0009}#attack{background:#aa315f}#weapons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:12px 0}#weapons button{font-size:13px;margin:0;padding:10px 5px}#weapons button.selected{border:2px solid #eac5ff;background:#8557b8}small{color:#c6bdd8}#error{position:fixed;bottom:4px;color:#ffb8b8;left:10px;font-size:12px}
 </style></head><body>
-<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><div id="shop"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space or button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
+<div id="hud"><span id="stats"></span><span id="stage"></span></div><div id="panel"><div class="card"><h1>⚔ Shadow Dungeons</h1><p id="message">Enter the dungeon. Defeat enemies, collect gold, and return stronger.</p><p id="wallet"></p><label>Character <select id="characterSelect"><option value="reaper">Grim Reaper</option><option value="werewolf">Werewolf · Tail Axe</option></select></label> <label>Hero color <select id="heroColor"><option value="purple">Violet</option><option value="green">Emerald</option><option value="blue">Azure</option></select></label><div id="shop"></div><h3>Weapons</h3><div id="weapons"></div><button id="start">Enter Dungeon</button><p><small>Move: WASD / arrow keys • Attack: Space or button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p></div></div>
 <div id="controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div></div><button id="attack">ATTACK</button></div><div id="error"></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const $=id=>document.getElementById(id);
 const saved=()=>{try{return JSON.parse(localStorage.getItem('shadow-save')||'{}')}catch{return {}}};
-let data={gold:0,aura:false,weapon:'sword',ownedWeapons:['sword'],...saved()},level=1,hp=100,enemies=[],running=false,lastAttack=0,invuln=0;
+let data={gold:0,aura:false,weapon:'sword',ownedWeapons:['sword'],character:'reaper',...saved()},level=1,hp=100,enemies=[],running=false,lastAttack=0,invuln=0;
 const persist=()=>{try{localStorage.setItem('shadow-save',JSON.stringify(data))}catch{}};
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x141020);scene.fog=new THREE.Fog(0x141020,18,43);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,100);
@@ -21,56 +21,116 @@ function mesh(geo,color){return new THREE.Mesh(geo,new THREE.MeshStandardMateria
 // Lightweight Grim Reaper avatar: replaces only the original player mesh.
 // Existing hero movement, weapon mounts, colors, aura and combat remain unchanged.
 const hero=new THREE.Group();
+const reaperVisual=new THREE.Group();hero.add(reaperVisual);
 const robe=mesh(new THREE.CylinderGeometry(.43,.84,1.84,14),0x14121b);
-robe.position.y=1.02;hero.add(robe);
+robe.position.y=1.02;reaperVisual.add(robe);
 const robeFront=mesh(new THREE.CylinderGeometry(.27,.60,1.69,12),0x090910);
-robeFront.position.set(0,1.05,.14);hero.add(robeFront);
+robeFront.position.set(0,1.05,.14);reaperVisual.add(robeFront);
 const shoulders=mesh(new THREE.SphereGeometry(.66,14,10),0x201b29);
-shoulders.position.set(0,1.84,0);shoulders.scale.set(1,.43,.74);hero.add(shoulders);
+shoulders.position.set(0,1.84,0);shoulders.scale.set(1,.43,.74);reaperVisual.add(shoulders);
 // Uneven, tattered hem. Low-poly geometry keeps this suitable for phones.
 for(let i=0;i<7;i++){
  const a=i*Math.PI*2/7;
  const tatters=mesh(new THREE.ConeGeometry(.19,.49,5),i%2?0x15121c:0x211b29);
  tatters.position.set(Math.sin(a)*.67,.18,Math.cos(a)*.67);
  tatters.rotation.z=Math.sin(a)*.13;tatters.rotation.x=-Math.cos(a)*.11;
- hero.add(tatters);
+ reaperVisual.add(tatters);
 }
 const hood=mesh(new THREE.SphereGeometry(.56,16,12),0x16131d);
-hood.position.set(0,2.19,-.09);hood.scale.set(1,1.08,.95);hero.add(hood);
+hood.position.set(0,2.19,-.09);hood.scale.set(1,1.08,.95);reaperVisual.add(hood);
 const hoodTip=mesh(new THREE.ConeGeometry(.39,.48,12),0x17131d);
-hoodTip.position.set(0,2.69,-.19);hoodTip.rotation.x=-.16;hero.add(hoodTip);
+hoodTip.position.set(0,2.69,-.19);hoodTip.rotation.x=-.16;reaperVisual.add(hoodTip);
 const hoodShadow=mesh(new THREE.SphereGeometry(.43,12,10),0x040409);
-hoodShadow.position.set(0,2.14,.245);hoodShadow.scale.set(.97,1,.63);hero.add(hoodShadow);
+hoodShadow.position.set(0,2.14,.245);hoodShadow.scale.set(.97,1,.63);reaperVisual.add(hoodShadow);
 const skull=mesh(new THREE.SphereGeometry(.30,14,10),0xe8dfd0);
-skull.position.set(0,2.14,.42);skull.scale.set(1,1.06,.80);hero.add(skull);
+skull.position.set(0,2.14,.42);skull.scale.set(1,1.06,.80);reaperVisual.add(skull);
 const jaw=mesh(new THREE.BoxGeometry(.31,.13,.19),0xd2c7b7);
-jaw.position.set(0,1.93,.43);hero.add(jaw);
+jaw.position.set(0,1.93,.43);reaperVisual.add(jaw);
 const nose=mesh(new THREE.ConeGeometry(.065,.12,3),0x1a1620);
-nose.position.set(0,2.04,.66);nose.rotation.z=Math.PI;hero.add(nose);
+nose.position.set(0,2.04,.66);nose.rotation.z=Math.PI;reaperVisual.add(nose);
 for(const side of [-1,1]){
  const socket=mesh(new THREE.SphereGeometry(.105,9,8),0x151018);
- socket.position.set(side*.125,2.19,.647);socket.scale.z=.55;hero.add(socket);
+ socket.position.set(side*.125,2.19,.647);socket.scale.z=.55;reaperVisual.add(socket);
  const eyeGlow=mesh(new THREE.SphereGeometry(.048,8,7),0x8af0ff);
  eyeGlow.position.set(side*.125,2.195,.701);
  eyeGlow.material.emissive.setHex(0x48d9ff);
- eyeGlow.material.emissiveIntensity=1.6;hero.add(eyeGlow);
+ eyeGlow.material.emissiveIntensity=1.6;reaperVisual.add(eyeGlow);
  const sleeve=mesh(new THREE.CylinderGeometry(.19,.24,.82,9),0x17141e);
- sleeve.position.set(side*.61,1.41,.04);sleeve.rotation.z=side*.48;hero.add(sleeve);
+ sleeve.position.set(side*.61,1.41,.04);sleeve.rotation.z=side*.48;reaperVisual.add(sleeve);
  const cuff=mesh(new THREE.CylinderGeometry(.17,.23,.24,9),0x25202e);
- cuff.position.set(side*.82,1.04,.12);cuff.rotation.z=side*.48;hero.add(cuff);
+ cuff.position.set(side*.82,1.04,.12);cuff.rotation.z=side*.48;reaperVisual.add(cuff);
  const hand=mesh(new THREE.SphereGeometry(.12,9,8),0xd8ceba);
- hand.position.set(side*.86,.91,.15);hand.scale.set(.70,1.12,.7);hero.add(hand);
+ hand.position.set(side*.86,.91,.15);hand.scale.set(.70,1.12,.7);reaperVisual.add(hand);
 }
 for(let i=0;i<4;i++){
  const tooth=mesh(new THREE.BoxGeometry(.052,.075,.045),0xf0e8d9);
- tooth.position.set((i-1.5)*.074,1.925,.548);hero.add(tooth);
+ tooth.position.set((i-1.5)*.074,1.925,.548);reaperVisual.add(tooth);
 }
 // The existing hero-color selector still tints this central soul gem.
 const body=mesh(new THREE.OctahedronGeometry(.17,0),0x8b5cf6);
 body.position.set(0,1.51,.70);body.material.emissive.setHex(0x211031);
-body.material.emissiveIntensity=.45;hero.add(body);
+body.material.emissiveIntensity=.45;reaperVisual.add(body);
 const sigil=mesh(new THREE.TorusGeometry(.27,.045,6,16),0x3a3150);
-sigil.position.set(0,1.51,.66);hero.add(sigil);
+sigil.position.set(0,1.51,.66);reaperVisual.add(sigil);
+
+// Bipedal werewolf, with a decorative double-headed axe mounted on the tail tip.
+const wolfVisual=new THREE.Group();hero.add(wolfVisual);
+const wolfPart=(geo,color,x,y,z,scale)=>{
+ const p=mesh(geo,color);p.position.set(x,y,z);
+ if(scale)p.scale.set(...scale);wolfVisual.add(p);return p;
+};
+const wolfFur=0x4e4139,wolfDark=0x292630,wolfLight=0x806d60,wolfBone=0xeee5d1;
+wolfPart(new THREE.CylinderGeometry(.42,.53,1.13,12),wolfFur,0,1.32,0);
+wolfPart(new THREE.SphereGeometry(.66,14,10),wolfDark,0,1.78,0,[1,.56,.72]);
+wolfPart(new THREE.SphereGeometry(.36,12,9),wolfLight,0,1.49,.43,[1,1.27,.44]);
+for(let i=0;i<5;i++){const tuft=wolfPart(new THREE.ConeGeometry(.14,.43,6),i%2?wolfDark:wolfLight,(i-2)*.15,1.07,.61);tuft.rotation.z=(i-2)*.14}
+wolfPart(new THREE.SphereGeometry(.47,14,11),wolfFur,0,2.35,.14,[1,1.01,.87]);
+wolfPart(new THREE.SphereGeometry(.29,12,9),wolfLight,0,2.17,.54,[1,.58,1.3]);
+wolfPart(new THREE.SphereGeometry(.21,12,9),wolfDark,0,2.23,.80,[1,.62,.63]);
+wolfPart(new THREE.SphereGeometry(.16,10,8),0x17141a,0,2.27,.94,[1,.61,.55]);
+for(const side of [-1,1]){
+ const ear=wolfPart(new THREE.ConeGeometry(.23,.69,7),wolfDark,side*.32,2.91,.06);ear.rotation.z=-side*.2;
+ const inner=wolfPart(new THREE.ConeGeometry(.115,.41,6),0x985c62,side*.32,2.93,.22);inner.rotation.z=-side*.2;
+ wolfPart(new THREE.SphereGeometry(.20,10,8),wolfDark,side*.2,2.48,.44,[1,.43,.60]);
+ const eye=wolfPart(new THREE.SphereGeometry(.085,9,8),0xf7bd55,side*.19,2.4,.52);
+ eye.material.emissive.setHex(0x673000);eye.material.emissiveIntensity=.7;
+ wolfPart(new THREE.SphereGeometry(.037,7,6),0x181210,side*.19,2.4,.59);
+ const fang=wolfPart(new THREE.ConeGeometry(.066,.19,6),wolfBone,side*.18,2.04,.75);fang.rotation.z=Math.PI;
+ wolfPart(new THREE.SphereGeometry(.29,10,9),wolfFur,side*.65,1.75,.02);
+ const upper=wolfPart(new THREE.CylinderGeometry(.20,.15,.70,10),wolfFur,side*.79,1.43,.12);upper.rotation.z=side*.32;
+ const forearm=wolfPart(new THREE.CylinderGeometry(.16,.22,.55,10),wolfDark,side*.94,.97,.26);forearm.rotation.z=side*.11;
+ wolfPart(new THREE.SphereGeometry(.19,10,8),wolfDark,side*.96,.65,.34,[.95,1.05,1]);
+ for(let c=0;c<3;c++){const claw=wolfPart(new THREE.ConeGeometry(.052,.23,5),wolfBone,side*.96+(c-1)*.105,.45,.48);claw.rotation.x=Math.PI}
+ const thigh=wolfPart(new THREE.CylinderGeometry(.27,.22,.75,10),wolfFur,side*.32,.86,-.07);thigh.rotation.z=-side*.23;
+ wolfPart(new THREE.SphereGeometry(.24,10,9),wolfDark,side*.40,.47,.16);
+ const shin=wolfPart(new THREE.CylinderGeometry(.18,.12,.53,10),wolfDark,side*.43,.31,-.1);shin.rotation.x=-.38;
+ wolfPart(new THREE.SphereGeometry(.22,10,8),wolfDark,side*.44,.12,.27,[1,.48,1.8]);
+ for(let c=0;c<3;c++){const nail=wolfPart(new THREE.ConeGeometry(.05,.20,5),wolfBone,side*.44+(c-1)*.13,.07,.64);nail.rotation.x=Math.PI/2}
+}
+const wolfColorAccent=wolfPart(new THREE.OctahedronGeometry(.17),0x8b5cf6,0,1.63,.64);
+wolfColorAccent.material.emissive.setHex(0x211031);wolfColorAccent.material.emissiveIntensity=.45;
+// The tail sweeps backward and to the right, with an axe permanently fixed to its end.
+const tailRig=new THREE.Group();tailRig.position.set(.32,1.03,-.45);wolfVisual.add(tailRig);
+const tailPath=new THREE.CatmullRomCurve3([
+ new THREE.Vector3(0,0,0),new THREE.Vector3(.20,-.17,-.25),
+ new THREE.Vector3(.48,-.08,-.52),new THREE.Vector3(.78,.23,-.80),
+ new THREE.Vector3(.96,.44,-.88)
+]);
+const tailMesh=mesh(new THREE.TubeGeometry(tailPath,16,.16,7,false),wolfDark);
+tailRig.add(tailMesh);
+const tailAxe=new THREE.Group();tailAxe.position.set(.96,.44,-.88);tailRig.add(tailAxe);
+const axeMaterial=new THREE.MeshStandardMaterial({color:0xc2d0d9,metalness:.75,roughness:.28,side:THREE.DoubleSide});
+for(const side of [-1,1]){
+ const profile=new THREE.Shape();
+ profile.moveTo(side*.13,.29);profile.lineTo(side*.43,.35);profile.lineTo(side*.69,.25);
+ profile.lineTo(side*.60,0);profile.lineTo(side*.69,-.25);profile.lineTo(side*.43,-.35);
+ profile.lineTo(side*.13,-.29);profile.lineTo(side*.23,0);profile.closePath();
+ const blade=new THREE.Mesh(new THREE.ExtrudeGeometry(profile,{depth:.10,bevelEnabled:false}),axeMaterial);
+ blade.position.z=.02;tailAxe.add(blade);
+}
+tailAxe.add(mesh(new THREE.CylinderGeometry(.13,.13,.80,9),0x78664d));
+const axeCore=mesh(new THREE.SphereGeometry(.18,9,7),0xc8a368);
+axeCore.position.z=.08;tailAxe.add(axeCore);
 // Preserve one weapon attachment group for sword, axe, bow and staff.
 const weaponGroup=new THREE.Group();weaponGroup.position.set(.75,1.25,.1);hero.add(weaponGroup);scene.add(hero);
 const weapons={
@@ -153,7 +213,7 @@ joystick.addEventListener('pointermove',e=>{if(joystick.hasPointerCapture(e.poin
 for(const type of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(type,resetStick);
 $('attack').addEventListener('pointerdown',e=>{e.preventDefault();attack()});
 const colorMap={purple:0x8b5cf6,green:0x34d399,blue:0x38bdf8};
-function refresh(){body.material.color.setHex(colorMap[$('heroColor').value]);aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('shop').innerHTML=data.aura?'✨ Violet Aura owned':'<button id="buy">Buy Violet Aura — 30 gold</button>';if(!data.aura)$('buy').onclick=()=>{if(data.gold<30){$('message').textContent='Earn 30 gold by defeating monsters!';return}data.gold-=30;data.aura=true;persist();drawWeapons();refresh()};$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length)}
+function refresh(){body.material.color.setHex(colorMap[$('heroColor').value]);wolfColorAccent.material.color.setHex(colorMap[$('heroColor').value]);reaperVisual.visible=data.character!=='werewolf';wolfVisual.visible=data.character==='werewolf';aura.visible=data.aura;auraLight.visible=data.aura;$('wallet').textContent='Gold: '+data.gold;$('shop').innerHTML=data.aura?'✨ Violet Aura owned':'<button id="buy">Buy Violet Aura — 30 gold</button>';if(!data.aura)$('buy').onclick=()=>{if(data.gold<30){$('message').textContent='Earn 30 gold by defeating monsters!';return}data.gold-=30;data.aura=true;persist();drawWeapons();refresh()};$('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'  🪙 '+data.gold;$('stage').textContent='Floor '+level+(level%3===0?' · BOSS':' · Monsters '+enemies.length)}
 function monster(kind){
  const g=new THREE.Group();
  const add=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,color);m.position.set(x,y,z);m.scale.set(sx,sy,sz);g.add(m);return m};
@@ -403,6 +463,9 @@ function updateProjectiles(dt){
  }
 }
 $('start').onclick=()=>{if(!running){swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;if(hp<=0){hp=100;level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;$('panel').style.display='none';$('controls').style.display='flex';refresh()}};
+data.character=data.character==='werewolf'?'werewolf':'reaper';
+$('characterSelect').value=data.character;
+$('characterSelect').onchange=()=>{data.character=$('characterSelect').value==='werewolf'?'werewolf':'reaper';persist();refresh()};
 $('heroColor').onchange=refresh;refresh();spawn();
 const clock=new THREE.Clock();
 function hurtHero(amount){if(!running||invuln>0)return;hp=Math.max(0,hp-amount);invuln=.85;if(hp<=0){show('You fell in battle! Your gold and purchased cosmetics are saved. Try again.');$('start').textContent='Retry Dungeon'}}
@@ -463,6 +526,7 @@ function frame(){
   refresh();
  }
  animateAura(clock.elapsedTime);
+ if(data.character==='werewolf')tailRig.rotation.y=Math.sin(clock.elapsedTime*2.1)*.18;
  camera.position.lerp(new THREE.Vector3(hero.position.x,9,hero.position.z+12),.09);
  camera.lookAt(hero.position.x,1,hero.position.z);
  renderer.render(scene,camera);
