@@ -106,7 +106,7 @@ function spawn(){
   const a=i*Math.PI*2/count,r=7+(i%3)*1.5;
   obj.position.set(Math.cos(a)*r,0,Math.sin(a)*r);
   scene.add(obj);
-  enemies.push({obj,kind,hp:kind==='boss'?10+level*2:kind==='skeleton'?3:2,speed:kind==='boss'?.75:kind==='bat'?1.7:1+level*.07,phase:i*1.8});
+  enemies.push({obj,kind,hp:kind==='boss'?10+level*2:kind==='skeleton'?3:2,speed:kind==='boss'?.75:kind==='bat'?1.7:1+level*.07,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0});
  }
  refresh();
 }
@@ -114,6 +114,68 @@ function show(message){resetStick();running=false;$('panel').style.display='grid
 function attack(){if(!running||performance.now()-lastAttack<430)return;lastAttack=performance.now();sword.rotation.z=-.8;setTimeout(()=>sword.rotation.z=0,150);for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];if(e.obj.position.distanceTo(hero.position)<2.8){e.hp--;e.obj.scale.setScalar(1.13);if(e.hp<=0){scene.remove(e.obj);enemies.splice(i,1);data.gold+=e.kind==='boss'?30:5;persist()}}}if(!enemies.length){level++;hp=Math.min(100,hp+25);spawn();show('Floor cleared! +25 health. Gold is yours to keep. Continue to the next floor!');$('start').textContent='Next Floor'}refresh()}
 $('start').onclick=()=>{if(!running){if(hp<=0){hp=100;level=1;spawn()}else if(!enemies.length)spawn();hero.position.set(0,0,0);running=true;$('panel').style.display='none';$('controls').style.display='flex';refresh()}};
 $('heroColor').onchange=refresh;refresh();spawn();
-const clock=new THREE.Clock();function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.05);if(running){let x=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+joy.x;let z=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+joy.z;const len=Math.max(1,Math.hypot(x,z));x/=len;z/=len;hero.position.x=THREE.MathUtils.clamp(hero.position.x+x*dt*6,-16,16);hero.position.z=THREE.MathUtils.clamp(hero.position.z+z*dt*6,-16,16);if(x||z)hero.rotation.y=Math.atan2(x,z);invuln-=dt;for(const e of enemies){const dx=hero.position.x-e.obj.position.x,dz=hero.position.z-e.obj.position.z,dist=Math.hypot(dx,dz);if(dist>1.1){e.obj.position.x+=dx/dist*e.speed*dt;e.obj.position.z+=dz/dist*e.speed*dt}else if(invuln<=0){hp-=12;invuln=.8;if(hp<=0){hp=0;show('You fell in battle! Your gold and purchased cosmetics are saved. Try again.');$('start').textContent='Retry Dungeon'}}e.phase+=dt;e.obj.scale.lerp(new THREE.Vector3(1,1,1),Math.min(1,dt*9));if(e.kind==='slime')e.obj.scale.y*=1+Math.sin(e.phase*5)*.002;if(e.kind==='bat')e.obj.position.y=.2+Math.sin(e.phase*6)*.3;e.obj.rotation.y=Math.atan2(dx,dz)}refresh()}camera.position.lerp(new THREE.Vector3(hero.position.x,9,hero.position.z+12),.09);camera.lookAt(hero.position.x,1,hero.position.z);renderer.render(scene,camera)}frame();
+const clock=new THREE.Clock();
+function hurtHero(amount){if(!running||invuln>0)return;hp=Math.max(0,hp-amount);invuln=.85;if(hp<=0){show('You fell in battle! Your gold and purchased cosmetics are saved. Try again.');$('start').textContent='Retry Dungeon'}}
+function frame(){
+ requestAnimationFrame(frame);
+ const dt=Math.min(clock.getDelta(),.05);
+ if(running){
+  let x=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+joy.x;
+  let z=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+joy.z;
+  const len=Math.max(1,Math.hypot(x,z));x/=len;z/=len;
+  hero.position.x=THREE.MathUtils.clamp(hero.position.x+x*dt*6,-16,16);
+  hero.position.z=THREE.MathUtils.clamp(hero.position.z+z*dt*6,-16,16);
+  if(x||z)hero.rotation.y=Math.atan2(x,z);
+  invuln=Math.max(0,invuln-dt);
+  for(const e of enemies){
+   e.phase+=dt;e.cooldown-=dt;
+   const dx=hero.position.x-e.obj.position.x,dz=hero.position.z-e.obj.position.z,dist=Math.hypot(dx,dz);
+   const range=e.kind==='boss'?3.6:e.kind==='bat'?2.5:e.kind==='skeleton'?1.9:1.5;
+   if(e.windup>0){
+    e.windup-=dt;
+    e.obj.scale.set(1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06);
+    if(e.windup<=0){
+     e.attackTime=.35;
+     if(e.kind==='slime'){if(dist<2)hurtHero(9)}
+     else if(e.kind==='skeleton'){if(dist<2.35)hurtHero(13)}
+     else if(e.kind==='bat'){if(dist<2.9)hurtHero(10)}
+     else if(dist<4.1)hurtHero(22);
+    }
+   }else{
+    if(e.attackTime>0)e.attackTime=Math.max(0,e.attackTime-dt);
+    if(dist>range*.78 && e.attackTime<=0 && dist>.001){
+     const speed=e.speed*(e.kind==='bat'&&e.attackTime>0?2:1);
+     e.obj.position.x+=dx/dist*speed*dt;
+     e.obj.position.z+=dz/dist*speed*dt;
+    }
+    if(e.cooldown<=0&&dist<range){
+     e.windup=e.kind==='boss'?1.05:e.kind==='skeleton'?.48:e.kind==='bat'?.36:.55;
+     e.cooldown=e.kind==='boss'?3.8:e.kind==='skeleton'?2.1:e.kind==='bat'?1.65:2.35;
+    }
+    e.obj.scale.lerp(new THREE.Vector3(1,1,1),Math.min(1,dt*9));
+   }
+   if(e.kind==='slime'){
+    e.obj.scale.y*=1+Math.sin(e.phase*7)*.008;
+    e.obj.position.y=Math.abs(Math.sin(e.phase*4))*(e.windup>0?.32:.12);
+   }else if(e.kind==='bat'){
+    e.obj.position.y=.35+Math.sin(e.phase*7)*.25+(e.attackTime>0?-.24:0);
+    if(e.attackTime>0&&dist>.01){e.obj.position.x+=dx/dist*dt*3;e.obj.position.z+=dz/dist*dt*3}
+    e.obj.rotation.z=Math.sin(e.phase*10)*.12;
+   }else if(e.kind==='skeleton'){
+    e.obj.position.y=Math.abs(Math.sin(e.phase*5))*.06;
+    e.obj.rotation.z=e.attackTime>0?-.25:Math.sin(e.phase*3)*.035;
+   }else{
+    e.obj.position.y=e.attackTime>0?Math.sin(e.attackTime/.35*Math.PI)*.25:0;
+    if(e.windup>0)e.obj.scale.setScalar(1.1+Math.sin(e.phase*14)*.03);
+   }
+   e.obj.rotation.y=Math.atan2(dx,dz);
+  }
+  refresh();
+ }
+ camera.position.lerp(new THREE.Vector3(hero.position.x,9,hero.position.z+12),.09);
+ camera.lookAt(hero.position.x,1,hero.position.z);
+ renderer.render(scene,camera);
+}
+frame();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 </script></body></html>
