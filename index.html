@@ -567,6 +567,34 @@ const spaceMarineURLs=[
 ];
 let spaceMarineModel=null,spaceMarineMixer=null,spaceMarineState='idle',spaceMarineMotion='Idle',spaceMarineActive=null;
 const spaceMarineActions={};
+// Space Marine is an imported GLB. Clone and register only its armor materials
+// so Hero Color affects the textured uniform without changing its rig or maps.
+const spaceMarineColorParts=[];
+function registerSpaceMarineColors(model){
+ spaceMarineColorParts.length=0;
+ model.traverse(object=>{
+  if(!object.isMesh)return;
+  const recolor=source=>{
+   if(!source?.color)return source;
+   // Do not recolor separate eyes, facial skin or optical lenses.
+   const surface=(object.name+' '+source.name).toLowerCase();
+   if(/skin|face|eye|visor|glass|lens/.test(surface))return source;
+   const material=source.clone();
+   spaceMarineColorParts.push({material,base:source.color.clone()});
+   return material;
+  };
+  object.material=Array.isArray(object.material)?object.material.map(recolor):recolor(object.material);
+ });
+ recolorSpaceMarineModel();
+}
+function recolorSpaceMarineModel(){
+ if(!spaceMarineColorParts.length)return;
+ const chosen=$('heroColor').value;
+ const tint=new THREE.Color(colorMap[chosen]??colorMap.purple);
+ // Always start from the original base color; never stack tint changes.
+ // All imported diffuse, normal and roughness textures remain intact.
+ for(const part of spaceMarineColorParts)part.material.color.copy(part.base).lerp(tint,.84);
+}
 // Keep Space Marine looking at the current enemy during an attack, even while strafing.
 let spaceMarineAimTarget=null,spaceMarineAimUntil=0;
 function aimSpaceMarineAt(target,holdMs=650){
@@ -640,6 +668,7 @@ async function requestSpaceMarineModel(){
     original.position.x-=(placed.min.x+placed.max.x)/2;
     original.position.z-=(placed.min.z+placed.max.z)/2;
     original.traverse(o=>{if(o.isMesh)o.castShadow=true});
+    registerSpaceMarineColors(original);
     spaceMarineVisual.add(original);
     spaceMarineModel=original;
     spaceMarineMixer=new THREE.AnimationMixer(original);
@@ -909,6 +938,7 @@ function recolorCharacterModels(){
  body.material.color.setHex(colorMap[color]);
  wolfColorAccent.material.color.setHex(colorMap[color]);
  for(const trim of kitsuneAccentParts)trim.material.color.setHex(colorMap[color]);for(const gem of bellAccentParts)gem.material.color.setHex(colorMap[color]);
+ recolorSpaceMarineModel();
 }
 // A single GPU-backed character portrait using the existing game models and WebGL renderer.
 // Clones reuse mesh geometries/materials; no second WebGL context or independent scroll area.
