@@ -356,8 +356,15 @@ const terrainGroup=new THREE.Group();scene.add(terrainGroup);
 const obstacles=[];
 function terrainForFloor(){
  terrainGroup.clear();obstacles.length=0;
- const boss=level%3===0,theme=(Math.floor((level-1)/3))%3;
- const palette=[{ground:0x30283d,stone:0x655b77,accent:0x9357d5},{ground:0x253b38,stone:0x54675d,accent:0x3ad9a0},{ground:0x493329,stone:0x80634d,accent:0xff8b39}][theme];
+ const boss=level%3===0,theme=(level-1)%6;
+ const palette=[
+  {ground:0x30283d,stone:0x655b77,accent:0x9357d5,crate:0x6b4732},
+  {ground:0x243c44,stone:0x527b8a,accent:0x55dfff,crate:0x466879},
+  {ground:0x493329,stone:0x80634d,accent:0xff8b39,crate:0x74422a},
+  {ground:0x253b38,stone:0x54675d,accent:0x3ad9a0,crate:0x48633e},
+  {ground:0x403347,stone:0x89778d,accent:0xff77c7,crate:0x73576d},
+  {ground:0x343d4d,stone:0x68788f,accent:0xc2e5ff,crate:0x647181}
+ ][theme];
  floor.material.color.setHex(palette.ground);grid.visible=false;
  let seed=level*7937+91;
  const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
@@ -383,11 +390,11 @@ function terrainForFloor(){
   add(new THREE.BoxGeometry(1.6,.32,1.6),palette.accent,x,3.4,z);
  }
  // Rocks, ruined columns, crates, and glowing crystals.
- const count=boss?12:20;
+ const count=boss?12:20+(level%4)*3;
  for(let i=0;i<count;i++){
   const x=(rand()-.5)*28,z=(rand()-.5)*28;
-  if(Math.hypot(x,z)<4.5||Math.abs(Math.hypot(x,z)-8)<2.3)continue;
-  const kind=i%4;
+  if(Math.hypot(x,z)<4.5||Math.abs(Math.hypot(x,z)-8)<2.3||obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+1.4))continue;
+  const kind=(i+level-1)%4;
   if(kind===0){
    add(new THREE.DodecahedronGeometry(.45+rand()*.4,0),palette.stone,x,.42,z,.75);
   }else if(kind===1){
@@ -395,12 +402,30 @@ function terrainForFloor(){
    add(new THREE.CylinderGeometry(.36,.46,h,7),palette.stone,x,h/2,z,.6);
    add(new THREE.BoxGeometry(1,.18,1),palette.stone,x,h+.05,z);
   }else if(kind===2){
-   add(new THREE.BoxGeometry(.95,.95,.95),0x6b4732,x,.48,z,.7);
+   add(new THREE.BoxGeometry(.95,.95,.95),palette.crate,x,.48,z,.7);
    add(new THREE.BoxGeometry(1,.12,1),0xa88753,x,1,z);
   }else{
    const crystal=add(new THREE.OctahedronGeometry(.65,0),palette.accent,x,.75,z,.65);
    crystal.material.emissive.setHex(palette.accent);crystal.material.emissiveIntensity=.55;
    add(new THREE.CylinderGeometry(.55,.7,.25,7),palette.stone,x,.13,z);
+  }
+ }
+ // Each floor has its own scenery landmark and accent lighting.
+ if(theme===1||theme===5){
+  for(let j=0;j<5;j++){
+   const a=j*Math.PI*2/5+level,r=11.5;
+   const x=Math.cos(a)*r,z=Math.sin(a)*r;
+   if(obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+1.1))continue;
+   const spire=add(new THREE.ConeGeometry(.35,1.7,5),palette.accent,x,1.1,z,.55);
+   spire.material.emissive.setHex(palette.accent);spire.material.emissiveIntensity=.35;
+  }
+ }else if(theme===2||theme===4){
+  for(let j=0;j<4;j++){
+   const a=j*Math.PI/2+.4,x=Math.cos(a)*11,z=Math.sin(a)*11;
+   if(obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+1))continue;
+   add(new THREE.CylinderGeometry(.24,.4,1.5,7),palette.stone,x,.75,z,.55);
+   const flame=add(new THREE.ConeGeometry(.28,.75,7),palette.accent,x,1.85,z);
+   flame.material.emissive.setHex(palette.accent);flame.material.emissiveIntensity=1;
   }
  }
  // Boss floors get a distinct ritual arena.
@@ -475,15 +500,36 @@ function navigateMonster(e,dt){
   e.navTimer=0;
  }
 }
+function safeMonsterSpawn(index,total,occupied){
+ // Search clear points around the arena, avoiding solid props and other monsters.
+ const start=index*Math.PI*2/total+level*.47;
+ for(let ring=0;ring<5;ring++){
+  const radius=7+ring*1.7;
+  for(let step=0;step<32;step++){
+   const a=start+step*Math.PI*2/32;
+   const x=Math.cos(a)*radius,z=Math.sin(a)*radius;
+   if(navClear(x,z,.85)&&occupied.every(p=>Math.hypot(x-p.x,z-p.z)>1.9))
+    return {x,z};
+  }
+ }
+ // Guaranteed fallback in the reserved clear central area.
+ for(let r=3.4;r>=1.5;r-=.5)for(let j=0;j<24;j++){
+  const a=j*Math.PI/12+index;
+  const x=Math.cos(a)*r,z=Math.sin(a)*r;
+  if(navClear(x,z,.85)&&occupied.every(p=>Math.hypot(x-p.x,z-p.z)>1.3))return {x,z};
+ }
+ return {x:0,z:0};
+}
 function spawn(){
  terrainForFloor();
  for(const e of enemies)scene.remove(e.obj);enemies=[];
  const bossFloor=level%3===0,count=bossFloor?1:Math.min(3+level,10);
  const difficulty=1+(level-1)*.18;
+ const occupied=[];
  for(let i=0;i<count;i++){
   const kind=bossFloor?'boss':['slime','skeleton','bat'][(level+i-1)%3],obj=monster(kind);
-  const a=i*Math.PI*2/count,r=7+(i%3)*1.5;
-  obj.position.set(Math.cos(a)*r,0,Math.sin(a)*r);
+  const point=safeMonsterSpawn(i,count,occupied);occupied.push(point);
+  obj.position.set(point.x,0,point.z);
   scene.add(obj);
   enemies.push({obj,kind,hp:Math.ceil((kind==='boss'?12:kind==='skeleton'?3:2)*difficulty*(bossFloor?1.4:1)),speed:Math.min(3.4,(kind==='boss'?.75:kind==='bat'?1.7:1.1)*(1+(level-1)*.055)),damageScale:1+(level-1)*.12,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0});
  }
