@@ -709,6 +709,60 @@ const reaperV2RigURLs={
 };
 let reaperV2State='idle',reaperV2Model=null,reaperV2IsRigged=false,reaperV2Mixer=null,reaperV2RightHand=null,reaperV2Active=null;
 const reaperV2Actions={},reaperV2ColorParts=[];
+
+// Bone-space attack layer: applied after Idle/Walk/Run, removed before the next mix.
+// It never alters the imported animation clips or skeleton hierarchy.
+const reaperV2AttackBones={rightArm:null,rightForearm:null,rightHand:null,leftArm:null,leftForearm:null,leftHand:null};
+const reaperV2AppliedOffsets=new Map();
+const reaperV2AttackEuler=new THREE.Euler();
+function collectReaperV2AttackBones(root){
+ for(const key of Object.keys(reaperV2AttackBones))reaperV2AttackBones[key]=null;
+ root.traverse(node=>{
+  if(!node.isBone)return;
+  const raw=node.name.toLowerCase(),n=raw.replace(/[^a-z0-9]/g,'');
+  const right=n.includes('right')||/(?:^|[_. :\-])r(?:[_. :\-]|$)/.test(raw)||/(?:forearm|lowerarm|upperarm|hand|wrist|arm)r$/.test(n);
+  const left=n.includes('left')||/(?:^|[_. :\-])l(?:[_. :\-]|$)/.test(raw)||/(?:forearm|lowerarm|upperarm|hand|wrist|arm)l$/.test(n);
+  if(!right&&!left)return;
+  const side=right?'right':'left';
+  if(/(?:forearm|lowerarm|elbow)/.test(n))reaperV2AttackBones[side+'Forearm']??=node;
+  else if(/(?:hand|wrist)/.test(n))reaperV2AttackBones[side+'Hand']??=node;
+  else if(/(?:upperarm|arm|shoulder)/.test(n))reaperV2AttackBones[side+'Arm']??=node;
+ });
+}
+function clearReaperV2AttackOffsets(){
+ for(const [bone,offset] of reaperV2AppliedOffsets){
+  bone.quaternion.multiply(offset.invert());
+ }
+ reaperV2AppliedOffsets.clear();
+}
+function offsetReaperV2Bone(key,x,y,z){
+ const bone=reaperV2AttackBones[key];if(!bone)return;
+ const offset=new THREE.Quaternion().setFromEuler(reaperV2AttackEuler.set(x,y,z,'XYZ'));
+ bone.quaternion.multiply(offset);
+ reaperV2AppliedOffsets.set(bone,offset);
+}
+function applyReaperV2AttackPose(){
+ if(!running)return;
+ const special=characterSwing&&!characterSwing.wolf&&!characterSwing.kitsune&&!characterSwing.bell&&!characterSwing.marine;
+ const basic=!special&&swing&&swing.duration>0;
+ if(!special&&!basic)return;
+ const phase=THREE.MathUtils.clamp((special?characterSwing.elapsed/characterSwing.duration:swing.elapsed/swing.duration)||0,0,1);
+ const strength=special?1:.52;
+ const smooth=x=>{x=THREE.MathUtils.clamp(x,0,1);return x*x*(3-2*x)};
+ const ready=smooth(phase/.24),drive=smooth((phase-.24)/.49);
+ const recover=1-smooth((phase-.77)/.23);
+ const wind=ready*(1-drive)*recover*strength;
+ const strike=drive*recover*strength;
+ // Drive from the shoulders, then let elbows and wrists trail the weighted blade.
+ offsetReaperV2Bone('rightArm',-.50*wind+.48*strike,-.12*wind-.30*strike,-.34*wind-.57*strike);
+ offsetReaperV2Bone('rightForearm',-.38*wind+.52*strike,.08*wind,-.20*wind-.26*strike);
+ offsetReaperV2Bone('rightHand',.15*wind+.25*strike,.09*strike,-.18*wind-.20*strike);
+ // Opposite arm stabilizes the grip instead of remaining frozen at the side.
+ offsetReaperV2Bone('leftArm',-.36*wind+.32*strike,.10*wind-.12*strike,.25*wind+.25*strike);
+ offsetReaperV2Bone('leftForearm',-.22*wind+.36*strike,-.10*wind,.18*wind+.20*strike);
+ offsetReaperV2Bone('leftHand',.10*wind+.12*strike,-.07*wind,.12*strike);
+}
+
 const reaperV2Gem=mesh(new THREE.OctahedronGeometry(.14),0x8b5cf6);
 reaperV2Gem.position.set(0,1.58,.51);
 reaperV2Gem.material.emissive=new THREE.Color(0x302045);
@@ -730,8 +784,10 @@ function updateReaperV2Animation(dt,movement){
  const wanted=!running?'Idle':dashTime>0?'Run':movement>.12?'Walk':'Idle';
  const choice=reaperV2Actions[wanted]?wanted:reaperV2Actions.Idle?'Idle':null;
  if(choice)playReaperV2Motion(choice);
+ clearReaperV2AttackOffsets();
  reaperV2Mixer.update(dt);
- // Follow the right-hand bone without changing the existing scythe attack timing.
+ applyReaperV2AttackPose();
+ // Follow the animated right hand, after applying the attack pose.
  if(reaperV2RightHand&&scytheRig.parent===reaperV2Visual){
   const palm=reaperV2RightHand.getWorldPosition(new THREE.Vector3());
   reaperV2Visual.worldToLocal(palm);
@@ -784,6 +840,7 @@ async function requestReaperV2Model(){
     });
     reaperV2Visual.add(model);
     reaperV2Model=model;reaperV2IsRigged=rigged;reaperV2RightHand=hand;
+    if(rigged){collectReaperV2AttackBones(model);reaperV2RightHand=reaperV2AttackBones.rightHand||hand;}
     if(rigged){
      reaperV2Mixer=new THREE.AnimationMixer(model);
      if(gltf.animations?.length)reaperV2Actions.Idle=reaperV2Mixer.clipAction(gltf.animations[0]);
@@ -908,7 +965,7 @@ function drawAuras(){
    if(data.gold<item.price){$('message').textContent='Not enough gold for '+item.name;return}
    data.gold-=item.price;data.ownedAuras.push(id);
   }
-  data.auraColor=id;data.aura=true;setAuraColor();persist();
+  data.auraColor=id;data.aura=true;setAuraColor();setScytheEnergyColor();persist();
   drawAuras();drawWeapons();drawSkills();refresh();
  };
 }
@@ -1064,6 +1121,7 @@ function recolorCharacterModels(){
  for(const trim of kitsuneAccentParts)trim.material.color.setHex(colorMap[color]);for(const gem of bellAccentParts)gem.material.color.setHex(colorMap[color]);
  recolorSpaceMarineModel();
  recolorReaperV2Model();
+ setScytheEnergyColor();
 }
 // A single GPU-backed character portrait using the existing game models and WebGL renderer.
 // Clones reuse mesh geometries/materials; no second WebGL context or independent scroll area.
@@ -1203,7 +1261,10 @@ function attachHeldWeapons(){
 function refresh(){
  // Reparent one shared signature scythe between original and test Reaper.
  const scytheHost=data.character==='reaper2'&&reaperV2State==='ready'?reaperV2Visual:reaperVisual;
- if(scytheRig.parent!==scytheHost)scytheHost.add(scytheRig);
+ if(scytheRig.parent!==scytheHost){
+  scytheHost.add(scytheRig);
+  if(scytheHost===reaperVisual)scytheRig.position.set(.58,1.15,.28);
+ }
  attachHeldWeapons();
  reaperVisual.visible=data.character==='reaper'||data.character==='reaper2'&&reaperV2State!=='ready';wolfVisual.visible=data.character==='werewolf';
  reaperV2Visual.visible=data.character==='reaper2'&&reaperV2State==='ready';
@@ -1929,18 +1990,75 @@ function attack(){
  }
 }
 // Character-specific attacks use an independent cooldown and visible weapon animations.
+// One premium Reaper signature weapon shared across original and rigged Reaper.
+// Obsidian crescent, silvered cutting edge, wrapped hilt, ferrule, soul gem, rune glow.
 const scytheRig=new THREE.Group();scytheRig.position.set(.58,1.15,.28);reaperVisual.add(scytheRig);
-const scytheShaft=mesh(new THREE.CylinderGeometry(.065,.08,2.35,8),0x594a55);
-scytheShaft.position.y=.65;scytheRig.add(scytheShaft);
-const scytheBlade=new THREE.Group();scytheBlade.position.y=1.78;scytheRig.add(scytheBlade);
-const bladeCurve=new THREE.CatmullRomCurve3([
- new THREE.Vector3(0,0,0),new THREE.Vector3(-.36,.23,.06),
- new THREE.Vector3(-.91,.17,.10),new THREE.Vector3(-1.35,-.23,.12)
+const scytheWood=new THREE.MeshStandardMaterial({color:0x211922,roughness:.74,metalness:.18});
+const scytheGrip=new THREE.MeshStandardMaterial({color:0x0a0910,roughness:.94,metalness:.08});
+const scytheIron=new THREE.MeshStandardMaterial({color:0x434a59,metalness:.86,roughness:.31});
+const scytheObsidian=new THREE.MeshStandardMaterial({color:0x0e111d,metalness:.78,roughness:.22,side:THREE.DoubleSide});
+const scytheSilver=new THREE.MeshStandardMaterial({color:0xa9c5cf,metalness:.9,roughness:.20,side:THREE.DoubleSide});
+const scytheEnergy=new THREE.MeshBasicMaterial({color:0x34d399,transparent:true,opacity:.88,blending:THREE.AdditiveBlending,depthWrite:false});
+const scytheGemMaterial=new THREE.MeshStandardMaterial({color:0x4cffe1,emissive:0x34d399,emissiveIntensity:1.7,metalness:.24,roughness:.18});
+const scytheShaft=new THREE.Mesh(new THREE.CylinderGeometry(.047,.067,2.40,12),scytheWood);
+scytheShaft.position.y=.70;scytheRig.add(scytheShaft);
+// Wrapped lower grip and metal banding, built once for both characters.
+const scytheHandle=new THREE.Mesh(new THREE.CylinderGeometry(.058,.069,.65,12),scytheGrip);
+scytheHandle.position.y=.06;scytheRig.add(scytheHandle);
+for(let i=0;i<8;i++){
+ const wrap=new THREE.Mesh(new THREE.TorusGeometry(.066-i*.0005,.010,5,12),i%2?scytheIron:scytheGrip);
+ wrap.rotation.x=Math.PI/2;wrap.position.y=-.19+i*.08;scytheRig.add(wrap);
+}
+const scytheButt=new THREE.Mesh(new THREE.ConeGeometry(.085,.23,8),scytheObsidian);
+scytheButt.rotation.z=Math.PI;scytheButt.position.y=-.57;scytheRig.add(scytheButt);
+const scytheSocket=new THREE.Mesh(new THREE.CylinderGeometry(.095,.072,.38,10),scytheIron);
+scytheSocket.position.y=1.66;scytheRig.add(scytheSocket);
+for(const y of [1.45,1.83]){
+ const collar=new THREE.Mesh(new THREE.TorusGeometry(.091,.023,6,14),scytheSilver);
+ collar.rotation.x=Math.PI/2;collar.position.y=y;scytheRig.add(collar);
+}
+const scytheBlade=new THREE.Group();scytheBlade.position.set(-.01,1.72,.02);scytheRig.add(scytheBlade);
+// Concave hooked crescent: broad forged root, tapering to a needle tip.
+const scytheShape=new THREE.Shape();
+scytheShape.moveTo(.06,-.15);
+scytheShape.bezierCurveTo(-.28,.25,-.93,.66,-1.74,.71);
+scytheShape.bezierCurveTo(-1.37,.47,-1.23,.03,-.91,-.22);
+scytheShape.bezierCurveTo(-.63,-.38,-.27,-.29,.06,-.15);
+const scytheBladeMesh=new THREE.Mesh(new THREE.ExtrudeGeometry(scytheShape,{
+ depth:.065,steps:1,bevelEnabled:true,bevelThickness:.012,bevelSize:.016,bevelSegments:2,curveSegments:18
+}),scytheObsidian);
+scytheBladeMesh.position.z=-.032;scytheBlade.add(scytheBladeMesh);
+const scytheEdgeCurve=new THREE.CatmullRomCurve3([
+ new THREE.Vector3(.01,-.11,.07),new THREE.Vector3(-.27,.26,.07),
+ new THREE.Vector3(-.79,.56,.07),new THREE.Vector3(-1.25,.71,.07),new THREE.Vector3(-1.73,.71,.07)
 ]);
-const scytheEdge=mesh(new THREE.TubeGeometry(bladeCurve,16,.10,6,false),0xddebf0);
-scytheEdge.material.metalness=.75;scytheEdge.material.roughness=.25;scytheBlade.add(scytheEdge);
-const scytheTip=mesh(new THREE.ConeGeometry(.105,.38,6),0xe8faff);
-scytheTip.position.set(-1.4,-.32,.12);scytheTip.rotation.z=-.35;scytheBlade.add(scytheTip);
+const scytheEdge=new THREE.Mesh(new THREE.TubeGeometry(scytheEdgeCurve,30,.026,6,false),scytheSilver);
+scytheBlade.add(scytheEdge);
+const scytheRunes=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+ new THREE.Vector3(-.20,-.10,.075),new THREE.Vector3(-.47,.02,.075),
+ new THREE.Vector3(-.84,.22,.075),new THREE.Vector3(-1.18,.38,.075)
+]),22,.018,5,false),scytheEnergy);
+scytheBlade.add(scytheRunes);
+const scytheRearSpike=new THREE.Mesh(new THREE.ConeGeometry(.072,.36,8),scytheSilver);
+scytheRearSpike.position.set(.15,-.06,0);scytheRearSpike.rotation.z=-1.15;scytheBlade.add(scytheRearSpike);
+const scytheGem=new THREE.Mesh(new THREE.OctahedronGeometry(.125,1),scytheGemMaterial);
+scytheGem.position.set(0,1.44,.10);scytheRig.add(scytheGem);
+const scytheGemFrame=new THREE.Mesh(new THREE.TorusGeometry(.15,.028,8,24),scytheIron);
+scytheGemFrame.position.set(0,1.44,.1);scytheRig.add(scytheGemFrame);
+const scytheTrailMaterial=new THREE.MeshBasicMaterial({
+ color:0x34d399,transparent:true,opacity:0,blending:THREE.AdditiveBlending,
+ depthWrite:false,side:THREE.DoubleSide
+});
+const scytheTrail=new THREE.Mesh(new THREE.TorusGeometry(1.08,.075,6,40,Math.PI*1.32),scytheTrailMaterial);
+scytheTrail.position.set(-.55,1.53,.13);scytheTrail.rotation.z=-.34;
+scytheTrail.visible=false;scytheRig.add(scytheTrail);
+function setScytheEnergyColor(){
+ const color=new THREE.Color(data.aura&&auraColors[data.auraColor]||colorMap[$('heroColor').value]||colorMap.green);
+ scytheEnergy.color.copy(color);
+ scytheGemMaterial.color.copy(color);scytheGemMaterial.emissive.copy(color);
+ scytheTrailMaterial.color.copy(color);
+}
+setScytheEnergyColor();
 let characterSwing=null;
 function characterAttack(){
  if(!running||characterSwing||performance.now()-lastCharacterAttack<8000)return;
@@ -1978,8 +2096,14 @@ function updateCharacterSwing(dt){
  }else if(a.marine){
   // Soldier's native Run clip supplies its charge; no mesh or rig edits.
  }else{
-  scytheRig.rotation.y=sweep;
-  scytheRig.rotation.z=-.35+Math.sin(t*Math.PI)*.48;
+  // A weighted two-hand wind-up, sweeping cleave and soft recovery.
+  const ease=x=>{x=THREE.MathUtils.clamp(x,0,1);return x*x*(3-2*x)};
+  const lift=ease(t/.24),cleave=ease((t-.24)/.51),settle=1-ease((t-.77)/.23);
+  scytheRig.rotation.x=(-.32*lift+.45*cleave)*settle;
+  scytheRig.rotation.y=(-.95*lift+2.45*cleave)*settle;
+  scytheRig.rotation.z=(-.48*lift+.60*cleave)*settle;
+  scytheTrail.visible=t>.25&&t<.86;
+  scytheTrailMaterial.opacity=scytheTrail.visible?.25+Math.sin(Math.PI*Math.min(1,(t-.25)/.61))*.32:0;
  }
  if(a.bell){
   if(!a.hit&&t>=.36){a.hit=true;castBellVines()}
@@ -2031,7 +2155,7 @@ function updateCharacterSwing(dt){
   }
  }
  if(t>=1){
-  characterSwing=null;scytheRig.rotation.set(0,0,0);
+  characterSwing=null;scytheRig.rotation.set(0,0,0);scytheTrail.visible=false;
   tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0);
   if(a.wolf)wolfVisual.rotation.y=0;
   bellStaff.rotation.set(0,0,0);
@@ -2087,7 +2211,7 @@ function animateHeroBody(dt,t){
  reaperVisual.position.y=.045+inhale*.023+move*bounce*.04;
  reaperVisual.rotation.z=stride*move*.023;
  reaperVisual.rotation.x=move*.035;
- // The unrigged GLB follows whole-body bob and sway; no fake skeletal clips.
+ // Keep a little cloak sway while the rigged arms and hands drive the attack.
  reaperV2Visual.position.y=.045+inhale*.023+move*bounce*.04;
  reaperV2Visual.rotation.x=move*.035;
  reaperV2Visual.rotation.z=stride*move*.023;
@@ -2378,7 +2502,7 @@ function frame(){
   updateSpecialEffects(dt);
   refresh();
  }
- if(!running){updateBellVines(dt);for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;updateSpecialEffects(dt);characterSwing=null;kitsuneDaggerActive=false;kitsuneDaggersVisible();scytheRig.rotation.set(0,0,0);tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0)}
+ if(!running){scytheTrail.visible=false;updateBellVines(dt);for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;updateSpecialEffects(dt);characterSwing=null;kitsuneDaggerActive=false;kitsuneDaggersVisible();scytheRig.rotation.set(0,0,0);tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0)}
  const characterRemain=Math.max(0,8-(performance.now()-lastCharacterAttack)/1000);
  $('dash').disabled=!running||dashCooldown>0;
  $('dash').textContent=dashCooldown>0?'DASH '+dashCooldown.toFixed(1)+'s':'DASH';
