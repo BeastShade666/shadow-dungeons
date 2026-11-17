@@ -1413,9 +1413,21 @@ function damageEnemy(e,amount,soundType=data.weapon){
   scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
   data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();drawSkills();drawAuras();
   if(!enemies.length){
-   level++;recordLeaderboardFloor(level);hp=Math.min(maxHealth(),hp+25);spawn();
-   show('Floor cleared! +25 health. Gold is yours to keep. Continue to the next floor!');
-   $('start').textContent='Next Floor';
+   // Seamless roguelike progression: stay in the dungeon until death.
+   level++;recordLeaderboardFloor(level);
+   hp=Math.min(maxHealth(),hp+25);
+   clearBellVines();
+   for(const p of projectiles)scene.remove(p.obj);
+   projectiles.length=0;
+   for(const b of bossBolts)scene.remove(b.obj);
+   bossBolts.length=0;
+   for(const fx of bossExplosions)scene.remove(fx.group);
+   bossExplosions.length=0;
+   swing=null;characterSwing=null;weaponGroup.rotation.set(0,0,0);
+   bellStaff.rotation.set(0,0,0);
+   hero.position.set(0,0,0);
+   invuln=Math.max(invuln,1.5);
+   spawn();
   }
  }
  refresh();
