@@ -1112,6 +1112,7 @@ function attack(){
  const chosen=candidates[0];
  // Auto aim rotates the hero toward the closest monster in weapon range.
  hero.rotation.y=Math.atan2(chosen.delta.x,chosen.delta.z);
+ if(data.character==='kitsune'&&data.weapon==='daggers')kitsuneDaggerSlash=1;
  if(data.weapon==='axe'){
   // Heavy wind-up followed by a wide, visible forward cleave.
   swing={elapsed:0,duration:.56,hit:false,damage:w.damage,range:w.range,arc:w.arc};
@@ -1156,10 +1157,10 @@ let characterSwing=null;
 function characterAttack(){
  if(!running||characterSwing||performance.now()-lastCharacterAttack<8000)return;
  lastCharacterAttack=performance.now();
- const wolf=data.character==='werewolf';
+ const wolf=data.character==='werewolf',kitsune=data.character==='kitsune';
  const nearest=enemies.map(e=>({e,d:Math.hypot(e.obj.position.x-hero.position.x,e.obj.position.z-hero.position.z)})).sort((a,b)=>a.d-b.d)[0];
  if(nearest&&nearest.d<5)hero.rotation.y=Math.atan2(nearest.e.obj.position.x-hero.position.x,nearest.e.obj.position.z-hero.position.z);
- characterSwing={elapsed:0,duration:wolf?.7:.62,wolf,hit:false};
+ characterSwing={elapsed:0,duration:kitsune?.78:wolf?.7:.62,wolf,kitsune,hit:false};
  weaponSound(wolf?'axe':'sword',true);
 }
 function updateCharacterSwing(dt){
@@ -1172,6 +1173,8 @@ function updateCharacterSwing(dt){
   tailRig.rotation.y=sweep;
   tailRig.rotation.x=-.12+Math.sin(t*Math.PI)*.30;
   tailAxe.rotation.z=Math.sin(t*Math.PI)*.7;
+ }else if(a.kitsune){
+  // Kitsune's articulated daggers animate with her arms.
  }else{
   scytheRig.rotation.y=sweep;
   scytheRig.rotation.z=-.35+Math.sin(t*Math.PI)*.48;
@@ -1179,12 +1182,12 @@ function updateCharacterSwing(dt){
  if(!a.hit&&t>=.47){
   a.hit=true;
   const forward=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
-  const range=a.wolf?3.9:4.3;
+  const range=a.kitsune?4.1:a.wolf?3.9:4.3;
   for(const e of [...enemies]){
    const delta=e.obj.position.clone().sub(hero.position);delta.y=0;
    const dist=delta.length();
    if(dist>.01&&dist<=range&&forward.dot(delta.normalize())>=Math.cos(1.35))
-    damageEnemy(e,a.wolf?3:4,a.wolf?'axe':'sword');
+    damageEnemy(e,a.kitsune?4:a.wolf?3:4,a.wolf?'axe':'sword');
   }
  }
  if(t>=1){
@@ -1266,6 +1269,10 @@ function specialAttack(){
    arrow.position.copy(hero.position);arrow.position.y=1.3;arrow.position.x+=(i-1)*.3;scene.add(arrow);
    projectiles.push({obj:arrow,target:t.e,damage:2,speed:20,life:2,soundType:'bow'});
   });
+ }else if(type==='daggers'){
+  // Fast crimson twin-dagger cyclone.
+  effect(3.2,0xfb4567,.55);kitsuneDaggerSlash=1;
+  weaponSound('sword',true);for(const t of [...nearby])if(t.dist<=3.2)damageEnemy(t.e,3,'sword');
  }else{
   // Arcane nova damages all nearby foes.
   effect(4.8,0xc26aff,.8);
@@ -1441,7 +1448,7 @@ function frame(){
  $('dash').disabled=!running||dashCooldown>0;
  $('dash').textContent=dashCooldown>0?'DASH '+dashCooldown.toFixed(1)+'s':'DASH';
  $('characterAttack').disabled=!running||characterRemain>0;
- $('characterAttack').textContent=(data.character==='werewolf'?'TAIL AXE':'SCYTHE SWEEP')+(characterRemain>0?' '+characterRemain.toFixed(1)+'s':'');
+ $('characterAttack').textContent=(data.character==='kitsune'?'DAGGER FLURRY':data.character==='werewolf'?'TAIL AXE':'SCYTHE SWEEP')+(characterRemain>0?' '+characterRemain.toFixed(1)+'s':'');
  animateAura(clock.elapsedTime);
  animateHeroBody(dt,clock.elapsedTime);
  camera.position.lerp(new THREE.Vector3(hero.position.x,9,hero.position.z+12),.09);
