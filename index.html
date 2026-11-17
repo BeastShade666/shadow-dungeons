@@ -1213,7 +1213,7 @@ function refresh(){
  $('reaperV2Credit').hidden=data.character!=='reaper2';
  $('wallet').textContent='Gold: '+data.gold;
  $('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;
- $('stage').textContent='Floor '+level+' · '+(['Crypt','Goblin Warrens','Stone Catacombs','Shadow Realm','Titan Nest','Abyss'][Math.floor((level-1)/10)%6])+(level%3===0?' · BOSS':' · Monsters '+enemies.length);
+ $('stage').textContent='Floor '+level+' · '+(['Crypt','Goblin Warrens','Stone Catacombs','Shadow Realm','Titan Nest','Abyss'][Math.floor((level-1)/10)%6])+(bossLoot?' · 🧰 Collect boss loot':level%3===0?' · BOSS':' · Monsters '+enemies.length);
  updateCharacterPortrait();
 }
 function monster(kind){
@@ -1532,7 +1532,66 @@ function updateEnemyHealthBar(enemy){
  fill.material=enemyBarFillMaterials[fraction>.5?0:fraction>.25?1:2];
  fill.visible=fraction>0;
 }
+// Boss reward chest: the next floor waits until the player walks up to collect it.
+let bossLoot=null;
+function clearBossLoot(){
+ if(!bossLoot)return;
+ scene.remove(bossLoot.group);
+ bossLoot.group.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose()}});
+ bossLoot=null;
+}
+function spawnBossLoot(position){
+ clearBossLoot();
+ const group=new THREE.Group();
+ group.position.set(position.x,.2,position.z);
+ const part=(geo,color,x,y,z)=>{
+  const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,metalness:.35,roughness:.4}));
+  m.position.set(x,y,z);group.add(m);return m;
+ };
+ part(new THREE.BoxGeometry(1.05,.58,.73),0x603720,0,.42,0);
+ part(new THREE.BoxGeometry(1.1,.2,.78),0x9b6430,0,.82,0);
+ for(const x of [-.38,.38]){
+  part(new THREE.BoxGeometry(.10,.75,.80),0xe0b44d,x,.53,0);
+ }
+ part(new THREE.BoxGeometry(.23,.24,.08),0xffdf77,0,.68,.43);
+ const glow=new THREE.PointLight(0xffc85b,2.2,5);glow.position.y=1.1;group.add(glow);
+ const marker=new THREE.Mesh(new THREE.OctahedronGeometry(.22),new THREE.MeshBasicMaterial({color:0xffe58c}));
+ marker.position.y=1.65;group.add(marker);
+ scene.add(group);
+ bossLoot={group,marker,age:0,floor:level};
+ refresh();
+}
+function advanceDungeonFloor(){
+ level++;recordLeaderboardFloor(level);
+ hp=Math.min(maxHealth(),hp+25);
+ clearBellVines();
+ for(const p of projectiles)scene.remove(p.obj);
+ projectiles.length=0;
+ for(const b of bossBolts)scene.remove(b.obj);
+ bossBolts.length=0;
+ for(const fx of bossExplosions)scene.remove(fx.group);
+ bossExplosions.length=0;
+ swing=null;characterSwing=null;weaponGroup.rotation.set(0,0,0);
+ bellStaff.rotation.set(0,0,0);
+ hero.position.set(0,0,0);
+ invuln=Math.max(invuln,1.5);
+ spawn();
+}
+function updateBossLoot(dt){
+ if(!bossLoot||!running)return;
+ bossLoot.age+=dt;
+ bossLoot.marker.rotation.y+=dt*2.2;
+ bossLoot.marker.position.y=1.65+Math.sin(bossLoot.age*3)*.16;
+ const d=Math.hypot(hero.position.x-bossLoot.group.position.x,hero.position.z-bossLoot.group.position.z);
+ if(d>1.65)return;
+ const bonus=20+Math.floor(bossLoot.floor/3)*10;
+ data.gold+=bonus;
+ persist();drawWeapons();drawSkills();drawAuras();
+ clearBossLoot();
+ advanceDungeonFloor();
+}
 function spawn(){
+ clearBossLoot();
  terrainForFloor();
  for(const e of enemies)scene.remove(e.obj);enemies=[];
  const bossFloor=level%3===0,count=bossFloor?1:Math.min(3+level,10);
@@ -1569,6 +1628,7 @@ function spawn(){
 function show(message){bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
 function endDungeonRun(){
  if(!running)return;
+ clearBossLoot();
  // End this run voluntarily; save its score and permanent upgrades, not the floor.
  const completedFloor=level,keptGold=data.gold;
  recordLeaderboardFloor(completedFloor);
@@ -1699,21 +1759,14 @@ function damageEnemy(e,amount,soundType=data.weapon){
   scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
   data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();drawSkills();drawAuras();
   if(!enemies.length){
-   // Seamless roguelike progression: stay in the dungeon until death.
-   level++;recordLeaderboardFloor(level);
-   hp=Math.min(maxHealth(),hp+25);
-   clearBellVines();
-   for(const p of projectiles)scene.remove(p.obj);
-   projectiles.length=0;
-   for(const b of bossBolts)scene.remove(b.obj);
-   bossBolts.length=0;
-   for(const fx of bossExplosions)scene.remove(fx.group);
-   bossExplosions.length=0;
-   swing=null;characterSwing=null;weaponGroup.rotation.set(0,0,0);
-   bellStaff.rotation.set(0,0,0);
-   hero.position.set(0,0,0);
-   invuln=Math.max(invuln,1.5);
-   spawn();
+   if(e.kind==='boss'){
+    // Defeating the boss reveals the chest. Never advance before collection.
+    spawnBossLoot(e.obj.position.clone());
+    for(const p of projectiles)scene.remove(p.obj);
+    projectiles.length=0;
+    for(const b of bossBolts)scene.remove(b.obj);
+    bossBolts.length=0;
+   }else advanceDungeonFloor();
   }
  }
  refresh();
@@ -2202,6 +2255,7 @@ function frame(){
   updateProjectiles(dt);
   updateBossBolts(dt);
   updateBossExplosions(dt);
+  updateBossLoot(dt);
   updateSpecialEffects(dt);
   refresh();
  }
