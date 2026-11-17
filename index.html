@@ -404,6 +404,25 @@ function monster(kind){
    ball(.13,shade,side*.23,.1,.12);
   }
   box(.58,.19,.28,shade,0,.72,0);
+  // Decorative armor only: no change to HP, damage calculations or hitboxes.
+  const iron=0x657080,edge=0xa8b6c8,leather=0x493b37;
+  // Battle-worn breastplate with raised center ridge and metal trim.
+  box(.82,.58,.27,iron,0,1.18,.22);
+  box(.13,.56,.32,edge,0,1.18,.39);
+  box(.85,.08,.31,edge,0,1.46,.22);
+  box(.82,.09,.33,leather,0,.9,.23);
+  // Armored shoulders, forearm guards and shin greaves.
+  for(const side of [-1,1]){
+   const pauldron=ball(.26,iron,side*.47,1.43,.02,1.1,.55,1.25);
+   pauldron.rotation.z=side*.25;
+   box(.21,.36,.25,iron,side*.56,.88,.1);
+   box(.23,.34,.24,iron,side*.23,.37,.16);
+   box(.25,.055,.27,edge,side*.23,.5,.16);
+  }
+  // Skull helmet: open face so the glowing eyes remain visible.
+  const helm=ball(.49,iron,0,2.04,-.055,1.09,.45,.96);
+  box(.93,.095,.42,edge,0,2.08,.02);
+  for(const side of [-1,1])box(.16,.3,.3,iron,side*.46,1.89,-.02);
   box(.17,.86,.16,0x674b45,.69,1.15,.12);
   box(.48,.09,.3,0xaab9c8,.69,1.55,.12);
  }else if(kind==='bat'){
