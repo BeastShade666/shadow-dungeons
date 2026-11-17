@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+<defs>
+<linearGradient id="sky" x2="0" y2="1"><stop stop-color="#0b0b22"/><stop offset=".5" stop-color="#30234b"/><stop offset="1" stop-color="#110e1e"/></linearGradient>
+<radialGradient id="moon"><stop stop-color="#f3d6ff"/><stop offset=".5" stop-color="#b48bff"/><stop offset="1" stop-color="#7b51d5" stop-opacity="0"/></radialGradient>
+<linearGradient id="ground" x2="0" y2="1"><stop stop-color="#242033"/><stop offset="1" stop-color="#080810"/></linearGradient>
+<filter id="glow"><feGaussianBlur stdDeviation="13"/></filter>
+<pattern id="stones" width="120" height="70" patternUnits="userSpaceOnUse"><path d="M0 0H120M0 35H120M60 0V35M20 35V70M100 35V70" stroke="#8b719d" stroke-opacity=".16" stroke-width="3" fill="none"/></pattern>
+</defs>
+<rect width="1600" height="900" fill="url(#sky)"/>
+<circle cx="1130" cy="230" r="260" fill="url(#moon)"/><circle cx="1130" cy="230" r="102" fill="#c7b5f0" opacity=".72"/>
+<path d="M0 480L100 380 210 460 320 300 420 410 590 310 760 470 930 300 1090 420 1230 330 1400 460 1600 320V900H0Z" fill="#161428"/>
+<path d="M0 560L130 470 290 540 480 410 620 540 800 420 1010 560 1230 440 1420 550 1600 460V900H0Z" fill="#20182f"/>
+<!-- castle silhouette -->
+<g fill="#0c0d1c" stroke="#635379" stroke-width="5">
+<path d="M470 660V340H540V270H605V340H670V200H740V155H810V200H880V340H950V280H1020V340H1090V660Z"/>
+<path d="M450 340V300H485V320H505V300H540V340M650 200V165H680V185H700V165H735V200M805 200V165H835V185H850V165H880V200M1020 340V300H1050V320H1070V300H1100V340" fill="#11101f"/>
+</g>
+<g fill="#a87aff" opacity=".7"><path d="M713 240H747V295H713ZM832 240H866V295H832ZM525 390H560V450H525ZM985 390H1020V450H985Z"/></g>
+<path d="M0 680Q380 560 680 700T1600 640V900H0Z" fill="url(#ground)"/>
+<!-- stone arch on left -->
+<g fill="#1a1728" stroke="#5a4a70" stroke-width="6"><path d="M-60 900V110H80V40H245V110H325V900H210V350Q130 255 45 350V900Z"/><path d="M-60 900V110H325V900" fill="url(#stones)" stroke="none" opacity=".65"/></g>
+<!-- adventurer silhouette -->
+<g fill="#080b13" stroke="#77558f" stroke-width="5" stroke-linejoin="round">
+<path d="M1180 790L1160 610 1115 540 1130 475 1180 430 1230 475 1250 540 1215 610 1235 790Z"/>
+<path d="M1125 505L1050 660 1085 675 1160 545ZM1235 510L1320 640 1290 655 1190 540Z"/>
+<path d="M1170 455Q1130 425 1155 390Q1190 360 1220 390Q1240 430 1205 455Z"/>
+<path d="M1200 550L1370 350" stroke="#b8a4c6" stroke-width="12"/><path d="M1335 345L1390 305 1370 370Z" fill="#b8a4c6"/>
+</g>
+<!-- magical wisps -->
+<g fill="#bc79ff"><circle cx="380" cy="510" r="7"/><circle cx="420" cy="560" r="5"/><circle cx="970" cy="510" r="9"/><circle cx="1410" cy="580" r="6"/></g>
+<g fill="#a86cff" opacity=".6" filter="url(#glow)"><circle cx="380" cy="510" r="22"/><circle cx="970" cy="510" r="28"/><circle cx="1410" cy="580" r="23"/></g>
+<rect width="1600" height="900" fill="#070611" opacity=".17"/>
+</svg>
