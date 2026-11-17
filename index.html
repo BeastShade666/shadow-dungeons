@@ -854,7 +854,26 @@ function monster(kind){
  const cone=(r,h,c,x,y,z,tilt=0)=>{const m=add(new THREE.ConeGeometry(r,h,9),c,x,y,z);m.rotation.z=tilt;return m};
  const tube=(r1,r2,h,c,x,y,z,tilt=0)=>{const m=add(new THREE.CylinderGeometry(r1,r2,h,9),c,x,y,z);m.rotation.z=tilt;return m};
  const eye=(x,y,z,color=0xff4d5b,r=.12)=>{ball(r,0x160e21,x,y,z);ball(r*.68,color,x,y,z+.065);ball(r*.22,0xffffff,x-.025,y+.03,z+.12)};
- if(kind==='slime'){
+ if(kind==='goblin'){
+ ball(.4,0x5e9645,0,1.4,0);ball(.34,0x85af56,0,1.9,.12);
+ for(const side of [-1,1]){cone(.22,.6,0x679b49,side*.46,2,.1,side*.9);eye(side*.14,1.92,.43,0xffd45e,.1);tube(.13,.1,.7,0x527e40,side*.5,1.15,0,side*.3);tube(.15,.12,.7,0x456d39,side*.2,.4,0)}
+ box(.7,.25,.3,0x744f32,0,1.25,.14);
+ }else if(kind==='spider'){
+ ball(.75,0x36223e,0,.54,-.25,1,.72,1.12);ball(.47,0x49304c,0,.6,.56);
+ for(const side of [-1,1])for(let i=0;i<4;i++){const leg=tube(.09,.07,1.2,0x24172d,side*(.78+i*.07),.48,(i-1.5)*.36,side*.95);leg.rotation.x=(i-1.5)*.24}
+ for(const x of [-.27,-.09,.09,.27])eye(x,.77,.92,0xf16aa9,.08);
+ }else if(kind==='golem'){
+ box(1.2,1.2,.82,0x626978,0,1.13,0);box(.78,.68,.69,0x7d8791,0,2.03,.04);
+ for(const side of [-1,1]){box(.48,.85,.5,0x4e5664,side*.86,1.38,0);box(.45,.52,.48,0x777e8b,side*.88,.65,.18);box(.45,.8,.49,0x515b69,side*.34,.43,0);eye(side*.2,2.08,.43,0x7be7ff,.12)}
+ box(.17,.65,.11,0x69d9dd,0,1.22,.46);
+ }else if(kind==='wraith'){
+ cone(.8,1.65,0x302c55,0,.86,0);ball(.52,0x54497b,0,1.77,0,1,.85,.9);
+ for(const side of [-1,1]){eye(side*.19,1.78,.43,0x9d8aff,.12);cone(.27,.92,0x453968,side*.65,1.18,0,side*.5)}
+ cone(.57,.82,0x201b39,0,2.2,-.08);
+ }else if(kind==='imp'){
+ ball(.43,0x9d3947,0,1.12,0);ball(.34,0xd0574c,0,1.66,.12);
+ for(const side of [-1,1]){cone(.17,.48,0x462032,side*.27,2.04,.02,side*.22);eye(side*.14,1.69,.43,0xffde64,.10);cone(.42,.83,0x6d3045,side*.61,1.38,-.32,side*.65);tube(.12,.10,.63,0x8b3540,side*.2,.45,0)}
+ }else if(kind==='slime'){
   ball(.78,0x2da866,0,.62,0,1.15,.76,1.05);
   ball(.68,0x66e79a,0,.76,.09,1.13,.7,1.03);
   ball(.42,0xa3ffd0,-.21,.96,.38,.7,.38,.35);
@@ -1122,16 +1141,19 @@ function spawn(){
  terrainForFloor();
  for(const e of enemies)scene.remove(e.obj);enemies=[];
  const bossFloor=level%3===0,count=bossFloor?1:Math.min(3+level,10);
+ const tier=Math.floor((level-1)/3);
+ const factions=[['slime','skeleton','bat'],['goblin','spider','bat'],['golem','skeleton','spider'],['wraith','imp','golem'],['imp','wraith','spider']];
+ const faction=factions[Math.min(tier,factions.length-1)];
  const difficulty=1+(level-1)*.18;
  const occupied=[];
  for(let i=0;i<count;i++){
-  const kind=bossFloor?'boss':['slime','skeleton','bat'][(level+i-1)%3],obj=monster(kind);
+  const kind=bossFloor?'boss':faction[(level+i-1)%faction.length],obj=monster(kind);
   const point=safeMonsterSpawn(i,count,occupied);
   if(!point)continue;
   occupied.push(point);
   obj.position.set(point.x,0,point.z);
   scene.add(obj);
-  enemies.push({obj,kind,hp:Math.ceil((kind==='boss'?12:kind==='skeleton'?3:2)*difficulty*(bossFloor?1.4:1)),speed:Math.min(3.4,(kind==='boss'?.75:kind==='bat'?1.7:1.1)*(1+(level-1)*.055)),damageScale:1+(level-1)*.12,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0,dodgeCooldown:2,dodgeTime:0,attackMode:'melee'});
+  enemies.push({obj,kind,hp:Math.ceil((kind==='boss'?12:kind==='golem'?5:kind==='wraith'?4:kind==='skeleton'||kind==='spider'?3:2)*difficulty*(bossFloor?1.4:1)),speed:Math.min(3.4,(kind==='boss'?.75:kind==='bat'||kind==='imp'?1.7:kind==='golem'?.75:kind==='wraith'?1.35:1.1)*(1+(level-1)*.055)),damageScale:1+(level-1)*.12,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0,dodgeCooldown:2,dodgeTime:0,attackMode:'melee'});
  }
  refresh();
 }
@@ -1636,7 +1658,7 @@ function frame(){
    e.rootTime=Math.max(0,(e.rootTime||0)-dt);
    e.phase+=dt;e.cooldown-=dt;if(e.kind==='boss'){e.dodgeCooldown-=dt;e.dodgeTime=Math.max(0,e.dodgeTime-dt)}
    const dx=hero.position.x-e.obj.position.x,dz=hero.position.z-e.obj.position.z,dist=Math.hypot(dx,dz);
-   const range=e.kind==='boss'?9:e.kind==='bat'?2.5:e.kind==='skeleton'?1.9:1.5;
+   const range=e.kind==='boss'?9:e.kind==='bat'||e.kind==='imp'?2.5:e.kind==='wraith'?2.2:e.kind==='golem'?2:e.kind==='skeleton'?1.9:1.5;
    if(e.windup>0&&!e.rootTime){
     e.windup-=dt;
     e.obj.scale.set(1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06);
@@ -1644,7 +1666,11 @@ function frame(){
      e.attackTime=.35;
      if(e.kind==='slime'){if(dist<2)hurtHero(Math.ceil(9*e.damageScale))}
      else if(e.kind==='skeleton'){if(dist<2.35)hurtHero(Math.ceil(13*e.damageScale))}
-     else if(e.kind==='bat'){if(dist<2.9)hurtHero(Math.ceil(10*e.damageScale))}
+     else if(e.kind==='bat'||e.kind==='imp'){if(dist<2.9)hurtHero(Math.ceil(10*e.damageScale))}
+     else if(e.kind==='golem'){if(dist<2.7)hurtHero(Math.ceil(18*e.damageScale))}
+     else if(e.kind==='wraith'){if(dist<2.8)hurtHero(Math.ceil(14*e.damageScale))}
+     else if(e.kind==='spider'){if(dist<2.2)hurtHero(Math.ceil(11*e.damageScale))}
+     else if(e.kind==='goblin'){if(dist<2.1)hurtHero(Math.ceil(10*e.damageScale))}
      else if(e.attackMode==='ranged')launchBossBolt(e);
       else if(dist<4.1)hurtHero(Math.ceil(22*e.damageScale));
     }
@@ -1655,19 +1681,19 @@ function frame(){
     }
     if(e.cooldown<=0&&dist<range&&!e.rootTime){
      if(e.kind==='boss')e.attackMode=dist>4.1?'ranged':(Math.random()<.4?'ranged':'melee');
-     e.windup=e.kind==='boss'?.65:e.kind==='skeleton'?.48:e.kind==='bat'?.36:.55;
-     e.cooldown=e.kind==='boss'?1.85:e.kind==='skeleton'?2.1:e.kind==='bat'?1.65:2.35;
+     e.windup=e.kind==='boss'?.65:e.kind==='skeleton'?.48:e.kind==='bat'||e.kind==='imp'?.36:e.kind==='golem'?.75:.55;
+     e.cooldown=e.kind==='boss'?1.85:e.kind==='skeleton'?2.1:e.kind==='bat'||e.kind==='imp'?1.65:e.kind==='golem'?2.8:2.35;
     }
     e.obj.scale.lerp(new THREE.Vector3(1,1,1),Math.min(1,dt*9));
    }
    if(e.kind==='slime'){
     e.obj.scale.y*=1+Math.sin(e.phase*7)*.008;
     e.obj.position.y=Math.abs(Math.sin(e.phase*4))*(e.windup>0?.32:.12);
-   }else if(e.kind==='bat'){
+   }else if(e.kind==='bat'||e.kind==='imp'){
     e.obj.position.y=.35+Math.sin(e.phase*7)*.25+(e.attackTime>0?-.24:0);
     if(e.attackTime>0&&dist>.01)moveWithCollision(e.obj,dx/dist*dt*3,dz/dist*dt*3,.45);
     e.obj.rotation.z=Math.sin(e.phase*10)*.12;
-   }else if(e.kind==='skeleton'){
+   }else if(e.kind==='skeleton'||e.kind==='goblin'||e.kind==='golem'){
     e.obj.position.y=Math.abs(Math.sin(e.phase*5))*.06;
     e.obj.rotation.z=e.attackTime>0?-.25:Math.sin(e.phase*3)*.035;
    }else{
