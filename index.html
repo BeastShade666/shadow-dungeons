@@ -1461,6 +1461,31 @@ function safeMonsterSpawn(index,total,occupied){
  }
  return null;
 }
+// Camera-facing enemy health bars, attached to monsters so they follow movement.
+const enemyBarBackMaterial=new THREE.SpriteMaterial({color:0x241b27,depthTest:false,depthWrite:false});
+const enemyBarFillMaterials=[
+ new THREE.SpriteMaterial({color:0x50e58a,depthTest:false,depthWrite:false}),
+ new THREE.SpriteMaterial({color:0xf2c453,depthTest:false,depthWrite:false}),
+ new THREE.SpriteMaterial({color:0xf15a66,depthTest:false,depthWrite:false})
+];
+function addEnemyHealthBar(enemy){
+ const bar=new THREE.Group();
+ bar.position.y=enemy.kind==='boss'?3.55:enemy.kind==='golem'?3.0:enemy.kind==='bat'||enemy.kind==='imp'?2.2:2.55;
+ const width=enemy.kind==='boss'?2.35:1.35;
+ const bg=new THREE.Sprite(enemyBarBackMaterial);bg.scale.set(width+.13,.24,1);bar.add(bg);
+ const fill=new THREE.Sprite(enemyBarFillMaterials[0]);fill.scale.set(width,.145,1);fill.position.z=.025;bar.add(fill);
+ enemy.obj.add(bar);enemy.healthBar={bar,fill,width};
+ updateEnemyHealthBar(enemy);
+}
+function updateEnemyHealthBar(enemy){
+ if(!enemy.healthBar)return;
+ const {fill,width}=enemy.healthBar;
+ const fraction=THREE.MathUtils.clamp(enemy.hp/enemy.maxHp,0,1);
+ fill.scale.x=Math.max(.001,width*fraction);
+ fill.position.x=-(width-fill.scale.x)/2;
+ fill.material=enemyBarFillMaterials[fraction>.5?0:fraction>.25?1:2];
+ fill.visible=fraction>0;
+}
 function spawn(){
  terrainForFloor();
  for(const e of enemies)scene.remove(e.obj);enemies=[];
@@ -1489,7 +1514,9 @@ function spawn(){
   occupied.push(point);
   obj.position.set(point.x,0,point.z);
   scene.add(obj);
-  enemies.push({obj,kind,hp:Math.ceil((kind==='boss'?12:kind==='golem'?5:kind==='wraith'?4:kind==='skeleton'||kind==='spider'?3:2)*difficulty*(bossFloor?1.4:1)),speed:Math.min(4.1,(kind==='boss'?.75:kind==='bat'||kind==='imp'?1.7:kind==='golem'?.75:kind==='wraith'?1.35:1.1)*(1+Math.min(level-1,9)*.055+late*.014)),damageScale:damageDifficulty,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0,dodgeCooldown:2,dodgeTime:0,attackMode:'melee'});
+  const enemyHp=Math.ceil((kind==='boss'?12:kind==='golem'?5:kind==='wraith'?4:kind==='skeleton'||kind==='spider'?3:2)*difficulty*(bossFloor?1.4:1));
+  enemies.push({obj,kind,hp:enemyHp,maxHp:enemyHp,speed:Math.min(4.1,(kind==='boss'?.75:kind==='bat'||kind==='imp'?1.7:kind==='golem'?.75:kind==='wraith'?1.35:1.1)*(1+Math.min(level-1,9)*.055+late*.014)),damageScale:damageDifficulty,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0,dodgeCooldown:2,dodgeTime:0,attackMode:'melee'});
+  addEnemyHealthBar(enemies[enemies.length-1]);
  }
  refresh();
 }
@@ -1621,7 +1648,7 @@ function damageEnemy(e,amount,soundType=data.weapon){
   moveWithCollision(e.obj,Math.sin(angle)*side*2.2,Math.cos(angle)*side*2.2,.85);
   return;
  }
- e.hp-=amount*attackPower();e.obj.scale.setScalar(1.13);
+ e.hp-=amount*attackPower();updateEnemyHealthBar(e);e.obj.scale.setScalar(1.13);
  if(e.hp<=0){
   scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
   data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();drawSkills();drawAuras();
