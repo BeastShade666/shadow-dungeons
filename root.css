@@ -133,82 +133,93 @@ button:focus-visible,select:focus-visible {
   #shop .aura-options { max-height:min(34vh,220px); }
 }
 
-/* Fantasy tabletop-adventure artwork on the lobby/menu only. */
-#panel {
- background:linear-gradient(90deg,rgba(2,12,22,.59),rgba(4,20,34,.36),rgba(2,12,22,.62)),url("./menu-moonlit.svg") center center / cover no-repeat;
+/* Live lobby matches the approved two-column concept preview. */
+#panel{
+ --menu-accent:#72e9d2;--menu-bright:#c8fff0;--menu-border:#6ac9c3;
+ --menu-bg:rgba(8,26,39,.88);--menu-ink:#eafcf9;--menu-muted:#b5d3d4;
+ display:flex;flex-direction:column;align-items:stretch;justify-content:stretch;
+ overflow-y:auto;overflow-x:hidden;padding:clamp(12px,2.8vw,36px);
+ color:var(--menu-ink);
+ background:linear-gradient(90deg,rgba(1,8,18,.18),rgba(4,11,23,.21) 42%,rgba(4,11,23,.55)),url("./menu-moonlit.svg") center/cover no-repeat;
 }
-#panel .card {
- background:rgba(25,17,43,.89);
- border-color:#a27cc7;
- box-shadow:0 16px 65px #000c,0 0 35px #5c2c8b44;
- backdrop-filter:blur(5px);
- -webkit-backdrop-filter:blur(5px);
+#panel[data-menu-theme="ember"]{
+ --menu-accent:#ff965d;--menu-bright:#ffe0a8;--menu-border:#b95d46;
+ --menu-bg:rgba(35,16,25,.9);--menu-ink:#fff2e6;--menu-muted:#dfb9b6;
+ background:linear-gradient(90deg,rgba(18,3,10,.18),rgba(23,6,13,.18) 42%,rgba(24,6,14,.59)),url("./menu-ember.svg") center/cover no-repeat;
 }
-
-/* Built-in main menu background themes. Moonlit Gate is the default. */
-#panel[data-menu-theme="ember"] {
- background:linear-gradient(90deg,rgba(24,5,13,.60),rgba(35,9,17,.39),rgba(24,5,13,.66)),url("./menu-ember.svg") center center / cover no-repeat;
+#panel>.menu-preview-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;width:100%;max-width:1500px;margin:0 auto;}
+#panel .preview-logo{font-size:clamp(.8rem,1.5vw,1rem);letter-spacing:.13em;font-weight:900;color:var(--menu-bright);text-shadow:0 3px 10px #000;}
+#panel .preview-logo-note{color:var(--menu-muted);font-weight:500;}
+#panel .menu-preview-stage{display:grid;grid-template-columns:minmax(250px,1fr) minmax(300px,485px);gap:clamp(12px,4vw,65px);align-items:center;flex:1 0 auto;width:100%;max-width:1450px;margin:clamp(12px,4vh,28px) auto;}
+#panel .scene-title{align-self:end;padding:0 0 clamp(22px,6vh,75px) clamp(0px,2vw,30px);text-shadow:0 4px 24px #000;}
+#panel .scene-eyebrow{text-transform:uppercase;letter-spacing:.25em;color:var(--menu-bright);font-size:.82rem;font-weight:800;}
+#panel .scene-title h1{margin:10px 0;max-width:600px;color:#fff;font-size:clamp(2.6rem,5.5vw,5.4rem);line-height:.98;letter-spacing:-.05em;text-shadow:0 4px 35px #000d;}
+#panel .scene-title p{max-width:450px;font-size:clamp(.95rem,1.45vw,1.17rem);line-height:1.6;color:#e4e6ed;}
+#panel .card.menu-card{
+ width:100%;min-width:0;max-width:none;max-height:min(76vh,790px);
+ padding:clamp(18px,2.4vw,30px);overflow-y:auto;overflow-x:hidden;
+ border:1px solid var(--menu-border);border-radius:24px;background:var(--menu-bg);
+ backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px);
+ box-shadow:0 20px 75px #000b,0 0 38px #0007;text-align:left;color:var(--menu-ink);
 }
-#panel[data-menu-theme="ember"] .card { background:rgba(35,16,25,.90); border-color:#b95d46; }
-#panel:not([data-menu-theme="ember"]) .card { background:rgba(8,26,39,.88); border-color:#6ac9c3; }
-.menu-theme-picker {
- margin:8px 0 14px;
- max-width:100%;
- text-align:left;
- border:1px solid var(--sd-border);
- border-radius:12px;
- background:transparent;
+#panel .menu-pretitle{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.25em;color:var(--menu-accent);}
+#panel .menu-card h2{color:var(--menu-ink);font-size:clamp(1.55rem,2.7vw,2.1rem);margin:6px 0 8px;line-height:1.05;letter-spacing:-.04em;}
+#panel .menu-card p{color:var(--menu-muted);font-size:.92rem;line-height:1.5;margin:0 0 15px;}
+#panel .menu-card #wallet{color:var(--menu-bright);font-weight:800;margin:0 0 12px;}
+#panel .menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+#panel .menu-grid label{color:var(--menu-muted);font-size:.8rem;font-weight:750;}
+#panel .menu-grid select{display:block;width:100%;min-width:0;margin:6px 0 0;padding:10px;border:1px solid var(--menu-border);border-radius:10px;background:#070e1ab8;color:var(--menu-ink);font-size:.89rem;}
+#panel .section-title{margin:19px 0 8px;color:var(--menu-bright);font-size:.82rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;}
+#panel .menu-card #shop{justify-content:stretch;align-items:stretch;gap:6px 8px;}
+#panel #shop .shop-label{flex:1 1 100%;font-size:.78rem;font-weight:700;color:var(--menu-muted);}
+#panel #shop .aura-picker{flex:1 1 185px;min-width:0;border:1px solid var(--menu-border);border-radius:11px;}
+#panel #shop .aura-picker>summary{border:0!important;border-radius:10px;padding:12px;background:#050a12a3;color:var(--menu-ink);font-size:.9rem;font-weight:750;}
+#panel #shop .aura-options{border:0;border-radius:8px;background:var(--menu-bg);max-height:190px;}
+#panel #shop .aura-choice{min-height:40px;font-weight:650;color:var(--menu-ink);}
+#panel #shop .aura-choice:hover{background:#ffffff14;border-color:var(--menu-border);}
+#panel #shop #auraAction{flex:0 1 auto;min-height:46px;margin:0;padding:8px 12px;background:#07111eb8;border:1px solid var(--menu-border);color:var(--menu-ink);font-size:.85rem;}
+#panel #shop #auraAction:disabled{opacity:.6;}
+#panel #skills,#panel #weapons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:8px 0;}
+#panel #skills button,#panel #weapons button{min-width:0;min-height:46px;margin:0;padding:10px;text-align:left;font-size:.79rem;border-radius:9px;border:1px solid #ffffff2e;background:#05071182;color:var(--menu-ink);}
+#panel #weapons button.selected{border-color:var(--menu-accent);background:#ffffff18;}
+#panel #skills button:disabled,#panel #weapons button:disabled{opacity:.6;}
+#panel .menu-card #skillInfo{margin:3px 0 8px;}
+#panel .menu-card #skillInfo small,#panel .menu-card .menu-controls-help small{color:var(--menu-muted);}
+#panel .menu-card #start{display:block;width:100%;margin:15px 0 10px;padding:13px 18px;border:0;border-radius:12px;background:linear-gradient(125deg,var(--menu-accent),var(--menu-bright));color:#10121d;font-weight:900;letter-spacing:.035em;}
+#panel .menu-card .menu-controls-help{margin:5px 0 0;}
+#panel .menu-preview-footer{width:100%;max-width:1450px;margin:0 auto;font-size:.76rem;color:#f4eff4;text-shadow:0 2px 9px #000;opacity:.95;}
+#panel .menu-theme-picker{flex:0 1 auto;width:min(340px,100%);margin:0;text-align:left;border:1px solid var(--menu-border);border-radius:12px;background:#090c19cf;color:var(--menu-ink);}
+#panel .menu-theme-picker>summary{min-height:42px;padding:9px 16px;font-size:.85rem;color:var(--menu-ink);display:flex;justify-content:space-between;align-items:center;list-style:none;cursor:pointer;}
+#panel .menu-theme-picker>summary::-webkit-details-marker{display:none;}
+#panel .menu-theme-picker>summary::after{content:"⌄";font-size:1.3rem;}
+#panel .menu-theme-picker[open]>summary::after{transform:rotate(180deg);}
+#panel .menu-theme-picker>summary:focus-visible{outline:3px solid var(--menu-bright);outline-offset:2px;}
+#panel .menu-theme-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:7px 9px 10px;}
+#panel .menu-theme-options button{margin:0;min-width:0;min-height:43px;padding:8px;font-size:.8rem;background:#060b17aa;color:var(--menu-ink);border:1px solid var(--menu-border);}
+#panel .menu-theme-options button[aria-pressed="true"]{color:#10121d;border-color:var(--menu-bright);background:var(--menu-bright);box-shadow:none;}
+@media (max-width:800px){
+ #panel{background-position:37% center;}
+ #panel[data-menu-theme="ember"]{background-position:40% center;}
+ #panel .menu-preview-stage{grid-template-columns:1fr;gap:15px;max-width:580px;}
+ #panel .scene-title{align-self:auto;padding:14px 3px 3px;}
+ #panel .scene-title h1{font-size:clamp(2rem,9vw,3.2rem);max-width:440px;}
+ #panel .scene-title p{max-width:400px;margin:5px 0;font-size:.9rem;}
+ #panel .card.menu-card{padding:17px;max-height:none;}
 }
-.menu-theme-picker > summary {
- display:flex;
- align-items:center;
- justify-content:space-between;
- gap:10px;
- min-height:46px;
- padding:10px 14px;
- cursor:pointer;
- list-style:none;
- color:var(--sd-text);
- font-size:.9rem;
- font-weight:700;
+@media (max-width:540px){
+ #panel .menu-preview-top{align-items:stretch;}
+ #panel .menu-theme-picker{width:100%;}
+ #panel .menu-card #shop{flex-direction:column;}
+ #panel #shop #auraAction{width:100%;}
 }
-.menu-theme-picker > summary::-webkit-details-marker { display:none; }
-.menu-theme-picker > summary::after {
- content:"⌄";
- font-size:1.4rem;
- line-height:1;
+@media (max-height:520px) and (orientation:landscape) and (min-width:650px){
+ #panel .menu-preview-stage{grid-template-columns:minmax(0,1fr) minmax(300px,1fr);max-width:950px;align-items:center;}
+ #panel .scene-title h1{font-size:clamp(1.8rem,4.2vw,3rem);}
+ #panel .scene-title p{font-size:.82rem;}
+ #panel .scene-title{padding:6px;}
+ #panel .card.menu-card{max-height:calc(100dvh - 90px);padding:13px 16px;}
 }
-.menu-theme-picker[open] > summary::after { transform:rotate(180deg); }
-.menu-theme-picker > summary:focus-visible {
- outline:3px solid var(--sd-accent-soft);
- outline-offset:2px;
-}
-.menu-theme-options {
- display:grid;
- grid-template-columns:repeat(2,minmax(0,1fr));
- gap:7px;
- padding:6px 8px 10px;
-}
-.menu-theme-options button {
- margin:0;
- min-width:0;
- min-height:46px;
- padding:8px 10px;
- font-size:.85rem;
- border:1px solid #ffffff45;
- background:#080e1a9c;
- color:var(--sd-text);
-}
-.menu-theme-options button[aria-pressed="true"] {
- border-color:#79e7d5;
- background:#164c50;
- box-shadow:inset 0 0 0 1px #5edcc855;
-}
-#panel[data-menu-theme="ember"] .menu-theme-options button[aria-pressed="true"] {
- border-color:#ffb47b;
- background:#753521;
- box-shadow:inset 0 0 0 1px #ffb47b55;
-}
-@media (max-width:480px) {
- .menu-theme-options { grid-template-columns:1fr; }
+@media (prefers-reduced-motion:no-preference){
+ #panel .menu-card{animation:menu-emerge .6s ease-out both;}
+ @keyframes menu-emerge{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
 }
