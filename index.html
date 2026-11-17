@@ -688,12 +688,12 @@ function drawWeapons(){
   b.textContent=w.name+' · '+(selected?'Equipped':owned?'Equip':w.price+' gold');
   b.onclick=()=>{
    if(!owned){if(data.gold<w.price){$('message').textContent='Not enough gold for '+w.name;return}data.gold-=w.price;data.ownedWeapons.push(id)}
-   data.weapon=id;persist();if(data.weapon==='spear')data.weapon='bow';if(Array.isArray(data.ownedWeapons)&&data.ownedWeapons.includes('spear')&&!data.ownedWeapons.includes('bow'))data.ownedWeapons.push('bow');drawWeapons();drawSkills();drawAuras();refresh();
+   data.weapon=id;persist();if(data.weapon==='spear')data.weapon='bow';if(Array.isArray(data.ownedWeapons)&&data.ownedWeapons.includes('spear')&&!data.ownedWeapons.includes('bow'))data.ownedWeapons.push('bow');buildWeapon();drawWeapons();drawSkills();drawAuras();refresh();
   };
   el.appendChild(b);
  }
 }
-buildWeapon();drawWeapons();
+drawWeapons();
 const auraColors={violet:0x9b5cff,red:0xff385e,blue:0x387dff,green:0x30f0a0,gold:0xffcb45,cyan:0x43eaff,pink:0xff6cd8,white:0xeaf5ff,orange:0xff812b,teal:0x00c9bb,shadow:0x7334b8,lime:0xbaff35};
 const auraShop={
  violet:{name:'💜 Violet',price:30},red:{name:'❤️ Crimson',price:35},
