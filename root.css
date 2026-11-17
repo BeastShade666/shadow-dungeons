@@ -299,3 +299,28 @@ body.menu-open #panel .menu-card :is(button,select,summary,input,a):focus-visibl
 /* Keep leaderboard obvious on compact mobile menus. */
 .leaderboard{margin:8px 0 14px;border:2px solid #c5a4ff;box-shadow:0 0 18px #6745a733}
 .leaderboard h3{font-size:1.1rem}
+
+/* In-dungeon top HUD exit. The original HUD ignores touches except this button. */
+#hud{z-index:4;align-items:flex-start}
+#runHudActions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px 10px;min-width:0;max-width:60%;text-align:right}
+#stage{min-width:0}
+#endRun{
+ display:inline-flex;align-items:center;justify-content:center;
+ min-width:96px;min-height:44px;margin:0;padding:9px 13px;
+ pointer-events:auto;touch-action:manipulation;
+ border:1px solid #ffc0b3;border-radius:11px;
+ background:linear-gradient(145deg,#9c233b,#58162f);
+ color:#fff5f1;font-size:.86rem;font-weight:850;line-height:1;
+ box-shadow:0 3px 12px #0008;text-shadow:0 1px 2px #000b;
+}
+#endRun:hover{background:linear-gradient(145deg,#b52b45,#6e1d35)}
+#endRun:focus-visible{outline:3px solid #fff3be;outline-offset:2px}
+body.menu-open #endRun{display:none}
+@media(max-width:700px){
+ #runHudActions{max-width:61%;gap:5px 7px}
+ #endRun{min-width:84px;min-height:44px;padding:9px;font-size:.76rem}
+ #stats{max-width:42%}
+}
+@media(max-height:480px) and (orientation:landscape){
+ #endRun{min-height:38px;padding:7px 10px}
+}
