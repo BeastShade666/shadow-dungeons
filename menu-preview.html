@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a1321">
+<title>Shadow Dungeons — Menu Concept Preview</title>
+<link rel="stylesheet" href="./root.css">
+<script>
+const concept=new URLSearchParams(location.search).get("concept")==="ember"?"ember":"moonlit";
+document.documentElement.dataset.concept=concept;
+</script>
+<style>
+:root {
+ --preview-accent:#72e9d2; --preview-accent-bright:#c8fff0;
+ --preview-border:#6ac9c3; --preview-panel:rgba(8,26,39,.88);
+ --preview-ink:#eafcf9; --preview-soft:#b5d3d4;
+}
+html[data-concept="ember"] {
+ --preview-accent:#ff965d; --preview-accent-bright:#ffe0a8;
+ --preview-border:#b95d46; --preview-panel:rgba(35,16,25,.90);
+ --preview-ink:#fff2e6; --preview-soft:#dfb9b6;
+}
+html,body { min-height:100%; }
+body { margin:0; overflow:auto; background:#080d1b; color:var(--preview-ink); }
+#previewScreen {
+ min-height:100vh; min-height:100dvh; width:100%;
+ position:relative; display:flex; flex-direction:column;
+ isolation:isolate; padding:clamp(12px,2.8vw,36px);
+ background:
+  linear-gradient(90deg,rgba(1,8,18,.18),rgba(4,11,23,.21) 42%,rgba(4,11,23,.55)),
+  url("./menu-moonlit.svg") center center / cover no-repeat;
+}
+html[data-concept="ember"] #previewScreen {
+ background:
+  linear-gradient(90deg,rgba(18,3,10,.18),rgba(23,6,13,.18) 42%,rgba(24,6,14,.59)),
+  url("./menu-ember.svg") center center / cover no-repeat;
+}
+#previewScreen::after {
+ content:""; position:absolute; z-index:-1; inset:auto 0 0; height:28%;
+ background:linear-gradient(transparent,rgba(2,6,15,.7)); pointer-events:none;
+}
+.preview-top {
+ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;
+ gap:12px; width:100%; max-width:1500px; margin:0 auto;
+}
+.preview-logo { font-weight:900; letter-spacing:.13em; color:var(--preview-accent-bright); font-size:clamp(.8rem,1.5vw,1rem); text-shadow:0 3px 10px #000; }
+.preview-tabs { display:flex; flex-wrap:wrap; gap:7px; }
+.preview-tabs a {
+ text-decoration:none; color:#f3eef2; background:#090c19cf;
+ border:1px solid #b4a7bf70; border-radius:999px;
+ padding:9px 15px; font-size:.86rem; font-weight:700;
+}
+.preview-tabs a[aria-current="page"] { color:#091220; background:var(--preview-accent-bright); border-color:var(--preview-accent); }
+.preview-tabs a:focus-visible { outline:3px solid #fff; outline-offset:3px; }
+.preview-stage {
+ display:grid; grid-template-columns:minmax(250px,1fr) minmax(300px,485px);
+ gap:clamp(12px,4vw,65px); align-items:center;
+ width:100%; max-width:1450px; flex:1; margin:clamp(12px,4vh,28px) auto;
+}
+.scene-title { align-self:end; padding:0 0 clamp(22px,6vh,75px) clamp(0px,2vw,30px); text-shadow:0 4px 24px #000; }
+.scene-title .eyebrow { color:var(--preview-accent-bright); text-transform:uppercase; letter-spacing:.25em; font-weight:800; font-size:.82rem; }
+.scene-title h1 { margin:10px 0; max-width:600px; color:#fff; font-size:clamp(2.6rem,5.5vw,5.4rem); line-height:.98; letter-spacing:-.05em; text-shadow:0 4px 35px #000d; }
+.scene-title p { max-width:450px; color:#e4e6ed; font-size:clamp(.95rem,1.45vw,1.17rem); line-height:1.6; }
+.menu-card {
+ width:100%; padding:clamp(18px,2.4vw,30px);
+ border:1px solid var(--preview-border); border-radius:24px;
+ background:var(--preview-panel); backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px);
+ box-shadow:0 20px 75px #000b,0 0 38px #0007;
+}
+.menu-card .menu-pretitle { color:var(--preview-accent); font-size:.75rem; font-weight:800; letter-spacing:.25em; text-transform:uppercase; }
+.menu-card h2 { color:var(--preview-ink); font-size:clamp(1.55rem,2.7vw,2.1rem); margin:6px 0 8px; line-height:1.05; letter-spacing:-.04em; }
+.menu-card p { color:var(--preview-soft); font-size:.92rem; line-height:1.5; margin:0 0 15px; }
+.menu-card .menu-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.menu-card label { color:var(--preview-soft); font-size:.8rem; font-weight:750; display:block; text-align:left; }
+.menu-card select {
+ display:block; width:100%; min-width:0; margin:6px 0 0; padding:10px;
+ background:#070e1ab8; color:var(--preview-ink); border-color:var(--preview-border); border-radius:10px; font-size:.89rem;
+}
+.section-title {
+ margin:19px 0 8px; color:var(--preview-accent-bright);
+ font-size:.82rem; letter-spacing:.13em; text-transform:uppercase;
+}
+.aura-picker { border:1px solid var(--preview-border); border-radius:11px; overflow:hidden; }
+.aura-picker summary {
+ cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:6px;
+ padding:12px; background:#050a12a3; color:var(--preview-ink); font-weight:750;
+ list-style:none; font-size:.9rem;
+}
+.aura-picker summary::-webkit-details-marker{display:none}
+.aura-picker summary::after {content:"⌄"; font-size:1.2rem;}
+.aura-picker[open] summary::after {content:"⌃";}
+.aura-list { max-height:190px; overflow:auto; padding:5px; background:var(--preview-panel); }
+.aura-choice {
+ display:flex; gap:10px; align-items:center; padding:9px; width:100%;
+ border:0; color:var(--preview-ink); background:transparent; text-align:left; margin:0;
+ border-radius:8px; font-size:.84rem; font-weight:650; min-height:40px;
+}
+.aura-choice:hover,.aura-choice:focus-visible{background:#ffffff14;outline:1px solid var(--preview-border)}
+.aura-dot { display:inline-block; flex:none; width:13px; height:13px; border:1px solid #ffffff8c; border-radius:50%; background:var(--dot);}
+.skills-row { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.sample-tile { border:1px solid #ffffff2e; border-radius:9px; background:#05071182; padding:9px; font-size:.8rem; color:var(--preview-ink); }
+.sample-tile small { display:block; color:var(--preview-soft); font-size:.7rem; margin-top:3px; }
+.live-link {
+ display:block; margin-top:15px; padding:13px 18px; border-radius:12px;
+ color:#10121d; background:linear-gradient(125deg,var(--preview-accent),var(--preview-accent-bright));
+ text-align:center; text-decoration:none; font-weight:900; letter-spacing:.035em;
+}
+.preview-footer { width:100%; max-width:1450px; margin:0 auto; color:#f4eff4; font-size:.76rem; text-shadow:0 2px 9px #000; opacity:.95; }
+@media (max-width:800px) {
+ #previewScreen { background-position:37% center; }
+ html[data-concept="ember"] #previewScreen { background-position:40% center; }
+ .preview-stage { grid-template-columns:1fr; gap:15px; max-width:580px; }
+ .scene-title { align-self:auto; padding:14px 3px 3px; }
+ .scene-title h1 { font-size:clamp(2rem,9vw,3.2rem); max-width:440px; }
+ .scene-title p { max-width:400px; margin:5px 0; font-size:.9rem; }
+ .menu-card { padding:17px; }
+}
+@media (max-height:520px) and (orientation:landscape) {
+ .preview-stage { grid-template-columns:1fr 1fr; max-width:950px; }
+ .scene-title h1 { font-size:clamp(1.8rem,4.2vw,3rem); }
+ .scene-title p { font-size:.82rem; }
+}
+@media (prefers-reduced-motion:no-preference){
+ .menu-card { animation:emerge .6s ease-out both; }
+ @keyframes emerge { from{opacity:0;transform:translateY(15px)} to{opacity:1;transform:translateY(0)} }
+}
+</style>
+</head>
+<body>
+<main id="previewScreen">
+ <header class="preview-top">
+  <div class="preview-logo">⚔ SHADOW DUNGEONS <span style="opacity:.65;font-weight:500">/ CONCEPT STUDIO</span></div>
+  <nav class="preview-tabs" aria-label="Menu concept previews">
+   <a id="moonlitLink" href="./menu-preview.html?concept=moonlit">01 · Moonlit Gate</a>
+   <a id="emberLink" href="./menu-preview.html?concept=ember">02 · Ember Citadel</a>
+  </nav>
+ </header>
+ <div class="preview-stage">
+  <div class="scene-title">
+   <div class="eyebrow">Menu background study · <span id="conceptNumber">01 / 02</span></div>
+   <h1 id="sceneName">ENTER THE<br>MOONLIT GATE</h1>
+   <p id="sceneDescription">A haunted forest, ancient portal and luminous teal magic. Quiet, mysterious and atmospheric.</p>
+  </div>
+  <section class="menu-card" aria-label="Example of the game main menu">
+   <div class="menu-pretitle">Dungeon Selection</div>
+   <h2>⚔ Shadow Dungeons</h2>
+   <p>Choose your hero. Upgrade your skills. Enter the dungeon stronger than before.</p>
+   <div class="menu-grid">
+    <label>Character
+      <select aria-label="Example character choice"><option>Grim Reaper</option><option>Werewolf · Tail Axe</option></select>
+    </label>
+    <label>Hero Color
+      <select aria-label="Example hero color choice"><option>Violet</option><option>Emerald</option><option>Azure</option></select>
+    </label>
+   </div>
+   <h3 class="section-title">✦ Aura Shop</h3>
+   <details class="aura-picker">
+    <summary id="auraSummary">💜 Violet — 30 gold</summary>
+    <div class="aura-list" id="auraList" aria-label="Example aura color list"></div>
+   </details>
+   <h3 class="section-title">⚡ Skill Upgrades</h3>
+   <div class="skills-row">
+    <div class="sample-tile">⚔ Power <small>+1 damage · 20 gold</small></div>
+    <div class="sample-tile">❤️ Vitality <small>+20 HP · 25 gold</small></div>
+   </div>
+   <h3 class="section-title">🗡 Weapons</h3>
+   <div class="skills-row">
+    <div class="sample-tile">Sword <small>Equipped</small></div>
+    <div class="sample-tile">Bow <small>Unlock in game</small></div>
+   </div>
+   <a class="live-link" href="./index.html">Play Current Game ↗</a>
+  </section>
+ </div>
+ <footer class="preview-footer">Visual design preview only. These sample controls do not spend gold or save game progress. Your live game menu has not been changed.</footer>
+</main>
+<script>
+const isEmber=document.documentElement.dataset.concept==="ember";
+document.getElementById(isEmber?"emberLink":"moonlitLink").setAttribute("aria-current","page");
+if(isEmber){
+ document.getElementById("conceptNumber").textContent="02 / 02";
+ document.getElementById("sceneName").innerHTML="DESCEND INTO<br>EMBER CITADEL";
+ document.getElementById("sceneDescription").textContent="An infernal stronghold above a molten chasm. Brutal, dramatic and forged in fire.";
+}
+const auras=[
+ ["💜 Violet",30,"#9b5cff"],["❤️ Crimson",35,"#ff385e"],["💙 Sapphire",40,"#387dff"],
+ ["💚 Emerald",45,"#30f0a0"],["🩵 Frost",50,"#43eaff"],["🩷 Rose",55,"#ff6cd8"],
+ ["🧡 Inferno",60,"#ff812b"],["💛 Golden",65,"#ffcb45"],["🩵 Mystic Teal",70,"#00c9bb"],
+ ["💜 Shadow",75,"#7334b8"],["🤍 Celestial",80,"#eaf5ff"],["💚 Venom",90,"#baff35"]
+];
+const list=document.getElementById("auraList"),summary=document.getElementById("auraSummary");
+for(const [name,price,color] of auras){
+ const button=document.createElement("button");
+ button.type="button";button.className="aura-choice";
+ const dot=document.createElement("span");dot.className="aura-dot";dot.style.setProperty("--dot",color);
+ const text=document.createElement("span");text.textContent=name+" — "+price+" gold";
+ button.append(dot,text);button.onclick=()=>{summary.textContent=name+" — "+price+" gold";list.parentElement.open=false};
+ list.append(button);
+}
+</script>
+</body>
+</html>
