@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><title>Shadow Dungeons</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
@@ -313,7 +313,7 @@ function cameraRelativeMove(x,z){
  return {x:x*c+z*sn,z:z*c-x*sn};
 }
 scene.add(new THREE.HemisphereLight(0xb8a8ff,0x30202b,2));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(5,12,7);scene.add(light);
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(52,52),new THREE.MeshStandardMaterial({color:0x342b42,roughness:1}));floor.rotation.x=-Math.PI/2;scene.add(floor);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(52,52),new THREE.MeshStandardMaterial({color:0x241b15,roughness:1}));floor.rotation.x=-Math.PI/2;scene.add(floor);
 const grid=new THREE.GridHelper(36,18,0x5b4b78,0x433851);scene.add(grid);
 function crackedConcreteTexture(){
  const c=document.createElement('canvas');c.width=c.height=512;
@@ -1620,14 +1620,14 @@ function terrainForFloor(){
  terrainGroup.clear();obstacles.length=0;dungeonWallSegments.length=0;dungeonDoorways.length=0;
  const boss=level%3===0,theme=(level-1)%6;
  const palette=[
-  {ground:0x30283d,stone:0x655b77,accent:0x9357d5,crate:0x6b4732},
+  {ground:0x30283d,stone:0x554534,accent:0x9357d5,crate:0x6b4732},
   {ground:0x243c44,stone:0x527b8a,accent:0x55dfff,crate:0x466879},
   {ground:0x493329,stone:0x80634d,accent:0xff8b39,crate:0x74422a},
   {ground:0x253b38,stone:0x54675d,accent:0x3ad9a0,crate:0x48633e},
   {ground:0x403347,stone:0x89778d,accent:0xff77c7,crate:0x73576d},
   {ground:0x343d4d,stone:0x68788f,accent:0xc2e5ff,crate:0x647181}
  ][theme];
- floor.material.color.setHex(0x252329);grid.visible=false;
+ floor.material.color.setHex(0x241b15);grid.visible=false;
  let seed=level*7937+91;
  const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
  const add=(geo,color,x,y,z,solid=0)=>{
