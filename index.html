@@ -2085,28 +2085,56 @@ for(const y of [1.45,1.83]){
  collar.rotation.x=Math.PI/2;collar.position.y=y;scytheRig.add(collar);
 }
 const scytheBlade=new THREE.Group();scytheBlade.position.set(-.01,1.72,.02);scytheRig.add(scytheBlade);
-// Concave hooked crescent: broad forged root, tapering to a needle tip.
+// Patch E: approved downward-sweeping scythe silhouette. Both cubic curves
+// meet at the same fine point, with a narrow blade that tapers continuously.
+const scytheSpinePath=new THREE.CubicBezierCurve(
+ new THREE.Vector2(.06,.13),new THREE.Vector2(-.70,.29),
+ new THREE.Vector2(-1.62,-.13),new THREE.Vector2(-1.85,-1.04));
+const scytheCutPath=new THREE.CubicBezierCurve(
+ new THREE.Vector2(.03,-.105),new THREE.Vector2(-.58,.065),
+ new THREE.Vector2(-1.48,-.30),new THREE.Vector2(-1.85,-1.04));
 const scytheShape=new THREE.Shape();
-// A proper long, narrow harvesting-scythe crescent, not a broad axe blade.
-scytheShape.moveTo(.04,-.065);
-scytheShape.bezierCurveTo(-.30,.04,-1.00,.27,-1.80,.46);
-scytheShape.bezierCurveTo(-1.43,.31,-.94,.095,-.48,-.095);
-scytheShape.bezierCurveTo(-.23,-.14,-.07,-.11,.04,-.065);
+scytheShape.moveTo(.06,.13);
+scytheShape.bezierCurveTo(-.70,.29,-1.62,-.13,-1.85,-1.04);
+scytheShape.bezierCurveTo(-1.48,-.30,-.58,.065,.03,-.105);
+scytheShape.lineTo(.06,.13);
 const scytheBladeMesh=new THREE.Mesh(new THREE.ExtrudeGeometry(scytheShape,{
- depth:.024,steps:1,bevelEnabled:true,bevelThickness:.003,bevelSize:.003,bevelSegments:1,curveSegments:24
+ depth:.024,steps:1,bevelEnabled:true,bevelThickness:.003,bevelSize:.003,bevelSegments:1,curveSegments:32
 }),scytheObsidian);
 scytheBladeMesh.position.z=-.012;scytheBlade.add(scytheBladeMesh);
-const scytheEdgeCurve=new THREE.CatmullRomCurve3([
- new THREE.Vector3(.03,-.066,.018),new THREE.Vector3(-.47,-.094,.018),
- new THREE.Vector3(-.94,.095,.018),new THREE.Vector3(-1.43,.31,.018),new THREE.Vector3(-1.79,.46,.018)
-]);
-const scytheEdge=new THREE.Mesh(new THREE.TubeGeometry(scytheEdgeCurve,32,.009,5,false),scytheSilver);
-scytheBlade.add(scytheEdge);
-const scytheRunes=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
- new THREE.Vector3(-.16,-.055,.018),new THREE.Vector3(-.43,-.025,.018),
- new THREE.Vector3(-.75,.085,.018),new THREE.Vector3(-1.07,.19,.018)
-]),22,.009,4,false),scytheEnergy);
-scytheBlade.add(scytheRunes);
+// Surface inlays follow the exact same blade curves and taper into the tip.
+// Two-sided strips keep the polished edge visible as the wrist turns.
+function makeScytheInlay(material,t0,t1,u0,u1,taper=false){
+ const positions=[],indices=[],steps=32;
+ for(const z of [-.0158,.0158]){
+  const offset=positions.length/3;
+  for(let i=0;i<=steps;i++){
+   const u=i/steps,t=THREE.MathUtils.lerp(t0,t1,u);
+   const spine=scytheSpinePath.getPoint(t),cut=scytheCutPath.getPoint(t);
+   const width=taper?Math.sin(Math.PI*u):1;
+   const mid=(u0+u1)/2,half=(u1-u0)*.5*width;
+   for(const v of [mid-half,mid+half]){
+    const p=spine.clone().lerp(cut,v);
+    positions.push(p.x,p.y,z);
+   }
+   if(i<steps){
+    const k=offset+i*2;
+    if(z>0)indices.push(k,k+1,k+2,k+1,k+3,k+2);
+    else indices.push(k,k+2,k+1,k+1,k+2,k+3);
+   }
+  }
+ }
+ const geo=new THREE.BufferGeometry();
+ geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+ geo.setIndex(indices);geo.computeVertexNormals();
+ const strip=new THREE.Mesh(geo,material);
+ scytheBlade.add(strip);
+ return strip;
+}
+const scytheEdge=makeScytheInlay(scytheSilver,0,.998,.81,1);
+const scytheSpineTrim=makeScytheInlay(scytheSilver,0,.995,0,.035);
+const scytheRunes=makeScytheInlay(scytheEnergy,.12,.76,.35,.49,true);
+scytheEnergy.side=THREE.DoubleSide;
 const scytheRearSpike=new THREE.Mesh(new THREE.ConeGeometry(.045,.25,8),scytheSilver);
 scytheRearSpike.position.set(.15,-.06,0);scytheRearSpike.rotation.z=-1.15;scytheBlade.add(scytheRearSpike);
 const scytheGem=new THREE.Mesh(new THREE.OctahedronGeometry(.125,1),scytheGemMaterial);
