@@ -1057,7 +1057,7 @@ function buildWeapon(){
   part(new THREE.BoxGeometry(.54,.12,.18),0xc49a43,0,-.17,0);
   part(new THREE.CylinderGeometry(.065,.07,.42,8),0x553b36,0,-.42,0);
  }else if(type==='axe'){
-  part(new THREE.CylinderGeometry(.085,.09,1.7,8),0x6b4930,0,.35,0);
+  part(new THREE.CylinderGeometry(.038,.043,1.7,12),0x6b4930,0,.35,0);
   part(new THREE.BoxGeometry(.76,.57,.17),0xaebcc7,.28,1.04,0);
   // Beveled steel edge: narrow to a real cutting line on local +X.
   const bevel=new THREE.BufferGeometry();
@@ -1611,7 +1611,7 @@ function monster(kind){
 // Procedural floor themes and lightweight scenery; regenerated each floor.
 // Visible build marker distinguishes the new wooden-wall version from stale tabs.
 const buildTag=document.createElement('span');
-buildTag.textContent='BONE LOCK · BUILD 2026-11-17F';
+buildTag.textContent='RELAXED GRIP · BUILD 2026-11-17G';
 buildTag.style.cssText='position:fixed;left:8px;bottom:8px;z-index:8;font:10px system-ui;color:#c5a883;background:#241b15c9;padding:3px 6px;border-radius:4px;pointer-events:none';
 document.body.appendChild(buildTag);
 const terrainGroup=new THREE.Group();scene.add(terrainGroup);
@@ -2643,7 +2643,7 @@ function battleAxeTorsoFrame(){
   toLocal:p=>p.clone().sub(origin).applyQuaternion(rotation.clone().invert())};
 }
 function battleAxeRestRotation(torso){
- const y=new THREE.Vector3(0,-.12,.99).normalize();
+ const y=data.character==='reaper2'?new THREE.Vector3(0,-.50,.866).normalize():new THREE.Vector3(0,-.12,.99).normalize();
  const x=new THREE.Vector3(0,-1,0).addScaledVector(y,y.y).normalize();
  return torso.rotation.clone().multiply(new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,new THREE.Vector3().crossVectors(x,y).normalize())));
 }
@@ -2662,13 +2662,14 @@ function battleAxeIsArmPivot(parent){
 }
 function battleAxeCarryTarget(held,shoulder,reach,torso){
  const scale=held.getWorldScale(new THREE.Vector3());
- const minimumY=.13+(data.character==='bellshade'?.90:.78)*Math.abs(scale.x)+.08*Math.abs(scale.y);
- const clearance={reaper:.91,reaper2:.96,werewolf:1.10,kitsune:.86,bellshade:.80,spacemarine:.90}[data.character]||.96;
+ const relaxed=data.character==='reaper2';
+ const minimumY=relaxed? .12+.78*.866*Math.abs(scale.x)+.56*.50*Math.abs(scale.y):.13+(data.character==='bellshade'?.90:.78)*Math.abs(scale.x)+.08*Math.abs(scale.y);
+ const clearance={reaper:.91,reaper2:.72,werewolf:1.10,kitsune:.86,bellshade:.80,spacemarine:.90}[data.character]||.96;
  const p=shoulder?torso.toLocal(shoulder.getWorldPosition(new THREE.Vector3())):new THREE.Vector3(.55,1.75,0);
  const side=p.x<-.05?-1:1;
- const dx=reach>0?Math.min(Math.max(.14,clearance-Math.abs(p.x)),reach*.38):Math.max(.14,clearance-Math.abs(p.x));
- const dz=.24-p.z;
- const dy=Math.max(minimumY-p.y,reach>0?-Math.sqrt(Math.max(.04,(reach*.97)**2-dx*dx-dz*dz)):-.78);
+ const dx=reach>0?Math.min(Math.max(relaxed?.045:.14,clearance-Math.abs(p.x)),reach*(relaxed?.19:.38)):Math.max(.14,clearance-Math.abs(p.x));
+ const dz=(relaxed?.18:.24)-p.z;
+ const dy=Math.max(minimumY-p.y,reach>0?-Math.sqrt(Math.max(.04,(reach*(relaxed?.95:.97))**2-dx*dx-dz*dz)):-.78);
  return torso.toWorld(new THREE.Vector3(p.x+side*dx,p.y+dy,p.z+dz));
 }
 function battleAxeRigReach(hand){
@@ -2704,7 +2705,7 @@ function battleAxeAimRig(hand,target,torso){
  const length=THREE.MathUtils.clamp(d.length(),Math.abs(l1-l2)+.001,(l1+l2)*.985);
  d.normalize();
  const side=torso.toLocal(a).x<0?-1:1;
- const pole=new THREE.Vector3(side*.45,.15,-1).applyQuaternion(torso.rotation);
+ const pole=new THREE.Vector3(side*(swing?.axe?.45:.12),.15,-1).applyQuaternion(torso.rotation);
  pole.addScaledVector(d,-pole.dot(d));
  if(pole.lengthSq()<1e-6)pole.set(0,1,0).addScaledVector(d,-d.y);
  pole.normalize();
@@ -2750,12 +2751,79 @@ function battleAxeHandFrame(hand,restQ){
  const inward=normal.clone();
  const thumb=digits.thumb?.b;
  if(thumb&&inward.dot(thumb.getWorldPosition(new THREE.Vector3()).sub(palm))<0)inward.negate();
- if(finger)palm.addScaledVector(inward,Math.min(.035,handLength*.18));
+ palm.addScaledVector(inward,Math.min(.055,handLength*.36)+.018);
  const neutral=new Map();
  for(const b of [reaperV2AttackBones.rightArm,reaperV2AttackBones.rightForearm,hand])if(b)neutral.set(b,b.quaternion.clone());
  for(const entry of Object.values(digits))entry.b.traverse(b=>{if(b.isBone)neutral.set(b,b.quaternion.clone())});
  frame={palm:hand.worldToLocal(palm.clone()),basis:hq.clone().invert().multiply(basis),neutral,digits,handLength};
+ if(!Object.keys(digits).length)prepareAxeMeshGrip(hand,frame);
  battleAxeHandFrames.set(hand,frame);return frame;
+}
+// Curl existing hand-weighted vertices for rigs without finger bones.
+let activeAxeMeshGrip=null;
+function prepareAxeMeshGrip(hand,frame){
+ if(!reaperV2Model)return;
+ const groups=[],ys=[],invBasis=frame.basis.clone().invert(),seen=new Set();
+ reaperV2Model.traverse(m=>{
+  if(!m.isSkinnedMesh||!m.skeleton)return;
+  const index=m.skeleton.bones.indexOf(hand),g=m.geometry;
+  const p=g?.attributes.position,si=g?.attributes.skinIndex,sw=g?.attributes.skinWeight;
+  if(index<0||!p||!si||!sw||seen.has(g))return;seen.add(g);
+  const toHand=m.skeleton.boneInverses[index].clone().multiply(m.bindMatrix);
+  const fromHand=toHand.clone().invert(),rows=[];
+  for(let i=0;i<p.count;i++){
+   let weight=0;
+   for(let j=0;j<4;j++)if(si.array[i*si.itemSize+j]===index)weight+=sw.array[i*sw.itemSize+j];
+   if(weight<.35)continue;
+   const base=new THREE.Vector3().fromBufferAttribute(p,i);
+   const v=base.clone().applyMatrix4(toHand).applyQuaternion(invBasis);
+   rows.push({i,base,v,weight});if(weight>.65)ys.push(v.y);
+  }
+  if(rows.length)groups.push({p,g,fromHand,rows});
+ });
+ if(ys.length<20)return;
+ ys.sort((a,b)=>a-b);
+ const length=ys[Math.floor((ys.length-1)*.96)];
+ const worldScale=Math.abs(hand.getWorldScale(new THREE.Vector3()).y);
+ if(length*worldScale<.055||length*worldScale>.5)return;
+ const start=length*.54,palmZ=[];
+ for(const group of groups)for(const row of group.rows)if(row.v.y>length*.25&&row.v.y<start)palmZ.push(row.v.z);
+ if(palmZ.length<8)return;
+ palmZ.sort((a,b)=>a-b);
+ const mid=palmZ[Math.floor(palmZ.length*.50)],surface=palmZ[Math.floor(palmZ.length*.85)];
+ const shaftRadius=.041/worldScale;
+ const R=Math.max(shaftRadius+(surface-mid),length*.13);
+ const centerZ=surface+shaftRadius+.005/worldScale,tipAngle=2.65,entries=[];
+ for(const {p,g,fromHand,rows} of groups){
+  const changes=[];
+  for(const {i,base,v,weight} of rows){
+   if(v.y<=start)continue;
+   const d=v.y-start,theta=Math.min(tipAngle,d/Math.max(R,.00001));
+   const radial=Math.max(R*.30,centerZ-v.z);
+   const curved=new THREE.Vector3(v.x,start+Math.sin(theta)*radial,centerZ-Math.cos(theta)*radial);
+   const extra=Math.max(0,d-R*tipAngle);
+   curved.y+=Math.cos(theta)*extra;curved.z+=Math.sin(theta)*extra;
+   const blend=THREE.MathUtils.smoothstep(d,0,length*.13)*THREE.MathUtils.smoothstep(weight,.35,.85);
+   const dest=v.clone().lerp(curved,blend).applyQuaternion(frame.basis).applyMatrix4(fromHand);
+   changes.push({i,base,dest});
+  }
+  if(changes.length)entries.push({p,g,changes});
+ }
+ if(!entries.length)return;
+ frame.palm=new THREE.Vector3(0,start,centerZ).applyQuaternion(frame.basis);
+ frame.meshGrip=entries;
+}
+function setAxeMeshGrip(frame){
+ const next=frame?.meshGrip||null;
+ if(next===activeAxeMeshGrip)return;
+ const write=(groups,on)=>{
+  if(!groups)return;
+  for(const {p,g,changes} of groups){
+   for(const {i,base,dest} of changes){const v=on?dest:base;p.setXYZ(i,v.x,v.y,v.z)}
+   p.needsUpdate=true;g.computeVertexNormals();g.computeBoundingSphere();
+  }
+ };
+ write(activeAxeMeshGrip,false);activeAxeMeshGrip=next;write(next,true);
 }
 function battleAxeNeutralArm(frame){
  for(const [bone,q] of frame.neutral){rememberReaperV2Bone(bone);bone.quaternion.copy(q)}
@@ -2808,7 +2876,9 @@ function battleAxeCloseFingers(hand,frame,grip,axeQ){
    const p=bone.getWorldPosition(new THREE.Vector3()),end=next.getWorldPosition(new THREE.Vector3());
    const current=end.sub(p);
    const closest=grip.clone().addScaledVector(shaft,p.clone().sub(grip).dot(shaft));
-   const toward=closest.sub(p);
+   const radial=p.clone().sub(closest);
+    if(radial.lengthSq()>1e-8)closest.addScaledVector(radial.normalize(),.052);
+    const toward=closest.sub(p);
    if(current.lengthSq()>1e-8&&toward.lengthSq()>1e-8){
     const delta=new THREE.Quaternion().setFromUnitVectors(current.normalize(),toward.normalize());
     const angle=new THREE.Quaternion().angleTo(delta);
@@ -2837,10 +2907,10 @@ function battleAxeReport(held,grip,frame){
  }
  const actual=held.localToWorld(new THREE.Vector3(0,battleAxeGripY,0));
  const edge=new THREE.Vector3(1,0,0).applyQuaternion(held.getWorldQuaternion(new THREE.Quaternion()));
- axePoseStatus.textContent='AXE R7 | '+(held.parent===reaperV2RightHand?'HAND LOCK':'FALLBACK')+' | torso '+battleAxeTorsoNode().name+' | '+data.character+' | '+(swing?.axe?'SWING':'CARRY')+' | palm error '+actual.distanceTo(grip).toFixed(4)+' | edge Y '+edge.y.toFixed(2)+' | fingers '+(frame?Object.keys(frame.digits).length:'n/a');
+ axePoseStatus.textContent='AXE R8 | '+(held.parent===reaperV2RightHand?'HAND LOCK':'FALLBACK')+' | torso '+battleAxeTorsoNode().name+' | '+data.character+' | '+(swing?.axe?'SWING':'CARRY')+' | palm error '+actual.distanceTo(grip).toFixed(4)+' | edge Y '+edge.y.toFixed(2)+' | grip '+(frame?.meshGrip?'mesh curl':frame?Object.keys(frame.digits).length+' bones':'n/a');
 }
 function updateBattleAxePose(){
- if(!running||paused||data.weapon!=='axe'||isReaperScytheActive())return;
+ if(!running||paused||data.weapon!=='axe'||isReaperScytheActive()){setAxeMeshGrip(null);return;}
  const held=data.character==='bellshade'?bellStaff:weaponGroup,parent=held.parent;
  if(!parent)return;
  hero.updateWorldMatrix(true,true);
@@ -2850,6 +2920,7 @@ function updateBattleAxePose(){
  const torso=battleAxeTorsoFrame();
  const rest=battleAxeRestRotation(torso);
  let frame=rigHand?battleAxeHandFrame(rigHand,rest):null;
+ setAxeMeshGrip(frame);
  if(frame)battleAxeNeutralArm(frame);
  const reach=rigHand?battleAxeRigReach(rigHand):pivot?anchor.length()*Math.abs(parent.getWorldScale(new THREE.Vector3()).y):0;
  const carry=rigHand?(frame.carryLocal?torso.toWorld(frame.carryLocal):torso.toWorld(frame.carryLocal=torso.toLocal(battleAxeCarryTarget(held,shoulder,reach,torso)))):battleAxeCarryTarget(held,shoulder,reach,torso);
@@ -3403,7 +3474,7 @@ function frame(){
   hero.position.set(0,0,0);hero.rotation.y=0;running=true;
   document.body.classList.remove('menu-open');$('panel').style.display='none';$('controls').style.display='flex';
   cameraYaw=.85;cameraPitch=.25;
-  const label=document.createElement('div');label.textContent='AXE INSPECTION R7 · Drag to orbit · Attack to test';label.style.cssText='position:fixed;top:105px;left:8px;z-index:20;color:#fff;background:#101019d9;border-radius:6px;padding:6px;font:12px system-ui;pointer-events:none';document.body.appendChild(label);
+  const label=document.createElement('div');label.textContent='AXE INSPECTION R8 · Drag to orbit · Attack to test';label.style.cssText='position:fixed;top:105px;left:8px;z-index:20;color:#fff;background:#101019d9;border-radius:6px;padding:6px;font:12px system-ui;pointer-events:none';document.body.appendChild(label);
   const turn=document.createElement('button');turn.textContent='TEST TORSO TURN';turn.style.cssText='position:fixed;top:137px;left:8px;z-index:10001;padding:8px;background:#252336;color:white;border:1px solid #999;border-radius:6px;font:12px system-ui;touch-action:manipulation';turn.addEventListener('pointerdown',e=>e.stopPropagation());turn.addEventListener('click',()=>{axeTorsoTest=!axeTorsoTest;turn.textContent=axeTorsoTest?'STOP TORSO TURN':'TEST TORSO TURN'});document.body.appendChild(turn);
   refresh();
  }
