@@ -1097,8 +1097,9 @@ function buildWeapon(){
   part(new THREE.CylinderGeometry(.065,.07,.42,8),0x553b36,0,-.42,0);
  }else if(type==='axe'){
   const shortShaft=data.character==='reaper2'?.24:0;
-  // Keep the butt end and blade size, but shorten the span above the new lower grip.
-  part(new THREE.CylinderGeometry(.034,.038,1.7-shortShaft,12),0x6b4930,0,.35-shortShaft*.5,0);
+  // Trim the exposed butt behind the fist; preserve the blade and forward shaft.
+  const buttTrim=data.character==='reaper2'?.22:0;
+  part(new THREE.CylinderGeometry(.034,.038,1.7-shortShaft-buttTrim,12),0x6b4930,0,.35-shortShaft*.5+buttTrim*.5,0);
   part(new THREE.BoxGeometry(.76,.57,.17),0xaebcc7,.28,1.04-shortShaft,0);
   // Beveled steel edge: narrow to a real cutting line on local +X.
   const bevel=new THREE.BufferGeometry();
@@ -1652,7 +1653,7 @@ function monster(kind){
 // Procedural floor themes and lightweight scenery; regenerated each floor.
 // Visible build marker distinguishes the new wooden-wall version from stale tabs.
 const buildTag=document.createElement('span');
-buildTag.textContent='WEIGHTED STRIDE · BUILD 2026-11-17I';
+buildTag.textContent='ARM DRIVEN · BUILD 2026-11-17J';
 buildTag.style.cssText='position:fixed;left:8px;bottom:8px;z-index:8;font:10px system-ui;color:#c5a883;background:#241b15c9;padding:3px 6px;border-radius:4px;pointer-events:none';
 document.body.appendChild(buildTag);
 const terrainGroup=new THREE.Group();scene.add(terrainGroup);
@@ -2702,13 +2703,13 @@ function battleAxeTorsoFrame(){
 }
 function battleAxeRestRotation(torso){
  const relaxed=data.character==='reaper2';
- const y=relaxed?new THREE.Vector3(.08,-.78,.62).normalize():new THREE.Vector3(0,-.12,.99).normalize();
- const x=relaxed?new THREE.Vector3(-.18,-.98,-.05):new THREE.Vector3(0,-1,0);
+ const y=relaxed?new THREE.Vector3(.12,-.20,.97).normalize():new THREE.Vector3(0,-.12,.99).normalize();
+ const x=relaxed?new THREE.Vector3(0,-1,0):new THREE.Vector3(0,-1,0);
  x.addScaledVector(y,-x.dot(y)).normalize();
  return torso.rotation.clone().multiply(new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,new THREE.Vector3().crossVectors(x,y).normalize())));
 }
 // Permanent grip point along the axe shaft: never slide during a swing.
-const battleAxeGripY=()=>data.character==='reaper2'?.46:.78;
+const battleAxeGripY=()=>data.character==='reaper2'?.24:.78;
 function battleAxePalmAnchor(){
  switch(data.character){
   case 'werewolf':return new THREE.Vector3(.38,-1.11,.30);
@@ -2723,13 +2724,13 @@ function battleAxeIsArmPivot(parent){
 function battleAxeCarryTarget(held,shoulder,reach,torso){
  const scale=held.getWorldScale(new THREE.Vector3());
  const relaxed=data.character==='reaper2';
- const minimumY=relaxed?.10+.74*Math.abs(scale.x)+.18*Math.abs(scale.y):.13+(data.character==='bellshade'?.90:.78)*Math.abs(scale.x)+.08*Math.abs(scale.y);
- const clearance={reaper:.91,reaper2:.58,werewolf:1.10,kitsune:.86,bellshade:.80,spacemarine:.90}[data.character]||.96;
+ const minimumY=relaxed?.12+.78*Math.abs(scale.x)+.22*Math.abs(scale.y):.13+(data.character==='bellshade'?.90:.78)*Math.abs(scale.x)+.08*Math.abs(scale.y);
+ const clearance={reaper:.91,reaper2:.68,werewolf:1.10,kitsune:.86,bellshade:.80,spacemarine:.90}[data.character]||.96;
  const p=shoulder?torso.toLocal(shoulder.getWorldPosition(new THREE.Vector3())):new THREE.Vector3(.55,1.75,0);
  const side=p.x<-.05?-1:1;
  const dx=reach>0?Math.min(Math.max(relaxed?.03:.14,clearance-Math.abs(p.x)),reach*(relaxed?.16:.38)):Math.max(relaxed?.03:.14,clearance-Math.abs(p.x));
- const dz=(relaxed?.12:.24)-p.z;
- const dy=Math.max(minimumY-p.y,reach>0?-Math.sqrt(Math.max(.04,(reach*(relaxed?.93:.97))**2-dx*dx-dz*dz)):(relaxed?-.88:-.78));
+ const dz=(relaxed?.10:.24)-p.z;
+ const dy=Math.max(minimumY-p.y,reach>0?-Math.sqrt(Math.max(.04,(reach*(relaxed?.97:.97))**2-dx*dx-dz*dz)):(relaxed?-.88:-.78));
  return torso.toWorld(new THREE.Vector3(p.x+side*dx,p.y+dy,p.z+dz));
 }
 function battleAxeRigReach(hand){
@@ -2903,6 +2904,19 @@ function battleAxeSocket(hand,frame){
  frame.socket={position:frame.palm.clone(),rotation:q};
  return frame.socket;
 }
+// For the carry, the long axis of the hand follows the forearm.
+ // The shaft crosses that axis at 90 degrees instead of running up the sleeve.
+function battleAxeNaturalHandRotation(hand,torso){
+ const fore=reaperV2AttackBones.rightForearm||hand.parent;
+ const edge=hand.getWorldPosition(new THREE.Vector3()).sub(fore.getWorldPosition(new THREE.Vector3())).normalize();
+ if(edge.lengthSq()<1e-8)return battleAxeRestRotation(torso);
+ const side=torso.toLocal(hand.getWorldPosition(new THREE.Vector3())).x<0?-1:1;
+ const shaft=new THREE.Vector3(side*.16,-.22,1).applyQuaternion(torso.rotation);
+ shaft.addScaledVector(edge,-shaft.dot(edge));
+ if(shaft.lengthSq()<1e-8)return battleAxeRestRotation(torso);
+ shaft.normalize();
+ return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(edge,shaft,new THREE.Vector3().crossVectors(edge,shaft).normalize()));
+}
 function battleAxeHandOrientation(hand,axeQ,frame){
  const socket=battleAxeSocket(hand,frame);
  const desired=axeQ.clone().multiply(socket.rotation.clone().invert());
@@ -2967,7 +2981,7 @@ function battleAxeReport(held,grip,frame){
  }
  const actual=held.localToWorld(new THREE.Vector3(0,battleAxeGripY(),0));
  const edge=new THREE.Vector3(1,0,0).applyQuaternion(held.getWorldQuaternion(new THREE.Quaternion()));
- axePoseStatus.textContent='AXE R10 | '+(held.parent===reaperV2RightHand?'HAND LOCK':'FALLBACK')+' | torso '+battleAxeTorsoNode().name+' | '+data.character+' | '+(swing?.axe?'SWING':'CARRY')+' | palm error '+actual.distanceTo(grip).toFixed(4)+' | edge Y '+edge.y.toFixed(2)+' | grip '+(frame?.meshGrip?'mesh curl':frame?Object.keys(frame.digits).length+' bones':'n/a');
+ axePoseStatus.textContent='AXE R11 | '+(held.parent===reaperV2RightHand?'HAND LOCK':'FALLBACK')+' | torso '+battleAxeTorsoNode().name+' | '+data.character+' | '+(swing?.axe?'SWING':'CARRY')+' | palm error '+actual.distanceTo(grip).toFixed(4)+' | edge Y '+edge.y.toFixed(2)+' | grip '+(frame?.meshGrip?'mesh curl':frame?Object.keys(frame.digits).length+' bones':'n/a');
 }
 function updateBattleAxePose(){
  if(!running||paused||data.weapon!=='axe'||isReaperScytheActive()){setAxeMeshGrip(null);return;}
@@ -2979,26 +2993,11 @@ function updateBattleAxePose(){
  const shoulder=rigHand?(reaperV2AttackBones.rightArm||rigHand.parent):pivot?parent:null;
  const torso=battleAxeTorsoFrame();
  const rest=battleAxeRestRotation(torso);
- // Weighted follow-through: a small fore/aft pendulum and softer lateral roll,
- // all in torso space. The immutable hand socket still holds the weapon.
- const gait=heroGait,walk=rigHand?bodyMoveBlend:0;
- if(rigHand){
-  const sway=new THREE.Euler(Math.sin(gait-.70)*.15*walk,0,Math.sin(gait-.95)*.035*walk,'XYZ');
-  const delta=torso.rotation.clone().multiply(new THREE.Quaternion().setFromEuler(sway)).multiply(torso.rotation.clone().invert());
-  rest.premultiply(delta).normalize();
- }
  let frame=rigHand?battleAxeHandFrame(rigHand,rest):null;
  setAxeMeshGrip(frame);
  if(frame)battleAxeNeutralArm(frame);
  const reach=rigHand?battleAxeRigReach(rigHand):pivot?anchor.length()*Math.abs(parent.getWorldScale(new THREE.Vector3()).y):0;
  const carry=rigHand?(frame.carryLocal?torso.toWorld(frame.carryLocal):torso.toWorld(frame.carryLocal=torso.toLocal(battleAxeCarryTarget(held,shoulder,reach,torso)))):battleAxeCarryTarget(held,shoulder,reach,torso);
- if(rigHand){
-  const local=torso.toLocal(carry),side=local.x<0?-1:1;
-  local.z+=Math.sin(gait-.20)*.16*walk;
-  local.y+=Math.sin(gait*2-.45)*.018*walk;
-  local.x+=side*(.025+.018*Math.cos(gait))*walk;
-  carry.copy(torso.toWorld(local));
- }
  const a=swing?.axe?swing:null,t=a?THREE.MathUtils.clamp(a.elapsed/a.duration,0,1):0;
  const pose=a?battleAxePose(t,a.arc/2,a.side||1):null;
  const blend=a?(t<.22?1-frontScytheEase(t/.22):pose.recover):1;
@@ -3019,10 +3018,10 @@ function updateBattleAxePose(){
  }else if(parent.isBone)grip=parent.localToWorld(new THREE.Vector3(0,0,.08));
  else if(pivot)grip=battleAxeAimPivot(parent,anchor,target);
  else grip=target;
- let q=rest.clone();
+ let q=rigHand?battleAxeNaturalHandRotation(rigHand,torso):rest.clone();
  if(pose){
   const edge=torso.toWorld(pose.edgeTarget),tangent=pose.tangent.clone().applyQuaternion(torso.rotation);
-  q=battleAxeOrientation(grip,edge,tangent,data.character==='bellshade'?.90:.78,(data.character==='bellshade'?1.37:data.character==='reaper2'?1.10:1.34)-battleAxeGripY()).slerp(rest,blend);
+  q=battleAxeOrientation(grip,edge,tangent,data.character==='bellshade'?.90:.78,(data.character==='bellshade'?1.37:data.character==='reaper2'?1.10:1.34)-battleAxeGripY()).slerp(q,blend);
  }
  if(rigHand){
   battleAxeHandOrientation(rigHand,q,frame);
@@ -3030,7 +3029,16 @@ function updateBattleAxePose(){
   // corrects for the short lever between the wrist and the actual grip.
   const offset=rigHand.localToWorld(frame.palm.clone()).sub(rigHand.getWorldPosition(new THREE.Vector3()));
   battleAxeAimRig(rigHand,target.clone().sub(offset),torso);
+  if(!pose)q=battleAxeNaturalHandRotation(rigHand,torso);
   battleAxeHandOrientation(rigHand,q,frame);
+  // Carry sway is a shoulder rotation of the whole chain. No secondary
+  // wrist or axe interpolation can drag the weapon through the forearm.
+  if(!pose&&shoulder&&bodyMoveBlend>0){
+   const axis=new THREE.Vector3(1,0,0).applyQuaternion(torso.rotation);
+   const phase=heroGait*.70;
+   battleAxeRotateBone(shoulder,new THREE.Quaternion().setFromAxisAngle(axis,Math.sin(phase-.35)*.16*bodyMoveBlend));
+   q=rigHand.getWorldQuaternion(new THREE.Quaternion()).multiply(battleAxeSocket(rigHand,frame).rotation);
+  }
   grip=rigHand.localToWorld(frame.palm.clone());
   battleAxeCloseFingers(rigHand,frame,grip,q);
   const socket=battleAxeSocket(rigHand,frame);
@@ -3550,7 +3558,7 @@ function frame(){
   hero.position.set(0,0,0);hero.rotation.y=0;running=true;
   document.body.classList.remove('menu-open');$('panel').style.display='none';$('controls').style.display='flex';
   cameraYaw=.85;cameraPitch=.25;
-  const label=document.createElement('div');label.textContent='AXE INSPECTION R10 · Drag to orbit · Attack to test';label.style.cssText='position:fixed;top:105px;left:8px;z-index:20;color:#fff;background:#101019d9;border-radius:6px;padding:6px;font:12px system-ui;pointer-events:none';document.body.appendChild(label);
+  const label=document.createElement('div');label.textContent='AXE INSPECTION R11 · Drag to orbit · Attack to test';label.style.cssText='position:fixed;top:105px;left:8px;z-index:20;color:#fff;background:#101019d9;border-radius:6px;padding:6px;font:12px system-ui;pointer-events:none';document.body.appendChild(label);
   const turn=document.createElement('button');turn.textContent='TEST TORSO TURN';turn.style.cssText='position:fixed;top:137px;left:8px;z-index:10001;padding:8px;background:#252336;color:white;border:1px solid #999;border-radius:6px;font:12px system-ui;touch-action:manipulation';turn.addEventListener('pointerdown',e=>e.stopPropagation());turn.addEventListener('click',()=>{axeTorsoTest=!axeTorsoTest;turn.textContent=axeTorsoTest?'STOP TORSO TURN':'TEST TORSO TURN'});document.body.appendChild(turn);
   const walkTest=document.createElement('button');walkTest.textContent='TEST WALK';walkTest.style.cssText='position:fixed;top:137px;left:148px;z-index:10001;padding:8px;background:#252336;color:white;border:1px solid #999;border-radius:6px;font:12px system-ui;touch-action:manipulation';walkTest.addEventListener('pointerdown',e=>e.stopPropagation());walkTest.addEventListener('click',()=>{axeWalkTest=!axeWalkTest;walkTest.textContent=axeWalkTest?'STOP WALK':'TEST WALK'});document.body.appendChild(walkTest);
   refresh();
