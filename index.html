@@ -1,8 +1,12 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
-<link rel="stylesheet" href="./root.css?v=floating-movement-20261117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="stylesheet" href="./root.css?v=landscape-fullscreen-20261117">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script></head><body class="menu-open">
-<div id="hud"><span id="stats"></span><div id="runHudActions"><button id="pauseRun" type="button" aria-label="Pause game">⏸ Pause</button><button id="endRun" type="button" aria-label="End current dungeon run and return to main menu" title="End current run and return to menu">End Run</button><span id="stage"></span></div></div>
+<div id="hud"><span id="stats"></span><div id="runHudActions"><button id="pauseRun" type="button" aria-label="Pause game">⏸ Pause</button><button id="endRun" type="button" aria-label="End current dungeon run and return to main menu" title="End current run and return to menu">End Run</button><button id="gameFullscreen" type="button" hidden aria-label="Enter fullscreen" title="Enter fullscreen">⛶</button><span id="stage"></span></div></div>
 <div id="pauseOverlay" hidden role="dialog" aria-modal="true" aria-label="Game paused"><div class="pause-card"><h2>⏸ Game Paused</h2><p>Your dungeon run is safe. Enemies and timers are frozen.</p><button id="resumeRun" type="button">▶ Resume Game</button></div></div>
 <div id="panel" data-menu-theme="moonlit">
   <header class="menu-preview-top">
@@ -69,6 +73,7 @@
       <h3 class="section-title">🗡 Weapons</h3>
       <div id="weapons"></div>
       <button id="start" type="button">Enter Dungeon</button>
+      <p id="fullscreenInstallHint" hidden><small>iPhone fullscreen: in Safari choose Share → Add to Home Screen, then launch Shadow Dungeons from its icon.</small></p>
       <p class="menu-controls-help"><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E • Dash: Shift or mobile DASH button • Auto aim: nearest enemy in range • Mobile: touch and drag anywhere in the lower-left half to move; swipe the remaining open game view to rotate</small></p>
     </section>
   </div>
@@ -232,6 +237,60 @@ window.screen.orientation?.addEventListener?.('change',settleGameOrientation);
 window.addEventListener('pageshow',scheduleGameViewport);
 window.visualViewport?.addEventListener('resize',scheduleGameViewport);
 window.visualViewport?.addEventListener('scroll',scheduleGameViewport);
+// Real browser fullscreen requires a user gesture. Always keep the CSS viewport fallback.
+const fullscreenButton=$('gameFullscreen');
+const standaloneGame=()=>!!navigator.standalone||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches&&!activeFullscreenElement();
+function activeFullscreenElement(){return document.fullscreenElement||document.webkitFullscreenElement||null}
+function fullscreenSupported(){
+ const root=document.documentElement;
+ return !!((document.fullscreenEnabled&&root.requestFullscreen)||(document.webkitFullscreenEnabled&&root.webkitRequestFullscreen));
+}
+let fullscreenAttempted=false,fullscreenPending=false;
+function updateFullscreenUI(){
+ const active=!!activeFullscreenElement();
+ fullscreenButton.hidden=standaloneGame()||!fullscreenSupported()||(!active&&gameLayout!=='landscape');
+ fullscreenButton.textContent=active?'⛶ Exit':'⛶';
+ fullscreenButton.setAttribute('aria-label',active?'Exit fullscreen':'Enter fullscreen');
+ fullscreenButton.title=active?'Exit fullscreen':'Enter fullscreen';
+ $('fullscreenInstallHint').hidden=standaloneGame()||fullscreenSupported()||!/iPhone|iPod/i.test(navigator.userAgent);
+}
+async function requestGameFullscreen(){
+ if(!running||gameLayout!=='landscape'||standaloneGame()||activeFullscreenElement()||!fullscreenSupported()||fullscreenPending)return;
+ fullscreenAttempted=true;fullscreenPending=true;
+ try{
+  const root=document.documentElement;
+  if(root.requestFullscreen&&document.fullscreenEnabled)await root.requestFullscreen();
+  else if(root.webkitRequestFullscreen)await root.webkitRequestFullscreen();
+ }catch{}finally{fullscreenPending=false;settleGameOrientation();updateFullscreenUI()}
+}
+async function exitGameFullscreen(){
+ if(!activeFullscreenElement())return;
+ try{if(document.exitFullscreen)await document.exitFullscreen();else if(document.webkitExitFullscreen)await document.webkitExitFullscreen()}catch{}
+ finally{settleGameOrientation();updateFullscreenUI()}
+}
+function tryLandscapeFullscreen(){
+ if(running&&gameLayout==='landscape'&&!fullscreenAttempted)void requestGameFullscreen();
+}
+fullscreenButton.addEventListener('click',e=>{
+ e.stopPropagation();
+ if(activeFullscreenElement()){fullscreenAttempted=true;void exitGameFullscreen()}
+ else void requestGameFullscreen();
+});
+// The first deliberate tap after rotating can enter fullscreen on browsers that allow it.
+document.addEventListener('pointerup',e=>{
+ if(e.isTrusted&&e.pointerType!=='mouse'&&e.target!==fullscreenButton)tryLandscapeFullscreen();
+});
+document.addEventListener('click',e=>{
+ if(e.isTrusted&&e.target!==fullscreenButton)tryLandscapeFullscreen();
+});
+window.addEventListener('game-layout-change',()=>{
+ fullscreenAttempted=false;
+ updateFullscreenUI();
+});
+for(const event of ['fullscreenchange','webkitfullscreenchange','fullscreenerror','webkitfullscreenerror']){
+ document.addEventListener(event,()=>{settleGameOrientation();updateFullscreenUI()});
+}
+updateFullscreenUI();
 // Drag the open game view to orbit around the hero (touch or mouse).
 let cameraYaw=0,cameraPitch=.57,cameraDrag=null;
 renderer.domElement.style.touchAction='none';
@@ -1939,7 +1998,7 @@ function spawn(){
  }
  refresh();
 }
-function show(message){setPaused(false);clearPlayerProjectiles();clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;scheduleGameViewport();refresh()}
+function show(message){setPaused(false);clearPlayerProjectiles();clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;fullscreenAttempted=false;void exitGameFullscreen();scheduleGameViewport();refresh()}
 let paused=false,pauseStarted=0;
 function setPaused(next){
  if(!running&&next)return;
@@ -2824,7 +2883,7 @@ $('start').onclick=()=>{
   if(spaceMarineState==='error')requestSpaceMarineModel();
   return;
  }
- if(!running){setPaused(false);clearBossLoot();clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);clearPlayerProjectiles();for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();placeHeroForFloor();running=true;document.activeElement?.blur();document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';syncGameViewport();scheduleGameViewport();refresh()}};
+ if(!running){setPaused(false);clearBossLoot();clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);clearPlayerProjectiles();for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();placeHeroForFloor();running=true;document.activeElement?.blur();document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';syncGameViewport();scheduleGameViewport();fullscreenAttempted=false;updateFullscreenUI();tryLandscapeFullscreen();refresh()}};
 data.character=['werewolf','reaper','reaper2','kitsune','bellshade','spacemarine'].includes(data.character)?data.character:'reaper';
 if(data.weapon==='daggers')data.weapon='sword';
 $('characterSelect').value=data.character;
