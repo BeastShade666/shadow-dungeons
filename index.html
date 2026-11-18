@@ -1607,6 +1607,11 @@ function monster(kind){
  return g;
 }
 // Procedural floor themes and lightweight scenery; regenerated each floor.
+// Visible build marker distinguishes the new wooden-wall version from stale tabs.
+const buildTag=document.createElement('span');
+buildTag.textContent='WOOD WALLS · BUILD 2026-11-17B';
+buildTag.style.cssText='position:fixed;left:8px;bottom:8px;z-index:8;font:10px system-ui;color:#c5a883;background:#241b15c9;padding:3px 6px;border-radius:4px;pointer-events:none';
+document.body.appendChild(buildTag);
 const terrainGroup=new THREE.Group();scene.add(terrainGroup);
 const obstacles=[];
 const dungeonWallSegments=[];
