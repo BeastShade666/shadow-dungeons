@@ -1498,7 +1498,7 @@ function refresh(){
  $('reaperV2Credit').hidden=data.character!=='reaper2';
  $('wallet').textContent='Gold: '+data.gold;
  $('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;
- $('stage').textContent='Floor '+level+' · '+(['Crypt','Goblin Warrens','Stone Catacombs','Shadow Realm','Titan Nest','Abyss'][Math.floor((level-1)/10)%6])+(isWilloFloor()?' · 🦄 Princess Willo · Healing Sanctuary':bossLoot?' · 🧰 Collect boss loot':level%3===0?' · BOSS':' · Monsters '+enemies.length);
+ $('stage').textContent='Floor '+level+' · '+(['Crypt','Goblin Warrens','Stone Catacombs','Shadow Realm','Titan Nest','Abyss'][Math.floor((level-1)/10)%6])+(isWilloFloor()?' · 🦄 Princess Willo · Healing Sanctuary':isOverlordFloor()?' · ☠️ ABYSS OVERLORD · MEGA BOSS':bossLoot?' · 🧰 Collect boss loot':level%3===0?' · BOSS':' · Monsters '+enemies.length);
  updateCharacterPortrait();
 }
 function monster(kind){
@@ -1893,7 +1893,7 @@ function updateEnemyHealthBarPosition(e){
 function addEnemyHealthBar(e){
  e.obj.updateMatrixWorld(true);
  const bounds=new THREE.Box3().setFromObject(e.obj);
- const width=e.kind==='boss'?2.3:1.25;
+ const width=e.overlord?4.2:e.kind==='boss'?2.3:1.25;
  const bar=new THREE.Group();
  const bg=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0x241b27,side:THREE.DoubleSide,depthTest:true,depthWrite:false}));
  bg.scale.set(width+.14,.27,1);bar.add(bg);
@@ -1943,6 +1943,7 @@ function spawnBossLoot(position){
 }
 // Every fifteenth floor is a peaceful sanctuary, never a boss encounter.
 const isWilloFloor=()=>level>0&&level%15===0;
+const isOverlordFloor=()=>level>0&&level%50===0;
 let willoSanctuary=null;
 function clearWilloSanctuary(){
  if(!willoSanctuary)return;
@@ -2041,7 +2042,7 @@ function updateBossLoot(dt){
  const d=Math.hypot(hero.position.x-bossLoot.group.position.x,hero.position.z-bossLoot.group.position.z);
  // Give the player a moment to see the reward before proximity collection.
  if(bossLoot.age<1.5||d>1.65)return;
- const bonus=20+Math.floor(bossLoot.floor/3)*10;
+ const bonus=isOverlordFloor()?300*Math.floor(level/50):20+Math.floor(bossLoot.floor/3)*10;
  data.gold+=bonus;
  persist();drawWeapons();drawSkills();drawAuras();
  clearBossLoot();
@@ -2054,7 +2055,8 @@ function spawn(){
  placeHeroForFloor();
  for(const e of enemies){removeEnemyHealthBar(e);scene.remove(e.obj)}enemies=[];
  if(isWilloFloor()){createWilloSanctuary();refresh();return}
- const bossFloor=level%3===0,count=bossFloor?1:Math.min(3+level,10);
+ const overlordFloor=isOverlordFloor();
+ const bossFloor=overlordFloor||level%3===0,count=bossFloor?1:Math.min(3+level,10);
  // New monster roster every ten floors, while bosses remain every third floor.
  const tier=Math.floor((level-1)/10);
  const factions=[
@@ -2074,13 +2076,22 @@ function spawn(){
  const occupied=[];
  for(let i=0;i<count;i++){
   const kind=bossFloor?'boss':faction[(level+i-1)%faction.length],obj=monster(kind);
+  if(overlordFloor){
+   // Ancient Abyss Overlord: giant obsidian armor, burning crown and crimson core.
+   obj.scale.setScalar(1.65);
+   const armor=new THREE.Mesh(new THREE.DodecahedronGeometry(.84,1),new THREE.MeshStandardMaterial({color:0x191326,metalness:.65,roughness:.4,emissive:0x330022,emissiveIntensity:.45}));
+   armor.position.set(0,2.35,.5);obj.add(armor);
+   const core=new THREE.Mesh(new THREE.OctahedronGeometry(.35,0),new THREE.MeshStandardMaterial({color:0xff3159,emissive:0xff1749,emissiveIntensity:2.2}));
+   core.position.set(0,2.4,1.05);obj.add(core);
+   for(const x of [-.65,0,.65]){const spike=new THREE.Mesh(new THREE.ConeGeometry(.27,.9,7),new THREE.MeshStandardMaterial({color:0x160e22,metalness:.55,roughness:.4}));spike.position.set(x,3.35,0);obj.add(spike)}
+  }
   const point=safeMonsterSpawn(i,count,occupied);
   if(!point)continue;
   occupied.push(point);
   obj.position.set(point.x,0,point.z);
   scene.add(obj);
-  const enemyHp=Math.ceil((kind==='boss'?12:kind==='golem'?5:kind==='wraith'?4:kind==='skeleton'||kind==='spider'?3:2)*difficulty*(bossFloor?1.4:1));
-  enemies.push({obj,kind,hp:enemyHp,maxHp:enemyHp,speed:Math.min(4.1,(kind==='boss'?.75:kind==='bat'||kind==='imp'?1.7:kind==='golem'?.75:kind==='wraith'?1.35:1.1)*(1+Math.min(level-1,9)*.055+late*.014)),damageScale:damageDifficulty,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0,dodgeCooldown:2,dodgeTime:0,attackMode:'melee'});
+  const enemyHp=Math.ceil((kind==='boss'?12:kind==='golem'?5:kind==='wraith'?4:kind==='skeleton'||kind==='spider'?3:2)*difficulty*(bossFloor?1.4:1)*(overlordFloor?16*Math.pow(1.5,Math.floor(level/50)-1):1));
+  enemies.push({obj,kind,overlord:overlordFloor,hp:enemyHp,maxHp:enemyHp,speed:Math.min(4.1,(kind==='boss'?.75:kind==='bat'||kind==='imp'?1.7:kind==='golem'?.75:kind==='wraith'?1.35:1.1)*(1+Math.min(level-1,9)*.055+late*.014)),damageScale:damageDifficulty*(overlordFloor?2.2:1),phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0,dodgeCooldown:2,dodgeTime:0,attackMode:'melee'});
   addEnemyHealthBar(enemies[enemies.length-1]);
  }
  refresh();
@@ -2194,7 +2205,7 @@ function updateBossBolts(dt){
    const t=j/steps,x=oldX+(newX-oldX)*t,z=oldZ+(newZ-oldZ)*t;
    b.obj.position.x=x;b.obj.position.z=z;
    if(Math.hypot(x-hero.position.x,z-hero.position.z)<.85){collided=true;hitHero=true;break}
-   if(Math.abs(x)>15.8||Math.abs(z)>15.8||obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+.28)){collided=true;break}
+   if(Math.abs(x)>23.5||Math.abs(z)>23.5||obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+.28)){collided=true;break}
   }
   b.obj.rotation.y+=dt*9;
   if(hitHero)hurtHero(b.damage);
@@ -2277,7 +2288,7 @@ function damageEnemy(e,amount,soundType=data.weapon){
  weaponSound(soundType);
  if(!enemies.includes(e))return;
  if(e.kind==='boss'&&e.dodgeTime>0)return;
- if(e.kind==='boss'&&e.dodgeCooldown<=0&&Math.random()<.3){
+ if(e.kind==='boss'&&e.dodgeCooldown<=0&&Math.random()<(e.overlord?.5:.3)){
   e.dodgeCooldown=3.5;e.dodgeTime=.42;
   const side=Math.random()<.5?-1:1,angle=e.obj.rotation.y+Math.PI/2;
   moveWithCollision(e.obj,Math.sin(angle)*side*2.2,Math.cos(angle)*side*2.2,.85);
@@ -2286,7 +2297,7 @@ function damageEnemy(e,amount,soundType=data.weapon){
  e.hp-=amount*attackPower();updateEnemyHealthBar(e);e.obj.scale.setScalar(1.13);
  if(e.hp<=0){
   removeEnemyHealthBar(e);scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
-  data.gold+=e.kind==='boss'?30:5;persist();drawWeapons();drawSkills();drawAuras();
+  data.gold+=e.overlord?500*Math.floor(level/50):e.kind==='boss'?30:5;persist();drawWeapons();drawSkills();drawAuras();
   if(!enemies.length){
    if(e.kind==='boss'){
     // Defeating the boss reveals the chest. Never advance before collection.
@@ -3360,7 +3371,7 @@ function frame(){
    e.rootTime=Math.max(0,(e.rootTime||0)-dt);
    e.phase+=dt;e.cooldown-=dt;if(e.kind==='boss'){e.dodgeCooldown-=dt;e.dodgeTime=Math.max(0,e.dodgeTime-dt)}
    const dx=hero.position.x-e.obj.position.x,dz=hero.position.z-e.obj.position.z,dist=Math.hypot(dx,dz);
-   const range=e.kind==='boss'?9:e.kind==='bat'||e.kind==='imp'?2.5:e.kind==='wraith'?2.2:e.kind==='golem'?2:e.kind==='skeleton'?1.9:1.5;
+   const range=e.overlord?12:e.kind==='boss'?9:e.kind==='bat'||e.kind==='imp'?2.5:e.kind==='wraith'?2.2:e.kind==='golem'?2:e.kind==='skeleton'?1.9:1.5;
    if(e.windup>0&&!e.rootTime){
     e.windup-=dt;
     e.obj.scale.set(1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06);
@@ -3383,8 +3394,8 @@ function frame(){
     }
     if(e.cooldown<=0&&dist<range&&!e.rootTime){
      if(e.kind==='boss')e.attackMode=dist>4.1?'ranged':(Math.random()<.4?'ranged':'melee');
-     e.windup=e.kind==='boss'?.65:e.kind==='skeleton'?.48:e.kind==='bat'||e.kind==='imp'?.36:e.kind==='golem'?.75:.55;
-     e.cooldown=e.kind==='boss'?1.85:e.kind==='skeleton'?2.1:e.kind==='bat'||e.kind==='imp'?1.65:e.kind==='golem'?2.8:2.35;
+     e.windup=e.overlord?.42:e.kind==='boss'?.65:e.kind==='skeleton'?.48:e.kind==='bat'||e.kind==='imp'?.36:e.kind==='golem'?.75:.55;
+     e.cooldown=e.overlord?1.25:e.kind==='boss'?1.85:e.kind==='skeleton'?2.1:e.kind==='bat'||e.kind==='imp'?1.65:e.kind==='golem'?2.8:2.35;
     }
     e.obj.scale.lerp(new THREE.Vector3(1,1,1),Math.min(1,dt*9));
    }
