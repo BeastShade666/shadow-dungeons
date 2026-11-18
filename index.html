@@ -751,6 +751,9 @@ const spaceMarineURLs=[
 ];
 let spaceMarineModel=null,spaceMarineMixer=null,spaceMarineState='idle',spaceMarineMotion='Idle',spaceMarineActive=null;
 const spaceMarineActions={};
+// Cache the animated right-hand bone instead of traversing the rig every frame.
+let spaceMarineHandBone=null;
+const marineHandWorldScale=new THREE.Vector3();
 // A fixed-size accessory built once for the imported character, not a separate weapon.
 // It remains bright green when Hero Color changes and is included in portrait clones.
 function attachSpaceMarineCrayon(){
@@ -905,7 +908,11 @@ async function requestSpaceMarineModel(){
     original.position.y-=placed.min.y;
     original.position.x-=(placed.min.x+placed.max.x)/2;
     original.position.z-=(placed.min.z+placed.max.z)/2;
-    original.traverse(o=>{if(o.isMesh)o.castShadow=true});
+    spaceMarineHandBone=null;
+    original.traverse(o=>{
+     if(o.isMesh)o.castShadow=true;
+     if(o.isBone&&/right(hand|wrist)|hand[_ .-]?r(?![a-z])/i.test(o.name))spaceMarineHandBone=o;
+    });
     registerSpaceMarineColors(original);
     spaceMarineVisual.add(original);
     spaceMarineModel=original;
@@ -1480,9 +1487,8 @@ function updateCharacterPortrait(){
  }else if(id==='reaper2'&&reaperV2State==='ready'){
   portraitModel.add(reaperV2IsRigged&&cloneSkinnedModel?cloneSkinnedModel(reaperV2Visual):reaperV2Visual.clone(true));
  }else portraitModel.add((id==='bellshade'?bellVisual:id==='kitsune'?kitsuneVisual:id==='werewolf'?wolfVisual:reaperVisual).clone(true));
- // Weapons are children of the animated hand, already included in the cloned
- // character. Adding a second copy at the portrait root breaks grip alignment.
- if(id==='spacemarine')portraitModel.add(weaponGroup.clone(true));
+ // The animated Space Marine clone already includes its bone-mounted weapon.
+ // Never add a second weapon at the portrait root.
  // Clone existing aura materials before tinting so unowned preview colors never alter gameplay.
  const previewAura=aura.clone(true);previewAura.visible=true;
  const tint=new THREE.Color(auraColors[auraChoice]||auraColors.violet);
@@ -1550,14 +1556,25 @@ function attachHeldWeapons(){
   if(!locked){if(weaponGroup.parent!==reaperV2Visual)reaperV2Visual.add(weaponGroup);weaponGroup.scale.setScalar(1);}
   if(data.weapon!=='axe'||!running)weaponGroup.position.set(.78,1.06,.25);
  }else if(data.character==='spacemarine'&&spaceMarineModel){
-  let marineHand=null;
-  spaceMarineModel.traverse(o=>{if(o.isBone&&/right(hand|wrist)|hand[_ .-]?r(?![a-z])/i.test(o.name))marineHand=o});
-  if(marineHand){
-   if(weaponGroup.parent!==marineHand)marineHand.add(weaponGroup);
+  if(spaceMarineHandBone){
+   if(weaponGroup.parent!==spaceMarineHandBone){
+    spaceMarineHandBone.add(weaponGroup);
+    weaponGroup.rotation.set(0,0,0);
+   }
+   // The imported Soldier is reduced from source-model units to game units.
+   // Counteract the parent rig's scale or the entire weapon shrinks to a dot.
+   spaceMarineHandBone.updateWorldMatrix(true,false);
+   spaceMarineHandBone.getWorldScale(marineHandWorldScale);
+   weaponGroup.scale.set(
+    1/Math.max(.001,Math.abs(marineHandWorldScale.x)),
+    1/Math.max(.001,Math.abs(marineHandWorldScale.y)),
+    1/Math.max(.001,Math.abs(marineHandWorldScale.z))
+   );
    weaponGroup.position.set(0,0,.08);
   }else{
    if(weaponGroup.parent!==hero)hero.add(weaponGroup);
-   weaponGroup.position.set(.48,1.25,.32);
+   weaponGroup.scale.setScalar(1);
+   weaponGroup.position.set(.65,1.22,.40);
   }
  }else{
   if(weaponGroup.parent!==hero)hero.add(weaponGroup);
@@ -1981,10 +1998,10 @@ function safeMonsterSpawn(index,total,occupied){
  }
  return null;
 }
-// Camera-facing enemy health bars, attached to monsters so they follow movement.
-// Independent world-space bars avoid rotating with the monsters.
-const enemyBarBackMaterial=new THREE.SpriteMaterial({color:0x241b27,depthTest:true,depthWrite:false});
-const enemyBarFillMaterials=[0x50e58a,0xf2c453,0xf15a66].map(color=>new THREE.SpriteMaterial({color,depthTest:true,depthWrite:false}));
+// Each enemy owns its health bar as a child, so movement, hovering and scaling
+// cannot separate a monster from its bar. Cancel parent rotation for billboarding.
+const enemyBarWorldQuaternion=new THREE.Quaternion();
+const enemyBarWorldScale=new THREE.Vector3();
 function disposeTransientObject(root){
  root.traverse(o=>{
   if(o.geometry)o.geometry.dispose();
@@ -1993,17 +2010,26 @@ function disposeTransientObject(root){
 }
 function removeEnemyHealthBar(e){
  if(!e.healthBar)return;
- scene.remove(e.healthBar.bar);
+ e.healthBar.bar.removeFromParent();
  disposeTransientObject(e.healthBar.bar);
  e.healthBar=null;
 }
 function updateEnemyHealthBarPosition(e){
  if(!e.healthBar)return;
- const p=e.obj.position;
- const bar=e.healthBar.bar;
- bar.position.set(p.x,p.y+e.healthBar.offset,p.z);
- // Keep the fill and frame in the same camera-facing plane at every orbit angle.
- bar.quaternion.copy(camera.quaternion);
+ const p=e.obj.position,bar=e.healthBar.bar;
+ // Local-space offset stays with this exact monster during movement and bobbing.
+ bar.position.set(0,e.healthBar.offset,0);
+ e.obj.updateWorldMatrix(true,false);
+ e.obj.getWorldQuaternion(enemyBarWorldQuaternion);
+ e.obj.getWorldScale(enemyBarWorldScale);
+ // Cancel the monster's rotation and scale; the frame stays legible and
+ // camera-facing while its position follows the animated enemy automatically.
+ bar.quaternion.copy(enemyBarWorldQuaternion).invert().multiply(camera.quaternion);
+ bar.scale.set(
+  1/Math.max(.001,Math.abs(enemyBarWorldScale.x)),
+  1/Math.max(.001,Math.abs(enemyBarWorldScale.y)),
+  1/Math.max(.001,Math.abs(enemyBarWorldScale.z))
+ );
  bar.visible=e.hp>0&&combatLineClear(hero.position.x,hero.position.z,p.x,p.z,.02);
 }
 function addEnemyHealthBar(e){
@@ -2015,8 +2041,12 @@ function addEnemyHealthBar(e){
  bg.scale.set(width+.14,.27,1);bar.add(bg);
  const fill=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0x50e58a,side:THREE.DoubleSide,depthTest:true,depthWrite:false}));
  fill.scale.set(width,.17,1);fill.position.z=.012;bar.add(fill);
- scene.add(bar);
- e.healthBar={bar,fill,width,offset:Math.max(1,bounds.max.y-e.obj.position.y)+.48};
+ // Convert the initial world-space top into this monster's own local units.
+ // Once parented, the bar tracks later movement and animation without drifting.
+ const initialScaleY=Math.max(.001,Math.abs(e.obj.scale.y));
+ const localTop=(bounds.max.y-e.obj.position.y)/initialScaleY;
+ e.obj.add(bar);
+ e.healthBar={bar,fill,width,offset:Math.max(1,localTop)+.42/initialScaleY};
  updateEnemyHealthBar(e);updateEnemyHealthBarPosition(e);
 }
 function updateEnemyHealthBar(e){
@@ -3692,8 +3722,7 @@ function frame(){
    }
    e.obj.rotation.y=Math.atan2(dx,dz);
   }
-  // Update after all enemy movement and animation, including hover and hit reactions.
-  for(const e of enemies)updateEnemyHealthBarPosition(e);
+  // Monster-mounted health bars are oriented after the camera is updated below.
   if(!swing?.axe)updateSpaceMarineFacing();
   updateSwing(dt);
   updateCharacterSwing(dt);
@@ -3723,7 +3752,8 @@ function frame(){
  camera.position.lerp(new THREE.Vector3(hero.position.x+Math.sin(cameraYaw)*flat,1+Math.sin(cameraPitch)*orbitDistance,hero.position.z+Math.cos(cameraYaw)*flat),.12);
  camera.lookAt(hero.position.x,axeInspection?1.35:1,hero.position.z);
  updatePerimeterVisibility(dt);
- for(const e of enemies)if(e.healthBar)e.healthBar.bar.quaternion.copy(camera.quaternion);
+ // Refresh billboarding against the final camera, after all monster animation.
+ for(const e of enemies)updateEnemyHealthBarPosition(e);
  if(willoSanctuary){
   const pos=new THREE.Vector3(0,4.1,0).project(camera);
   const rect=renderer.domElement.getBoundingClientRect();
