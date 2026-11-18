@@ -1571,20 +1571,22 @@ function terrainForFloor(){
   return o;
  };
  // Cracked concrete slabs with worn dark grout lines between each tile.
- for(let x=-24;x<=24;x+=2)for(let z=-24;z<=24;z+=2){
+ for(let x=-23;x<=23;x+=2)for(let z=-23;z<=23;z+=2){
   const slab=new THREE.Mesh(new THREE.BoxGeometry(1.95,.09+rand()*.035,1.95),crackedFloorMaterial);
   slab.position.set(x,.065,z);slab.rotation.y=(rand()-.5)*.018;terrainGroup.add(slab);
  }
- // Perimeter walls and corner pillars.
- for(let i=-24;i<=24;i+=4){
-  for(const side of [-1,1]){
-   add(new THREE.BoxGeometry(3.9,1.5,.6),palette.stone,i,.75,side*25.2);
-   add(new THREE.BoxGeometry(.6,1.5,3.9),palette.stone,side*25.2,.75,i);
-  }
+ // Continuous perimeter walls aligned to the enlarged 48x48 arena.
+ // The old short segments were placed at +/-25.2, leaving visible gaps and
+ // allowing the hero to walk beyond the floor before reaching a wall.
+ const outerWallHeight=3.2,outerWallThickness=.7;
+ for(const side of [-1,1]){
+  const wallX=add(new THREE.BoxGeometry(outerWallThickness,outerWallHeight,49.4),palette.stone,side*24.5,outerWallHeight/2,0);
+  const wallZ=add(new THREE.BoxGeometry(49.4,outerWallHeight,outerWallThickness),palette.stone,0,outerWallHeight/2,side*24.5);
+  wallX.material.roughness=wallZ.material.roughness=.95;
  }
- for(const x of [-23.5,23.5])for(const z of [-23.5,23.5]){
-  add(new THREE.CylinderGeometry(.58,.75,3.4,8),palette.stone,x,1.7,z);
-  add(new THREE.BoxGeometry(1.6,.32,1.6),palette.accent,x,3.4,z);
+ for(const x of [-24.25,24.25])for(const z of [-24.25,24.25]){
+  add(new THREE.CylinderGeometry(.58,.75,3.5,8),palette.stone,x,1.75,z);
+  add(new THREE.BoxGeometry(1.6,.32,1.6),palette.accent,x,3.52,z);
  }
  // Procedurally varied connected rooms. The floor seed changes with each level.
  // Boss arenas intentionally stay open, with no interior room dividers.
@@ -1712,12 +1714,12 @@ function terrainForFloor(){
  }
 }
 function moveWithCollision(obj,dx,dz,radius){
- const canStand=(x,z)=>Math.abs(x)<=24&&Math.abs(z)<=24&&!obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<radius+o.r);
+ const canStand=(x,z)=>Math.abs(x)<=23.65&&Math.abs(z)<=23.65&&!obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<radius+o.r);
  if(canStand(obj.position.x+dx,obj.position.z))obj.position.x+=dx;
  if(canStand(obj.position.x,obj.position.z+dz))obj.position.z+=dz;
 }
 // Lightweight obstacle-aware navigation. Replan only when needed for mobile performance.
-const navClear=(x,z,r=.47)=>Math.abs(x)<=23.8&&Math.abs(z)<=23.8&&!obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+r);
+const navClear=(x,z,r=.47)=>Math.abs(x)<=23.65&&Math.abs(z)<=23.65&&!obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+r);
 function clearPath(x,z,tx,tz,r=.47){
  const d=Math.hypot(tx-x,tz-z),steps=Math.ceil(d/.55);
  for(let i=1;i<=steps;i++){const t=i/steps;if(!navClear(x+(tx-x)*t,z+(tz-z)*t,r))return false}
@@ -2793,7 +2795,7 @@ function updateProjectiles(dt){
    p.dir.copy(delta).normalize();travel=Math.min(distance,travel);
   }else p.target=null;
   const next=start.clone().addScaledVector(p.dir,travel);
-  const clearAt=point=>Math.abs(point.x)<=23.8&&Math.abs(point.z)<=23.8&&combatLineClear(start.x,start.z,point.x,point.z,.03);
+  const clearAt=point=>Math.abs(point.x)<=23.65&&Math.abs(point.z)<=23.65&&combatLineClear(start.x,start.z,point.x,point.z,.03);
   if(!clearAt(next)){
    // Find the last unobstructed point; show a wall impact instead of silently vanishing.
    let lo=0,hi=1;
