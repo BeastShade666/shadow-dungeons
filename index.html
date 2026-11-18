@@ -1684,17 +1684,18 @@ function removeEnemyHealthBar(e){if(e.healthBar){scene.remove(e.healthBar.bar);e
 function updateEnemyHealthBarPosition(e){
  if(!e.healthBar)return;
  const p=e.obj.position;
- e.healthBar.bar.position.set(p.x,p.y+e.healthBar.offset*Math.max(.9,e.obj.scale.y),p.z);
+ e.healthBar.bar.position.set(p.x,p.y+e.healthBar.offset,p.z);
+ e.healthBar.bar.visible=e.hp>0&&combatLineClear(hero.position.x,hero.position.z,p.x,p.z,.02);
 }
 function addEnemyHealthBar(e){
  e.obj.updateMatrixWorld(true);
  const bounds=new THREE.Box3().setFromObject(e.obj);
  const width=e.kind==='boss'?2.3:1.25;
  const bar=new THREE.Group();
- const bg=new THREE.Sprite(enemyBarBackMaterial);bg.scale.set(width+.14,.27,1);bg.position.z=-.025;bar.add(bg);
- const fill=new THREE.Sprite(enemyBarFillMaterials[0]);fill.scale.set(width,.17,1);fill.position.z=.025;bar.add(fill);
+ const bg=new THREE.Sprite(enemyBarBackMaterial);bg.scale.set(width+.14,.27,1);bg.position.z=-.06;bar.add(bg);
+ const fill=new THREE.Sprite(enemyBarFillMaterials[0]);fill.scale.set(width,.17,1);fill.position.z=.06;bar.add(fill);
  scene.add(bar);
- e.healthBar={bar,fill,width,offset:Math.max(1,bounds.max.y-e.obj.position.y)+.38};
+ e.healthBar={bar,fill,width,offset:Math.max(1,bounds.max.y-e.obj.position.y)+.48};
  updateEnemyHealthBar(e);updateEnemyHealthBarPosition(e);
 }
 function updateEnemyHealthBar(e){
@@ -2263,7 +2264,7 @@ function characterAttack(){
   if(marine)aimSpaceMarineAt(nearest.e,850);
   else hero.rotation.y=Math.atan2(nearest.e.obj.position.x-hero.position.x,nearest.e.obj.position.z-hero.position.z);
  }
- characterSwing={elapsed:0,duration:marine?.65:bell?.9:kitsune?.78:wolf?.7:.62,wolf,kitsune,bell,marine,hit:false,hits:0,aimYaw:hero.rotation.y};
+ characterSwing={elapsed:0,duration:marine?.65:bell?.9:kitsune?.78:wolf?.85:.62,wolf,kitsune,bell,marine,hit:false,hits:0,hitEnemies:new Set(),aimYaw:hero.rotation.y};
  if((data.character==='reaper'||data.character==='reaper2')&&!paused)scytheRig.visible=true;
  if(kitsune){kitsuneDaggerActive=true;kitsuneDaggerSlash=1;kitsuneDaggersVisible()}
  weaponSound(bell?'staff':wolf?'axe':'sword',true);
@@ -2296,7 +2297,20 @@ function updateCharacterSwing(dt){
   scytheTrail.visible=t>.25&&t<.86;
   scytheTrailMaterial.opacity=scytheTrail.visible?.25+Math.sin(Math.PI*Math.min(1,(t-.25)/.61))*.32:0;
  }
- if(a.bell){
+ if(a.wolf){
+  // The werewolf's full spin is a radial tail-axe strike, not a narrow forward cone.
+  // Check repeatedly during the active spin, but hit each monster only once.
+  if(t>=.23&&t<=.88){
+   for(const enemy of [...enemies]){
+    if(a.hitEnemies.has(enemy))continue;
+    const distance=Math.hypot(enemy.obj.position.x-hero.position.x,enemy.obj.position.z-hero.position.z);
+    if(distance>.01&&distance<=3.9&&heroCanHit(enemy)){
+     a.hitEnemies.add(enemy);
+     damageEnemy(enemy,3,'axe');
+    }
+   }
+  }
+ }else if(a.bell){
   if(!a.hit&&t>=.36){a.hit=true;castBellVines()}
  }else if(a.marine){
   if(!a.hit&&t>=.46){
@@ -2348,7 +2362,7 @@ function updateCharacterSwing(dt){
  if(t>=1){
   characterSwing=null;scytheRig.visible=false;scytheRig.rotation.set(0,0,0);scytheTrail.visible=false;
   tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0);
-  if(a.wolf)wolfVisual.rotation.y=0;
+  if(a.wolf){wolfVisual.rotation.y=0;wolfVisual.rotation.x=0;}
   bellStaff.rotation.set(0,0,0);
   if(a.kitsune){kitsuneDaggerActive=false;kitsuneDaggersVisible()}
  }
@@ -2689,6 +2703,8 @@ function frame(){
    e.obj.rotation.y=Math.atan2(dx,dz);
    updateEnemyHealthBarPosition(e);
   }
+  // Update after all enemy movement and animation, including hover and hit reactions.
+  for(const e of enemies)updateEnemyHealthBarPosition(e);
   updateSpaceMarineFacing();
   updateSwing(dt);
   updateCharacterSwing(dt);
