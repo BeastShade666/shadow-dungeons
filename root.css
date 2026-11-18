@@ -323,7 +323,7 @@ body:not(.menu-open) #hud{
  gap:5px;min-width:0;max-width:100%;margin-left:auto;text-align:right;
 }
 #stage{order:3;flex:0 0 100%;min-width:0;max-width:100%;font-size:.8em;line-height:1.2;overflow-wrap:anywhere}
-#hud #pauseRun,#hud #endRun{
+#hud #pauseRun,#hud #endRun,#hud #gameFullscreen{
  display:inline-flex;align-items:center;justify-content:center;flex:0 1 auto;
  min-width:0;min-height:44px;margin:0;padding:8px 10px;pointer-events:auto;
  touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
@@ -332,6 +332,12 @@ body:not(.menu-open) #hud{
 }
 #hud #pauseRun{order:1;border:1px solid #b9a5ff;background:linear-gradient(145deg,#5340a2,#30256a)}
 #hud #endRun{order:2;border:1px solid #ffc0b3;background:linear-gradient(145deg,#9c233b,#58162f)}
+#hud #gameFullscreen{order:3;border:1px solid #85dcd5;background:#234c59;min-width:40px}
+#hud #gameFullscreen[hidden],#fullscreenInstallHint[hidden]{display:none!important}
+#stage{order:4}
+html:fullscreen,html:fullscreen body{background:#0d0b18;margin:0;width:100%;height:100%;overflow:hidden}
+html:-webkit-full-screen,html:-webkit-full-screen body{background:#0d0b18;margin:0;width:100%;height:100%;overflow:hidden}
+#fullscreenInstallHint{padding:9px 10px;border:1px solid var(--menu-border);border-radius:9px}
 #hud #pauseRun:focus-visible,#hud #endRun:focus-visible,#resumeRun:focus-visible{outline:3px solid #fff3be;outline-offset:2px}
 body:not(.menu-open) #controls{
  position:fixed;inset:auto;left:calc(var(--game-left,0px) + env(safe-area-inset-left,0px) + 10px);
@@ -373,14 +379,15 @@ html[data-game-layout="landscape"] body:not(.menu-open) #hud{
 }
 html[data-game-layout="landscape"] #stats{padding:0;white-space:nowrap}
 html[data-game-layout="landscape"] #runHudActions{
- display:grid;grid-template-columns:minmax(0,1fr) auto auto;
+ display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;
  width:100%;margin:0;gap:5px;align-items:center;
 }
 html[data-game-layout="landscape"] #stage{
  order:0;text-align:center;font-size:clamp(10px,calc(var(--game-height,100vh) * .04),14px);
 }
 html[data-game-layout="landscape"] #hud #pauseRun,
-html[data-game-layout="landscape"] #hud #endRun{
+html[data-game-layout="landscape"] #hud #endRun,
+html[data-game-layout="landscape"] #hud #gameFullscreen{
  min-height:40px;padding:7px 10px;font-size:clamp(11px,calc(var(--game-height,100vh) * .042),15px);
 }
 html[data-game-layout="landscape"] body:not(.menu-open) #controls{gap:12px}
