@@ -905,7 +905,7 @@ function applyReaperV2AttackPose(){
  if(!running)return;
  const special=isReaperScytheActive();
  // The signature uses a single dedicated IK pose; do not overlay competing arm rotations.
- if(special||swing?.axe)return;
+ if(special||data.weapon==='axe')return;
  const basic=swing&&swing.duration>0;
  if(!special&&!basic)return;
  const phase=THREE.MathUtils.clamp((special?characterSwing.elapsed/characterSwing.duration:swing.elapsed/swing.duration)||0,0,1);
@@ -2555,12 +2555,12 @@ function battleAxeOrientation(gripWorld,edgeWorld,tangentWorld,edgeX,edgeY){
 // almost horizontally for a low hand. Instead use a mid-shaft carry grip.
 // This changes only the resting attachment, not the attacking weapon model.
 function battleAxeRestRotation(){
- const y=new THREE.Vector3(0,-.10,1).normalize();
+ const y=new THREE.Vector3(0,-.12,.99).normalize();
  const x=new THREE.Vector3(0,-1,0).addScaledVector(y,y.y).normalize();
  return hero.getWorldQuaternion(new THREE.Quaternion()).multiply(new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,new THREE.Vector3().crossVectors(x,y).normalize())));
 }
 // Permanent grip point along the axe shaft: never slide during a swing.
-const battleAxeGripY=.92;
+const battleAxeGripY=.78;
 function battleAxePalmAnchor(){
  switch(data.character){
   case 'werewolf':return new THREE.Vector3(.38,-1.11,.30);
@@ -2632,7 +2632,7 @@ function battleAxeHandFrame(hand,restQ){
  hand.traverse(b=>{
   if(!b.isBone||b===hand)return;
   const n=b.name.toLowerCase().replace(/[^a-z0-9]/g,'');
-  const key=['index','middle','ring','pinky','little'].find(k=>n.includes(k));if(!key)return;
+  const key=['index','middle','ring','pinky','little','thumb'].find(k=>n.includes(k));if(!key)return;
   const digit=key==='little'?'pinky':key;
   let depth=0;for(let p=b;p&&p!==hand;p=p.parent)depth++;
   if(!digits[digit]||depth<digits[digit].depth)digits[digit]={b,depth};
@@ -2640,48 +2640,101 @@ function battleAxeHandFrame(hand,restQ){
  const wrist=hand.getWorldPosition(new THREE.Vector3()),hq=hand.getWorldQuaternion(new THREE.Quaternion());
  const fore=reaperV2AttackBones.rightForearm||hand.parent;
  const finger=digits.middle?.b||digits.index?.b||digits.ring?.b;
+ const handLength=finger?wrist.distanceTo(finger.getWorldPosition(new THREE.Vector3())):.13;
+ const long=finger?finger.getWorldPosition(new THREE.Vector3()).sub(wrist).normalize():wrist.clone().sub(fore.getWorldPosition(new THREE.Vector3())).normalize();
+ if(long.lengthSq()<1e-6)long.set(0,-1,0);
  const expected=new THREE.Vector3(0,1,0).applyQuaternion(restQ);
- let palm,shaft;
- if(finger){
-  palm=wrist.clone().lerp(finger.getWorldPosition(new THREE.Vector3()),.72);
-  const i=digits.index?.b,p=digits.pinky?.b||digits.ring?.b;
-  if(i&&p)shaft=i.getWorldPosition(new THREE.Vector3()).sub(p.getWorldPosition(new THREE.Vector3())).normalize();
- }else palm=wrist.clone().addScaledVector(wrist.clone().sub(fore.getWorldPosition(new THREE.Vector3())).normalize(),.075);
- if(!shaft||shaft.lengthSq()<1e-6){
-  const direction=palm.clone().sub(wrist).normalize();
-  shaft=expected.clone().addScaledVector(direction,-expected.dot(direction)).normalize();
-  if(shaft.lengthSq()<1e-6)shaft=new THREE.Vector3(1,0,0);
- }
+ const i=digits.index?.b,p=digits.pinky?.b||digits.ring?.b;
+ const shaft=i&&p?i.getWorldPosition(new THREE.Vector3()).sub(p.getWorldPosition(new THREE.Vector3())).normalize():expected.clone();
+ shaft.addScaledVector(long,-shaft.dot(long));
+ if(shaft.lengthSq()<1e-6)shaft.set(1,0,0).addScaledVector(long,-long.x);
+ if(shaft.lengthSq()<1e-6)shaft.set(0,0,1).addScaledVector(long,-long.z);
+ shaft.normalize();
  if(shaft.dot(expected)<0)shaft.negate();
- frame={palm:hand.worldToLocal(palm.clone()),shaft:shaft.applyQuaternion(hq.invert()).normalize()};
+ const normal=new THREE.Vector3().crossVectors(shaft,long).normalize();
+ const basis=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(shaft,long,normal));
+ // Calibrate the palm in the hand's own space. Store the neutral arm as well
+ // so walking/idle mixer changes cannot replace the carrying wrist posture.
+ const palm=wrist.clone().addScaledVector(long,handLength*.72);
+ // A closed grip surrounds the shaft slightly inside the palm plane.
+ const inward=normal.clone();
+ const thumb=digits.thumb?.b;
+ if(thumb&&inward.dot(thumb.getWorldPosition(new THREE.Vector3()).sub(palm))<0)inward.negate();
+ if(finger)palm.addScaledVector(inward,Math.min(.035,handLength*.18));
+ const neutral=new Map();
+ for(const b of [reaperV2AttackBones.rightArm,reaperV2AttackBones.rightForearm,hand])if(b)neutral.set(b,b.quaternion.clone());
+ for(const entry of Object.values(digits))entry.b.traverse(b=>{if(b.isBone)neutral.set(b,b.quaternion.clone())});
+ frame={palm:hand.worldToLocal(palm.clone()),basis:hq.clone().invert().multiply(basis),neutral,digits,handLength};
  battleAxeHandFrames.set(hand,frame);return frame;
 }
-function battleAxeAlignHand(hand,q,frame,maxWrist){
- const fore=reaperV2AttackBones.rightForearm,wanted=new THREE.Vector3(0,1,0).applyQuaternion(q).normalize();
- let current=frame.shaft.clone().applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion())).normalize();
+function battleAxeNeutralArm(frame){
+ for(const [bone,q] of frame.neutral){rememberReaperV2Bone(bone);bone.quaternion.copy(q)}
+ for(const bone of frame.neutral.keys())bone.updateWorldMatrix(true,true);
+}
+// Align the palm's real across-knuckle axis to the shaft, and keep the
+// length of the hand in the direction of the forearm. Do not use the scythe
+// rest calibration or infer the axe orientation from changing wrist axes.
+function battleAxeHandOrientation(hand,axeQ,frame){
+ const shaft=new THREE.Vector3(0,1,0).applyQuaternion(axeQ).normalize();
+ const fore=reaperV2AttackBones.rightForearm;
+ const wrist=hand.getWorldPosition(new THREE.Vector3());
+ const arm=wrist.clone().sub((fore||hand.parent).getWorldPosition(new THREE.Vector3())).normalize();
+ const long=arm.clone().addScaledVector(shaft,-arm.dot(shaft));
+ if(long.lengthSq()<1e-6)long.copy(new THREE.Vector3(1,0,0).applyQuaternion(axeQ));
+ long.normalize();
+ const normal=new THREE.Vector3().crossVectors(shaft,long).normalize();
+ const basis=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(shaft,long,normal));
+ const desired=basis.multiply(frame.basis.clone().invert());
+ // Rotate the forearm about its own axis first. This is pronation, not a
+ // sideways wrist bend, and does not change elbow/wrist positions.
  if(fore){
-  const axis=hand.getWorldPosition(new THREE.Vector3()).sub(fore.getWorldPosition(new THREE.Vector3())).normalize();
-  const u=current.clone().addScaledVector(axis,-current.dot(axis)),v=wanted.clone().addScaledVector(axis,-wanted.dot(axis));
+  const current=new THREE.Vector3(1,0,0).applyQuaternion(frame.basis).applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion()));
+  const u=current.addScaledVector(arm,-current.dot(arm)),v=shaft.clone().addScaledVector(arm,-shaft.dot(arm));
   if(u.lengthSq()>1e-6&&v.lengthSq()>1e-6){
    u.normalize();v.normalize();
-   const twist=THREE.MathUtils.clamp(Math.atan2(axis.dot(new THREE.Vector3().crossVectors(u,v)),u.dot(v)),-1.25,1.25);
-   battleAxeRotateBone(fore,new THREE.Quaternion().setFromAxisAngle(axis,twist));
-   current=frame.shaft.clone().applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion())).normalize();
+   const twist=Math.atan2(arm.dot(new THREE.Vector3().crossVectors(u,v)),u.dot(v));
+   battleAxeRotateBone(fore,new THREE.Quaternion().setFromAxisAngle(arm,twist));
   }
  }
- const delta=new THREE.Quaternion().setFromUnitVectors(current,wanted),angle=new THREE.Quaternion().angleTo(delta);
- if(angle>.001)battleAxeRotateBone(hand,new THREE.Quaternion().slerp(delta,Math.min(1,maxWrist/angle)));
- return frame.shaft.clone().applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion())).normalize();
+ rememberReaperV2Bone(hand);
+ hand.quaternion.copy(hand.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(desired)).normalize();
+ hand.updateWorldMatrix(true,true);
 }
-function battleAxeGripRotation(desired,shaft){
- const x=new THREE.Vector3(1,0,0).applyQuaternion(desired);
- x.addScaledVector(shaft,-x.dot(shaft));
- if(x.lengthSq()<1e-6)x.set(0,-1,0).addScaledVector(shaft,shaft.y);
- x.normalize();
- return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,shaft,new THREE.Vector3().crossVectors(x,shaft).normalize()));
+function battleAxeCloseFingers(hand,frame,grip,axeQ){
+ // Optional: rigs without individual finger bones still use the palm socket.
+ const shaft=new THREE.Vector3(0,1,0).applyQuaternion(axeQ);
+ for(const [name,entry] of Object.entries(frame.digits)){
+  if(name==='thumb')continue;
+  let bone=entry.b;
+  for(let joint=0;joint<3&&bone;joint++){
+   const next=bone.children.find(b=>b.isBone);
+   if(!next)break;
+   const p=bone.getWorldPosition(new THREE.Vector3()),end=next.getWorldPosition(new THREE.Vector3());
+   const current=end.sub(p);
+   const closest=grip.clone().addScaledVector(shaft,p.clone().sub(grip).dot(shaft));
+   const toward=closest.sub(p);
+   if(current.lengthSq()>1e-8&&toward.lengthSq()>1e-8){
+    const delta=new THREE.Quaternion().setFromUnitVectors(current.normalize(),toward.normalize());
+    const angle=new THREE.Quaternion().angleTo(delta);
+    if(angle>.001)battleAxeRotateBone(bone,new THREE.Quaternion().slerp(delta,Math.min(.8,.85/angle)));
+   }
+   bone=next;
+  }
+ }
 }
-// One final pose writer per frame. Both idle and swing use the same palm
-// and shaft origin, so a refresh or state transition cannot move the grip.
+const axePoseTest=new URLSearchParams(location.search).has('axeTest');
+let axePoseStatus=null;
+function battleAxeReport(held,grip,frame){
+ if(!axePoseTest)return;
+ if(!axePoseStatus){
+  axePoseStatus=document.createElement('div');
+  axePoseStatus.style.cssText='position:fixed;top:76px;left:8px;z-index:10000;background:#151922df;color:#bcf0ce;padding:6px 9px;font:11px monospace;border-radius:5px;pointer-events:none';
+  document.body.appendChild(axePoseStatus);
+ }
+ const actual=held.localToWorld(new THREE.Vector3(0,battleAxeGripY,0));
+ const edge=new THREE.Vector3(1,0,0).applyQuaternion(held.getWorldQuaternion(new THREE.Quaternion()));
+ axePoseStatus.textContent='AXE R4 | '+data.character+' | '+(swing?.axe?'SWING':'CARRY')+' | palm error '+actual.distanceTo(grip).toFixed(4)+' | edge Y '+edge.y.toFixed(2)+' | fingers '+(frame?Object.keys(frame.digits).length:'n/a');
+}
 function updateBattleAxePose(){
  if(!running||paused||data.weapon!=='axe'||isReaperScytheActive())return;
  const held=data.character==='bellshade'?bellStaff:weaponGroup,parent=held.parent;
@@ -2690,15 +2743,25 @@ function updateBattleAxePose(){
  const rigHand=data.character==='reaper2'&&reaperV2IsRigged?reaperV2RightHand:null;
  const pivot=battleAxeIsArmPivot(parent),anchor=pivot?battleAxePalmAnchor():null;
  const shoulder=rigHand?(reaperV2AttackBones.rightArm||rigHand.parent):pivot?parent:null;
+ const rest=battleAxeRestRotation();
+ let frame=rigHand?battleAxeHandFrame(rigHand,rest):null;
+ if(frame)battleAxeNeutralArm(frame);
  const reach=rigHand?battleAxeRigReach(rigHand):pivot?anchor.length()*Math.abs(parent.getWorldScale(new THREE.Vector3()).y):0;
- const rest=battleAxeRestRotation(),carry=battleAxeCarryTarget(held,shoulder,reach);
+ const carry=battleAxeCarryTarget(held,shoulder,reach);
  const a=swing?.axe?swing:null,t=a?THREE.MathUtils.clamp(a.elapsed/a.duration,0,1):0;
  const pose=a?battleAxePose(t,a.arc/2,a.side||1):null;
  const blend=a?(t<.22?1-frontScytheEase(t/.22):pose.recover):1;
  const target=pose?hero.localToWorld(pose.grip.clone()).lerp(carry,blend):carry;
- let grip,frame;
+ if(pose){
+  // The hand passes IN FRONT of the chest when moving across the center.
+  // It never takes a straight shortcut through the torso during recovery.
+  const p=hero.worldToLocal(target.clone());
+  const nearCenter=1-frontScytheEase(Math.abs(p.x)/.85);
+  p.z=Math.max(p.z,.70*nearCenter+.24*(1-nearCenter));
+  target.copy(hero.localToWorld(p));
+ }
+ let grip;
  if(rigHand){
-  frame=battleAxeHandFrame(rigHand,rest);
   const delta=rigHand.localToWorld(frame.palm.clone()).sub(rigHand.getWorldPosition(new THREE.Vector3()));
   battleAxeAimRig(rigHand,target.clone().sub(delta));
   grip=rigHand.localToWorld(frame.palm.clone());
@@ -2711,16 +2774,24 @@ function updateBattleAxePose(){
   q=battleAxeOrientation(grip,edge,tangent,data.character==='bellshade'?.90:.78,(data.character==='bellshade'?1.37:1.34)-battleAxeGripY).slerp(rest,blend);
  }
  if(rigHand){
-  const shaft=battleAxeAlignHand(rigHand,q,frame,.38+(1-blend)*.24);
+  battleAxeHandOrientation(rigHand,q,frame);
+  // Second solve uses the rotated palm offset, not the wrist origin. This
+  // corrects for the short lever between the wrist and the actual grip.
+  const offset=rigHand.localToWorld(frame.palm.clone()).sub(rigHand.getWorldPosition(new THREE.Vector3()));
+  battleAxeAimRig(rigHand,target.clone().sub(offset));
+  battleAxeHandOrientation(rigHand,q,frame);
   grip=rigHand.localToWorld(frame.palm.clone());
-  q.slerp(battleAxeGripRotation(q,shaft),blend);
+  battleAxeCloseFingers(rigHand,frame,grip,q);
  }
+ // A single fixed hero-relative pose determines the blade. The REAL palm
+ // determines translation. No feedback from the previous weapon transform.
  const scale=held.getWorldScale(new THREE.Vector3());
  const origin=grip.clone().sub(new THREE.Vector3(0,battleAxeGripY*scale.y,0).applyQuaternion(q));
  parent.updateWorldMatrix(true,false);
  held.position.copy(parent.worldToLocal(origin));
  held.quaternion.copy(parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q));
  held.updateWorldMatrix(true,true);
+ battleAxeReport(held,grip,frame);
 }
 function updateFrontScythePose(){
  if(!isReaperScytheActive())return;
