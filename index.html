@@ -1922,6 +1922,7 @@ let willoSanctuary=null;
 function clearWilloSanctuary(){
  if(!willoSanctuary)return;
  scene.remove(willoSanctuary.group);
+ willoSanctuary.nameElement.remove();
  willoSanctuary.labelTexture.dispose();
  willoSanctuary.group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials)m.dispose()}});
  willoSanctuary=null;
@@ -1967,8 +1968,13 @@ function createWilloSanctuary(){
  label.position.set(0,4.5,0);label.scale.set(4.5,1.125,1);
  group.add(label);
 
+ // Screen-space label avoids depth occlusion and remains legible on mobile.
+ const nameElement=document.createElement('div');
+ nameElement.textContent='🦄 Princess Willo';
+ nameElement.style.cssText='position:fixed;left:0;top:0;z-index:15;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);font:bold clamp(16px,4vw,26px) system-ui,sans-serif;color:#fff2ff;text-shadow:-2px -2px 0 #442257,2px -2px 0 #442257,-2px 2px 0 #442257,2px 2px 0 #442257,0 0 12px #ff93e5;background:#342049bd;border:1px solid #f5c6ff;border-radius:16px;padding:5px 12px;display:none';
+ document.body.appendChild(nameElement);
  group.position.set(0,0,0);scene.add(group);
- willoSanctuary={group,ring,sparkle,labelTexture,healed:false,finishTimer:0};
+ willoSanctuary={group,ring,sparkle,labelTexture,nameElement,healed:false,finishTimer:0};
 }
 function updateWilloSanctuary(dt){
  const w=willoSanctuary;
@@ -3379,6 +3385,16 @@ function frame(){
  camera.position.lerp(new THREE.Vector3(hero.position.x+Math.sin(cameraYaw)*flat,1+Math.sin(cameraPitch)*orbitDistance,hero.position.z+Math.cos(cameraYaw)*flat),.12);
  camera.lookAt(hero.position.x,1,hero.position.z);
  for(const e of enemies)if(e.healthBar)e.healthBar.bar.quaternion.copy(camera.quaternion);
+ if(willoSanctuary){
+  const pos=new THREE.Vector3(0,4.1,0).project(camera);
+  const rect=renderer.domElement.getBoundingClientRect();
+  const visible=running&&pos.z>-1&&pos.z<1&&Math.abs(pos.x)<1.1&&Math.abs(pos.y)<1.1;
+  willoSanctuary.nameElement.style.display=visible?'block':'none';
+  if(visible){
+   willoSanctuary.nameElement.style.left=(rect.left+(pos.x+1)*.5*rect.width)+'px';
+   willoSanctuary.nameElement.style.top=(rect.top+(1-pos.y)*.5*rect.height)+'px';
+  }
+ }
  renderer.render(scene,camera);
 }
 frame();
