@@ -1096,7 +1096,7 @@ function buildWeapon(){
   part(new THREE.BoxGeometry(.54,.12,.18),0xc49a43,0,-.17,0);
   part(new THREE.CylinderGeometry(.065,.07,.42,8),0x553b36,0,-.42,0);
  }else if(type==='axe'){
-  part(new THREE.CylinderGeometry(.038,.043,1.7,12),0x6b4930,0,.35,0);
+  part(new THREE.CylinderGeometry(.034,.038,1.7,12),0x6b4930,0,.35,0);
   part(new THREE.BoxGeometry(.76,.57,.17),0xaebcc7,.28,1.04,0);
   // Beveled steel edge: narrow to a real cutting line on local +X.
   const bevel=new THREE.BufferGeometry();
@@ -1650,7 +1650,7 @@ function monster(kind){
 // Procedural floor themes and lightweight scenery; regenerated each floor.
 // Visible build marker distinguishes the new wooden-wall version from stale tabs.
 const buildTag=document.createElement('span');
-buildTag.textContent='RELAXED GRIP · BUILD 2026-11-17G';
+buildTag.textContent='NATURAL CARRY · BUILD 2026-11-17H';
 buildTag.style.cssText='position:fixed;left:8px;bottom:8px;z-index:8;font:10px system-ui;color:#c5a883;background:#241b15c9;padding:3px 6px;border-radius:4px;pointer-events:none';
 document.body.appendChild(buildTag);
 const terrainGroup=new THREE.Group();scene.add(terrainGroup);
@@ -2699,8 +2699,10 @@ function battleAxeTorsoFrame(){
   toLocal:p=>p.clone().sub(origin).applyQuaternion(rotation.clone().invert())};
 }
 function battleAxeRestRotation(torso){
- const y=data.character==='reaper2'?new THREE.Vector3(0,-.50,.866).normalize():new THREE.Vector3(0,-.12,.99).normalize();
- const x=new THREE.Vector3(0,-1,0).addScaledVector(y,y.y).normalize();
+ const relaxed=data.character==='reaper2';
+ const y=relaxed?new THREE.Vector3(.08,-.78,.62).normalize():new THREE.Vector3(0,-.12,.99).normalize();
+ const x=relaxed?new THREE.Vector3(-.18,-.98,-.05):new THREE.Vector3(0,-1,0);
+ x.addScaledVector(y,-x.dot(y)).normalize();
  return torso.rotation.clone().multiply(new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,new THREE.Vector3().crossVectors(x,y).normalize())));
 }
 // Permanent grip point along the axe shaft: never slide during a swing.
@@ -2719,13 +2721,13 @@ function battleAxeIsArmPivot(parent){
 function battleAxeCarryTarget(held,shoulder,reach,torso){
  const scale=held.getWorldScale(new THREE.Vector3());
  const relaxed=data.character==='reaper2';
- const minimumY=relaxed? .12+.78*.866*Math.abs(scale.x)+.56*.50*Math.abs(scale.y):.13+(data.character==='bellshade'?.90:.78)*Math.abs(scale.x)+.08*Math.abs(scale.y);
- const clearance={reaper:.91,reaper2:.72,werewolf:1.10,kitsune:.86,bellshade:.80,spacemarine:.90}[data.character]||.96;
+ const minimumY=relaxed?.10+.74*Math.abs(scale.x)+.18*Math.abs(scale.y):.13+(data.character==='bellshade'?.90:.78)*Math.abs(scale.x)+.08*Math.abs(scale.y);
+ const clearance={reaper:.91,reaper2:.58,werewolf:1.10,kitsune:.86,bellshade:.80,spacemarine:.90}[data.character]||.96;
  const p=shoulder?torso.toLocal(shoulder.getWorldPosition(new THREE.Vector3())):new THREE.Vector3(.55,1.75,0);
  const side=p.x<-.05?-1:1;
- const dx=reach>0?Math.min(Math.max(relaxed?.045:.14,clearance-Math.abs(p.x)),reach*(relaxed?.19:.38)):Math.max(.14,clearance-Math.abs(p.x));
- const dz=(relaxed?.18:.24)-p.z;
- const dy=Math.max(minimumY-p.y,reach>0?-Math.sqrt(Math.max(.04,(reach*(relaxed?.95:.97))**2-dx*dx-dz*dz)):-.78);
+ const dx=reach>0?Math.min(Math.max(relaxed?.03:.14,clearance-Math.abs(p.x)),reach*(relaxed?.16:.38)):Math.max(relaxed?.03:.14,clearance-Math.abs(p.x));
+ const dz=(relaxed?.12:.24)-p.z;
+ const dy=Math.max(minimumY-p.y,reach>0?-Math.sqrt(Math.max(.04,(reach*(relaxed?.93:.97))**2-dx*dx-dz*dz)):(relaxed?-.88:-.78));
  return torso.toWorld(new THREE.Vector3(p.x+side*dx,p.y+dy,p.z+dz));
 }
 function battleAxeRigReach(hand){
@@ -2761,7 +2763,7 @@ function battleAxeAimRig(hand,target,torso){
  const length=THREE.MathUtils.clamp(d.length(),Math.abs(l1-l2)+.001,(l1+l2)*.985);
  d.normalize();
  const side=torso.toLocal(a).x<0?-1:1;
- const pole=new THREE.Vector3(side*(swing?.axe?.45:.12),.15,-1).applyQuaternion(torso.rotation);
+ const pole=new THREE.Vector3(side*(swing?.axe?.45:.04),swing?.axe?.15:.06,swing?.axe?-1:-.65).applyQuaternion(torso.rotation);
  pole.addScaledVector(d,-pole.dot(d));
  if(pole.lengthSq()<1e-6)pole.set(0,1,0).addScaledVector(d,-d.y);
  pole.normalize();
@@ -2847,7 +2849,7 @@ function prepareAxeMeshGrip(hand,frame){
  if(palmZ.length<8)return;
  palmZ.sort((a,b)=>a-b);
  const mid=palmZ[Math.floor(palmZ.length*.50)],surface=palmZ[Math.floor(palmZ.length*.85)];
- const shaftRadius=.041/worldScale;
+ const shaftRadius=.037/worldScale;
  const R=Math.max(shaftRadius+(surface-mid),length*.13);
  const centerZ=surface+shaftRadius+.005/worldScale,tipAngle=2.65,entries=[];
  for(const {p,g,fromHand,rows} of groups){
@@ -2963,7 +2965,7 @@ function battleAxeReport(held,grip,frame){
  }
  const actual=held.localToWorld(new THREE.Vector3(0,battleAxeGripY,0));
  const edge=new THREE.Vector3(1,0,0).applyQuaternion(held.getWorldQuaternion(new THREE.Quaternion()));
- axePoseStatus.textContent='AXE R8 | '+(held.parent===reaperV2RightHand?'HAND LOCK':'FALLBACK')+' | torso '+battleAxeTorsoNode().name+' | '+data.character+' | '+(swing?.axe?'SWING':'CARRY')+' | palm error '+actual.distanceTo(grip).toFixed(4)+' | edge Y '+edge.y.toFixed(2)+' | grip '+(frame?.meshGrip?'mesh curl':frame?Object.keys(frame.digits).length+' bones':'n/a');
+ axePoseStatus.textContent='AXE R9 | '+(held.parent===reaperV2RightHand?'HAND LOCK':'FALLBACK')+' | torso '+battleAxeTorsoNode().name+' | '+data.character+' | '+(swing?.axe?'SWING':'CARRY')+' | palm error '+actual.distanceTo(grip).toFixed(4)+' | edge Y '+edge.y.toFixed(2)+' | grip '+(frame?.meshGrip?'mesh curl':frame?Object.keys(frame.digits).length+' bones':'n/a');
 }
 function updateBattleAxePose(){
  if(!running||paused||data.weapon!=='axe'||isReaperScytheActive()){setAxeMeshGrip(null);return;}
@@ -3531,7 +3533,7 @@ function frame(){
   hero.position.set(0,0,0);hero.rotation.y=0;running=true;
   document.body.classList.remove('menu-open');$('panel').style.display='none';$('controls').style.display='flex';
   cameraYaw=.85;cameraPitch=.25;
-  const label=document.createElement('div');label.textContent='AXE INSPECTION R8 · Drag to orbit · Attack to test';label.style.cssText='position:fixed;top:105px;left:8px;z-index:20;color:#fff;background:#101019d9;border-radius:6px;padding:6px;font:12px system-ui;pointer-events:none';document.body.appendChild(label);
+  const label=document.createElement('div');label.textContent='AXE INSPECTION R9 · Drag to orbit · Attack to test';label.style.cssText='position:fixed;top:105px;left:8px;z-index:20;color:#fff;background:#101019d9;border-radius:6px;padding:6px;font:12px system-ui;pointer-events:none';document.body.appendChild(label);
   const turn=document.createElement('button');turn.textContent='TEST TORSO TURN';turn.style.cssText='position:fixed;top:137px;left:8px;z-index:10001;padding:8px;background:#252336;color:white;border:1px solid #999;border-radius:6px;font:12px system-ui;touch-action:manipulation';turn.addEventListener('pointerdown',e=>e.stopPropagation());turn.addEventListener('click',()=>{axeTorsoTest=!axeTorsoTest;turn.textContent=axeTorsoTest?'STOP TORSO TURN':'TEST TORSO TURN'});document.body.appendChild(turn);
   refresh();
  }
