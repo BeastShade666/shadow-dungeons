@@ -1496,7 +1496,7 @@ function refresh(){
  $('reaperV2Credit').hidden=data.character!=='reaper2';
  $('wallet').textContent='Gold: '+data.gold;
  $('stats').textContent='❤️ '+Math.max(0,Math.ceil(hp))+'/'+maxHealth()+'  🪙 '+data.gold;
- $('stage').textContent='Floor '+level+' · '+(['Crypt','Goblin Warrens','Stone Catacombs','Shadow Realm','Titan Nest','Abyss'][Math.floor((level-1)/10)%6])+(bossLoot?' · 🧰 Collect boss loot':level%3===0?' · BOSS':' · Monsters '+enemies.length);
+ $('stage').textContent='Floor '+level+' · '+(['Crypt','Goblin Warrens','Stone Catacombs','Shadow Realm','Titan Nest','Abyss'][Math.floor((level-1)/10)%6])+(isWilloFloor()?' · 🦄 Princess Willo · Healing Sanctuary':bossLoot?' · 🧰 Collect boss loot':level%3===0?' · BOSS':' · Monsters '+enemies.length);
  updateCharacterPortrait();
 }
 function monster(kind){
@@ -1914,9 +1914,67 @@ function spawnBossLoot(position){
  bossLoot={group,marker,age:0,floor:level};
  refresh();
 }
+// Every fifteenth floor is a peaceful sanctuary, never a boss encounter.
+const isWilloFloor=()=>level>0&&level%15===0;
+let willoSanctuary=null;
+function clearWilloSanctuary(){
+ if(!willoSanctuary)return;
+ scene.remove(willoSanctuary.group);
+ willoSanctuary.group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials)m.dispose()}});
+ willoSanctuary=null;
+}
+function createWilloSanctuary(){
+ clearWilloSanctuary();
+ const group=new THREE.Group();
+ const add=(geometry,color,x,y,z,opts={})=>{
+  const material=new THREE.MeshStandardMaterial({color,roughness:opts.roughness??.75,metalness:opts.metalness??0,emissive:opts.emissive??0x000000,emissiveIntensity:opts.emissiveIntensity??0});
+  const part=new THREE.Mesh(geometry,material);part.position.set(x,y,z);group.add(part);return part;
+ };
+ // Fountain is placed in the center so the player can approach from any direction.
+ const pool=add(new THREE.CylinderGeometry(3.1,3.3,.38,28),0xb2a7c1,0,.16,0);
+ add(new THREE.CylinderGeometry(2.78,2.78,.08,28),0x4bb9e6,0,.39,0,{metalness:.3,emissive:0x087caa,emissiveIntensity:.6});
+ const ring=add(new THREE.TorusGeometry(2.75,.09,8,40),0xe3d2fa,0,.48,0,{emissive:0x8860cb,emissiveIntensity:.4});ring.rotation.x=Math.PI/2;
+ const pedestal=add(new THREE.CylinderGeometry(.85,1.15,.65,12),0xe2c8e5,0,.8,0);
+ // Princess Willo: small ivory unicorn with pink mane, golden horn and tiara.
+ const body=add(new THREE.SphereGeometry(.72,12,10),0xf5f0e9,0,1.78,0);body.scale.set(1.12,.72,.65);
+ for(const x of [-.48,.48])for(const z of [-.32,.32])add(new THREE.CylinderGeometry(.13,.17,.75,8),0xe8d8e5,x,1.23,z);
+ const neck=add(new THREE.CylinderGeometry(.24,.36,.95,10),0xf5f0e9,0,2.24,.38);neck.rotation.x=-.28;
+ const head=add(new THREE.SphereGeometry(.42,12,10),0xf8f1e9,0,2.7,.64);head.scale.set(.95,.8,1.15);
+ for(const x of [-.23,.23]){
+  const ear=add(new THREE.ConeGeometry(.14,.4,7),0xf7d4e8,x,3.12,.5);ear.rotation.z=x*.4;
+  add(new THREE.SphereGeometry(.065,8,6),0x362e60,x,2.74,1.02);
+ }
+ const horn=add(new THREE.ConeGeometry(.15,.82,10),0xffd875,0,3.32,.87,{metalness:.5,emissive:0xa27a22,emissiveIntensity:.3});
+ horn.rotation.x=.25;
+ for(let i=0;i<5;i++){const tuft=add(new THREE.SphereGeometry(.21,8,6),i%2?0xf4a6d4:0xc4a2f4,Math.sin(i*1.4)*.25,2.94-i*.14,.42-i*.1);tuft.scale.set(.8,.65,1.2)}
+ for(let i=0;i<4;i++){const tail=add(new THREE.SphereGeometry(.19,8,6),i%2?0xf4a6d4:0xc4a2f4,.1+Math.sin(i)*.15,1.95-i*.17,-.7-i*.12);tail.scale.set(.7,.8,1.2)}
+ const crown=add(new THREE.TorusGeometry(.25,.055,6,10),0xffd875,0,3.12,.56,{metalness:.6});crown.rotation.x=Math.PI/2;
+ for(const x of [-.19,0,.19])add(new THREE.ConeGeometry(.065,.23,6),0xffdf7c,x,3.28,.56);
+ const sparkle=add(new THREE.OctahedronGeometry(.19),0xa6f5ff,0,3.75,0,{emissive:0x54dfff,emissiveIntensity:1});
+ group.position.set(0,0,0);scene.add(group);
+ willoSanctuary={group,ring,sparkle,healed:false,finishTimer:0};
+}
+function updateWilloSanctuary(dt){
+ const w=willoSanctuary;
+ if(!w||!running)return;
+ w.ring.rotation.z+=dt*.18;
+ w.sparkle.rotation.y+=dt;
+ w.sparkle.position.y=3.75+Math.sin(performance.now()*.002)*.12;
+ if(w.healed){
+  w.finishTimer-=dt;
+  if(w.finishTimer<=0){clearWilloSanctuary();advanceDungeonFloor()}
+  return;
+ }
+ if(Math.hypot(hero.position.x,hero.position.z)<2.9){
+  const before=hp;hp=Math.min(maxHealth(),hp+50);
+  w.healed=true;w.finishTimer=3.2;
+  $('message').textContent='Princess Willo blesses you with healing water! +'+Math.round(hp-before)+' health. Next floor in a moment…';
+  refresh();
+ }
+}
 function advanceDungeonFloor(){
  level++;recordLeaderboardFloor(level);
- hp=Math.min(maxHealth(),hp+25);
+ if((level%15)!==0)hp=Math.min(maxHealth(),hp+25);
  clearBellVines();
  clearPlayerProjectiles();
  for(const b of bossBolts)scene.remove(b.obj);
@@ -1943,10 +2001,12 @@ function updateBossLoot(dt){
  advanceDungeonFloor();
 }
 function spawn(){
+ clearWilloSanctuary();
  clearBossLoot();
  terrainForFloor();
  placeHeroForFloor();
  for(const e of enemies){removeEnemyHealthBar(e);scene.remove(e.obj)}enemies=[];
+ if(isWilloFloor()){createWilloSanctuary();refresh();return}
  const bossFloor=level%3===0,count=bossFloor?1:Math.min(3+level,10);
  // New monster roster every ten floors, while bosses remain every third floor.
  const tier=Math.floor((level-1)/10);
@@ -3180,6 +3240,7 @@ function frame(){
   updateBossBolts(dt);
   updateBossExplosions(dt);
   updateBossLoot(dt);
+  updateWilloSanctuary(dt);
   updateSpecialEffects(dt);
   refresh();
  }
