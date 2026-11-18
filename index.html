@@ -1476,8 +1476,15 @@ function monster(kind){
 const terrainGroup=new THREE.Group();scene.add(terrainGroup);
 const obstacles=[];
 const dungeonWallSegments=[];
+const dungeonDoorways=[];
+function clearOfDoorways(x,z,r=0){
+ return dungeonDoorways.every(d=>{
+  const along=d.axis==='x'?z:x,across=d.axis==='x'?x:z;
+  return !(Math.abs(across-d.fixed)<d.depth+r&&along>d.start-r&&along<d.end+r);
+ });
+}
 function terrainForFloor(){
- terrainGroup.clear();obstacles.length=0;dungeonWallSegments.length=0;
+ terrainGroup.clear();obstacles.length=0;dungeonWallSegments.length=0;dungeonDoorways.length=0;
  const boss=level%3===0,theme=(level-1)%6;
  const palette=[
   {ground:0x30283d,stone:0x655b77,accent:0x9357d5,crate:0x6b4732},
@@ -1531,6 +1538,8 @@ function terrainForFloor(){
    }
   };
   const passage=(axis,fixed,center,width)=>{
+   // Reserve the full opening and approach on both sides for unobstructed movement.
+   dungeonDoorways.push({axis,fixed,start:center-width/2,end:center+width/2,depth:2.25});
    const beam=axis==='x'
     ?add(new THREE.BoxGeometry(.68,.62,width),palette.accent,fixed,wallHeight+.3,center)
     :add(new THREE.BoxGeometry(width,.62,.68),palette.accent,center,wallHeight+.3,fixed);
@@ -1574,7 +1583,7 @@ function terrainForFloor(){
  // Keep all scenery footprints separate, including non-solid decorations.
  const sceneryFootprints=[];
  const canPlaceScenery=(x,z,r)=>Math.abs(x)+r<16&&Math.abs(z)+r<16&&
-  Math.hypot(x,z)>4.5+r&&
+  Math.hypot(x,z)>4.5+r&&clearOfDoorways(x,z,r)&&
   sceneryFootprints.every(p=>Math.hypot(x-p.x,z-p.z)>=p.r+r+.35)&&
   obstacles.every(o=>Math.hypot(x-o.x,z-o.z)>=o.r+r+.35);
  const reserveScenery=(x,z,r)=>sceneryFootprints.push({x,z,r});
@@ -1704,7 +1713,7 @@ function placeHeroForFloor(){
  const candidates=[];
  for(let i=0;i<100;i++){
   const x=(rand()-.5)*27,z=(rand()-.5)*27;
-  if(navClear(x,z,.85))candidates.push({x,z});
+  if(navClear(x,z,.85)&&clearOfDoorways(x,z,.85))candidates.push({x,z});
  }
  // Prefer a different area each floor, while leaving room for enemies to spawn.
  const point=candidates[0]||({x:0,z:0});
@@ -1719,14 +1728,14 @@ function safeMonsterSpawn(index,total,occupied){
  for(let i=0;i<180;i++){
   const x=(rand()-.5)*29,z=(rand()-.5)*29;
   if(Math.hypot(x-heroX,z-heroZ)<5.5)continue;
-  if(!navClear(x,z,.85))continue;
+  if(!navClear(x,z,.85)||!clearOfDoorways(x,z,.85))continue;
   if(occupied.some(p=>Math.hypot(x-p.x,z-p.z)<2.2))continue;
   return {x,z};
  }
  // A crowded floor should still spawn enemies when safe spots exist.
  for(let i=0;i<160;i++){
   const x=(rand()-.5)*28,z=(rand()-.5)*28;
-  if(Math.hypot(x-heroX,z-heroZ)<3.5||!navClear(x,z,.75))continue;
+  if(Math.hypot(x-heroX,z-heroZ)<3.5||!navClear(x,z,.75)||!clearOfDoorways(x,z,.75))continue;
   if(occupied.every(p=>Math.hypot(x-p.x,z-p.z)>1.5))return {x,z};
  }
  return null;
