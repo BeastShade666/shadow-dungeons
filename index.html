@@ -2484,10 +2484,13 @@ function battleAxeOrientation(gripWorld,edgeWorld,tangentWorld,edgeX,edgeY){
 // This changes only the resting attachment, not the attacking weapon model.
 function battleAxeRestRotation(gripWorld,held){
  const side=Math.sign(hero.worldToLocal(gripWorld.clone()).x)||1;
- const axisY=new THREE.Vector3(side*.04,-.98,-.18).normalize();
- // Keep the shaft nearly vertical and roll the outward blade slightly down.
- const outward=new THREE.Vector3(side*.85,0,.65);
- const axisX=outward.clone().addScaledVector(axisY,-outward.dot(axisY)).normalize();
+ // Restore the approved near-vertical carry plane, without twisting the blade forward.
+ const baseY=new THREE.Vector3(side*.22,-.96,-.17).normalize();
+ const baseX=new THREE.Vector3(side,0,0).addScaledVector(baseY,-side*baseY.x).normalize();
+ // A small in-plane tilt lowers the cutting edge, preserving the blade's facing.
+ const tilt=THREE.MathUtils.degToRad(12);
+ const axisX=baseX.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(baseY,Math.sin(tilt));
+ const axisY=baseY.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(baseX,-Math.sin(tilt));
  const axisZ=new THREE.Vector3().crossVectors(axisX,axisY).normalize();
  const local=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(axisX,axisY,axisZ));
  return hero.getWorldQuaternion(new THREE.Quaternion()).multiply(local);
