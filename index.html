@@ -2484,9 +2484,10 @@ function battleAxeOrientation(gripWorld,edgeWorld,tangentWorld,edgeX,edgeY){
 // This changes only the resting attachment, not the attacking weapon model.
 function battleAxeRestRotation(gripWorld,held){
  const side=Math.sign(hero.worldToLocal(gripWorld.clone()).x)||1;
- const axisY=new THREE.Vector3(side*.22,-.96,-.17).normalize();
- // Cutting edge faces away from the leg, not into the character.
- const axisX=new THREE.Vector3(side,0,0).addScaledVector(axisY,-side*axisY.x).normalize();
+ const axisY=new THREE.Vector3(side*.04,-.98,-.18).normalize();
+ // Keep the shaft nearly vertical and roll the outward blade slightly down.
+ const outward=new THREE.Vector3(side*.85,0,.65);
+ const axisX=outward.clone().addScaledVector(axisY,-outward.dot(axisY)).normalize();
  const axisZ=new THREE.Vector3().crossVectors(axisX,axisY).normalize();
  const local=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(axisX,axisY,axisZ));
  return hero.getWorldQuaternion(new THREE.Quaternion()).multiply(local);
