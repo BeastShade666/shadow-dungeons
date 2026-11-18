@@ -194,7 +194,17 @@ menuPanel.addEventListener('click',event=>{
 },true);
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x141020);scene.fog=new THREE.Fog(0x141020,18,43);
 const camera=new THREE.PerspectiveCamera(65,1,.1,100);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.prepend(renderer.domElement);
+const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'low-power'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));document.body.prepend(renderer.domElement);
+// Handle graphics context loss instead of leaving a blank screen on Android.
+let webglUnavailable=false;
+const graphicsNotice=document.createElement('div');
+graphicsNotice.style.cssText='position:fixed;inset:0;z-index:100000;background:#171020;color:#fff;display:none;align-items:center;justify-content:center;flex-direction:column;gap:15px;padding:24px;text-align:center;font:18px system-ui';
+graphicsNotice.innerHTML='<strong>Graphics interrupted</strong><span>The phone paused the 3D graphics. Reload if the screen stays blank.</span>';
+const restoreButton=document.createElement('button');restoreButton.textContent='Reload game';restoreButton.style.cssText='font:700 17px system-ui;padding:12px 22px;border-radius:12px;background:#a56bdb;color:white;border:0';
+restoreButton.onclick=()=>location.reload();graphicsNotice.appendChild(restoreButton);document.body.appendChild(graphicsNotice);
+renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();webglUnavailable=true;graphicsNotice.style.display='flex'});
+renderer.domElement.addEventListener('webglcontextrestored',()=>{webglUnavailable=false;graphicsNotice.style.display='none';renderer.setSize(gameViewportWidth||innerWidth,gameViewportHeight||innerHeight,false)});
+window.addEventListener('error',e=>{if(e.message&&/WebGL|out of memory|context lost/i.test(e.message))graphicsNotice.style.display='flex'});
 // Use the same visible viewport for the canvas and every gameplay control.
 // Safari's browser bars, rotation and page zoom can change it without a window resize.
 let gameViewportWidth=0,gameViewportHeight=0,viewportFrame=0,gameLayout='';
@@ -1643,7 +1653,13 @@ function updatePerimeterVisibility(dt){
   wall.group.visible=!wall.hidden;
  }
 }
+const sharedFloorSlabGeometry=new THREE.BoxGeometry(1.95,.11,1.95);
 function terrainForFloor(){
+ // Free terrain GPU resources between floors to prevent Android memory exhaustion.
+ terrainGroup.traverse(o=>{
+  if(o.geometry&&o.geometry!==sharedFloorSlabGeometry)o.geometry.dispose();
+  if(o.material)for(const m of (Array.isArray(o.material)?o.material:[o.material]))if(m!==crackedFloorMaterial)m.dispose();
+ });
  terrainGroup.clear();obstacles.length=0;dungeonWallSegments.length=0;dungeonDoorways.length=0;perimeterWallSides.length=0;
  const boss=level%3===0,theme=(level-1)%6;
  const palette=[
@@ -1664,7 +1680,7 @@ function terrainForFloor(){
  };
  // Cracked concrete slabs with worn dark grout lines between each tile.
  for(let x=-23;x<=23;x+=2)for(let z=-23;z<=23;z+=2){
-  const slab=new THREE.Mesh(new THREE.BoxGeometry(1.95,.09+rand()*.035,1.95),crackedFloorMaterial);
+  const slab=new THREE.Mesh(sharedFloorSlabGeometry,crackedFloorMaterial);
   slab.position.set(x,.065,z);slab.rotation.y=(rand()-.5)*.018;terrainGroup.add(slab);
  }
  // Keep each side instanced independently so a camera-facing wall can
@@ -3465,6 +3481,7 @@ function dash(){
 let axeInspectionStarted=false;
 function frame(){
  requestAnimationFrame(frame);
+ if(webglUnavailable)return;
  const dt=Math.min(clock.getDelta(),.05);
  if(axeInspection&&!axeInspectionStarted){
   axeInspectionStarted=true;
