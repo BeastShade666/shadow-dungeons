@@ -197,14 +197,43 @@ const camera=new THREE.PerspectiveCamera(65,1,.1,100);
 const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'low-power'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));document.body.prepend(renderer.domElement);
 // Handle graphics context loss instead of leaving a blank screen on Android.
 let webglUnavailable=false;
+let renderFailureCount=0;
+let lastRenderCheck=0;
 const graphicsNotice=document.createElement('div');
 graphicsNotice.style.cssText='position:fixed;inset:0;z-index:100000;background:#171020;color:#fff;display:none;align-items:center;justify-content:center;flex-direction:column;gap:15px;padding:24px;text-align:center;font:18px system-ui';
 graphicsNotice.innerHTML='<strong>Graphics interrupted</strong><span>The phone paused the 3D graphics. Reload if the screen stays blank.</span>';
 const restoreButton=document.createElement('button');restoreButton.textContent='Reload game';restoreButton.style.cssText='font:700 17px system-ui;padding:12px 22px;border-radius:12px;background:#a56bdb;color:white;border:0';
 restoreButton.onclick=()=>location.reload();graphicsNotice.appendChild(restoreButton);document.body.appendChild(graphicsNotice);
 renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();webglUnavailable=true;graphicsNotice.style.display='flex'});
-renderer.domElement.addEventListener('webglcontextrestored',()=>{webglUnavailable=false;graphicsNotice.style.display='none';renderer.setSize(gameViewportWidth||innerWidth,gameViewportHeight||innerHeight,false)});
-window.addEventListener('error',e=>{if(e.message&&/WebGL|out of memory|context lost/i.test(e.message))graphicsNotice.style.display='flex'});
+renderer.domElement.addEventListener('webglcontextrestored',()=>{webglUnavailable=false;renderFailureCount=0;graphicsNotice.style.display='none';renderer.setSize(gameViewportWidth||innerWidth,gameViewportHeight||innerHeight,false)});
+window.addEventListener('error',e=>{
+ if(e.message&&/WebGL|out of memory|context lost/i.test(e.message))showGraphicsFailure('The 3D graphics encountered an error.');
+});
+function showGraphicsFailure(message){
+ webglUnavailable=true;
+ graphicsNotice.querySelector('span').textContent=message+' Your game upgrades and gold are saved. Reload to restore the dungeon.';
+ graphicsNotice.style.display='flex';
+}
+function safeRender(){
+ if(webglUnavailable)return;
+ try{
+  const gl=renderer.getContext();
+  if(gl.isContextLost()){showGraphicsFailure('The phone lost its 3D graphics connection.');return}
+  renderer.render(scene,camera);
+  // Sample actual GPU errors periodically, not on every frame.
+  const now=performance.now();
+  if(now-lastRenderCheck>2500){
+   lastRenderCheck=now;
+   const err=gl.getError();
+   if(err===gl.OUT_OF_MEMORY){showGraphicsFailure('The phone ran out of graphics memory.');return}
+   if(err!==gl.NO_ERROR&&++renderFailureCount>=3){showGraphicsFailure('The graphics processor stopped drawing correctly.');return}
+   if(err===gl.NO_ERROR)renderFailureCount=0;
+  }
+ }catch(error){
+  console.error('Shadow Dungeons render failure',error);
+  showGraphicsFailure('The dungeon renderer stopped unexpectedly.');
+ }
+}
 // Use the same visible viewport for the canvas and every gameplay control.
 // Safari's browser bars, rotation and page zoom can change it without a window resize.
 let gameViewportWidth=0,gameViewportHeight=0,viewportFrame=0,gameLayout='';
@@ -3506,7 +3535,7 @@ function frame(){
   const turn=document.createElement('button');turn.textContent='TEST TORSO TURN';turn.style.cssText='position:fixed;top:137px;left:8px;z-index:10001;padding:8px;background:#252336;color:white;border:1px solid #999;border-radius:6px;font:12px system-ui;touch-action:manipulation';turn.addEventListener('pointerdown',e=>e.stopPropagation());turn.addEventListener('click',()=>{axeTorsoTest=!axeTorsoTest;turn.textContent=axeTorsoTest?'STOP TORSO TURN':'TEST TORSO TURN'});document.body.appendChild(turn);
   refresh();
  }
- if(paused){renderer.render(scene,camera);return;}
+ if(paused){safeRender();return;}
  bodyMoveTarget=0;
  if(running){
   if(attackHeld)attack();
@@ -3621,7 +3650,7 @@ function frame(){
    willoSanctuary.nameElement.style.top=(rect.top+(1-pos.y)*.5*rect.height)+'px';
   }
  }
- renderer.render(scene,camera);
+ safeRender();
 }
 frame();
 
