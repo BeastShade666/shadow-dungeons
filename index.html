@@ -1096,15 +1096,17 @@ function buildWeapon(){
   part(new THREE.BoxGeometry(.54,.12,.18),0xc49a43,0,-.17,0);
   part(new THREE.CylinderGeometry(.065,.07,.42,8),0x553b36,0,-.42,0);
  }else if(type==='axe'){
-  part(new THREE.CylinderGeometry(.034,.038,1.7,12),0x6b4930,0,.35,0);
-  part(new THREE.BoxGeometry(.76,.57,.17),0xaebcc7,.28,1.04,0);
+  const shortShaft=data.character==='reaper2'?.24:0;
+  // Keep the butt end and blade size, but shorten the span above the new lower grip.
+  part(new THREE.CylinderGeometry(.034,.038,1.7-shortShaft,12),0x6b4930,0,.35-shortShaft*.5,0);
+  part(new THREE.BoxGeometry(.76,.57,.17),0xaebcc7,.28,1.04-shortShaft,0);
   // Beveled steel edge: narrow to a real cutting line on local +X.
   const bevel=new THREE.BufferGeometry();
   const v=[.52,-.33,-.10, .52,.33,-.10, .52,.33,.10, .52,-.33,.10, .78,-.33,0, .78,.33,0];
   bevel.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
   bevel.setIndex([0,1,5,0,5,4,3,4,5,3,5,2,0,4,3,1,2,5,0,3,2,0,2,1]);
   bevel.computeVertexNormals();
-  part(bevel,0xe0ebf2,0,1.04,0);
+  part(bevel,0xe0ebf2,0,1.04-shortShaft,0);
  }else if(type==='bow'){
   const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,-.6,0),new THREE.Vector3(-.28,-.3,0),new THREE.Vector3(-.38,.3,0),new THREE.Vector3(-.28,.9,0),new THREE.Vector3(0,1.2,0)]);
   part(new THREE.TubeGeometry(curve,16,.07,6,false),0x9c643b,0,0,0);
@@ -1650,7 +1652,7 @@ function monster(kind){
 // Procedural floor themes and lightweight scenery; regenerated each floor.
 // Visible build marker distinguishes the new wooden-wall version from stale tabs.
 const buildTag=document.createElement('span');
-buildTag.textContent='NATURAL CARRY · BUILD 2026-11-17H';
+buildTag.textContent='WEIGHTED STRIDE · BUILD 2026-11-17I';
 buildTag.style.cssText='position:fixed;left:8px;bottom:8px;z-index:8;font:10px system-ui;color:#c5a883;background:#241b15c9;padding:3px 6px;border-radius:4px;pointer-events:none';
 document.body.appendChild(buildTag);
 const terrainGroup=new THREE.Group();scene.add(terrainGroup);
@@ -2706,7 +2708,7 @@ function battleAxeRestRotation(torso){
  return torso.rotation.clone().multiply(new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,new THREE.Vector3().crossVectors(x,y).normalize())));
 }
 // Permanent grip point along the axe shaft: never slide during a swing.
-const battleAxeGripY=.78;
+const battleAxeGripY=()=>data.character==='reaper2'?.46:.78;
 function battleAxePalmAnchor(){
  switch(data.character){
   case 'werewolf':return new THREE.Vector3(.38,-1.11,.30);
@@ -2948,7 +2950,7 @@ function battleAxeCloseFingers(hand,frame,grip,axeQ){
 }
 const axePoseTest=new URLSearchParams(location.search).has('axeTest');
 const axeInspection=new URLSearchParams(location.search).has('axeInspect');
-let axePoseStatus=null,axeTorsoTest=false;
+let axePoseStatus=null,axeTorsoTest=false,axeWalkTest=false;
 function updateAxeTorsoInspection(t){
  if(!axeInspection||!axeTorsoTest||!reaperV2IsRigged||!reaperV2RightHand)return;
  const torso=battleAxeTorsoNode();
@@ -2963,9 +2965,9 @@ function battleAxeReport(held,grip,frame){
   axePoseStatus.style.cssText='position:fixed;top:76px;left:8px;z-index:10000;background:#151922df;color:#bcf0ce;padding:6px 9px;font:11px monospace;border-radius:5px;pointer-events:none';
   document.body.appendChild(axePoseStatus);
  }
- const actual=held.localToWorld(new THREE.Vector3(0,battleAxeGripY,0));
+ const actual=held.localToWorld(new THREE.Vector3(0,battleAxeGripY(),0));
  const edge=new THREE.Vector3(1,0,0).applyQuaternion(held.getWorldQuaternion(new THREE.Quaternion()));
- axePoseStatus.textContent='AXE R9 | '+(held.parent===reaperV2RightHand?'HAND LOCK':'FALLBACK')+' | torso '+battleAxeTorsoNode().name+' | '+data.character+' | '+(swing?.axe?'SWING':'CARRY')+' | palm error '+actual.distanceTo(grip).toFixed(4)+' | edge Y '+edge.y.toFixed(2)+' | grip '+(frame?.meshGrip?'mesh curl':frame?Object.keys(frame.digits).length+' bones':'n/a');
+ axePoseStatus.textContent='AXE R10 | '+(held.parent===reaperV2RightHand?'HAND LOCK':'FALLBACK')+' | torso '+battleAxeTorsoNode().name+' | '+data.character+' | '+(swing?.axe?'SWING':'CARRY')+' | palm error '+actual.distanceTo(grip).toFixed(4)+' | edge Y '+edge.y.toFixed(2)+' | grip '+(frame?.meshGrip?'mesh curl':frame?Object.keys(frame.digits).length+' bones':'n/a');
 }
 function updateBattleAxePose(){
  if(!running||paused||data.weapon!=='axe'||isReaperScytheActive()){setAxeMeshGrip(null);return;}
@@ -2977,11 +2979,26 @@ function updateBattleAxePose(){
  const shoulder=rigHand?(reaperV2AttackBones.rightArm||rigHand.parent):pivot?parent:null;
  const torso=battleAxeTorsoFrame();
  const rest=battleAxeRestRotation(torso);
+ // Weighted follow-through: a small fore/aft pendulum and softer lateral roll,
+ // all in torso space. The immutable hand socket still holds the weapon.
+ const gait=heroGait,walk=rigHand?bodyMoveBlend:0;
+ if(rigHand){
+  const sway=new THREE.Euler(Math.sin(gait-.70)*.15*walk,0,Math.sin(gait-.95)*.035*walk,'XYZ');
+  const delta=torso.rotation.clone().multiply(new THREE.Quaternion().setFromEuler(sway)).multiply(torso.rotation.clone().invert());
+  rest.premultiply(delta).normalize();
+ }
  let frame=rigHand?battleAxeHandFrame(rigHand,rest):null;
  setAxeMeshGrip(frame);
  if(frame)battleAxeNeutralArm(frame);
  const reach=rigHand?battleAxeRigReach(rigHand):pivot?anchor.length()*Math.abs(parent.getWorldScale(new THREE.Vector3()).y):0;
  const carry=rigHand?(frame.carryLocal?torso.toWorld(frame.carryLocal):torso.toWorld(frame.carryLocal=torso.toLocal(battleAxeCarryTarget(held,shoulder,reach,torso)))):battleAxeCarryTarget(held,shoulder,reach,torso);
+ if(rigHand){
+  const local=torso.toLocal(carry),side=local.x<0?-1:1;
+  local.z+=Math.sin(gait-.20)*.16*walk;
+  local.y+=Math.sin(gait*2-.45)*.018*walk;
+  local.x+=side*(.025+.018*Math.cos(gait))*walk;
+  carry.copy(torso.toWorld(local));
+ }
  const a=swing?.axe?swing:null,t=a?THREE.MathUtils.clamp(a.elapsed/a.duration,0,1):0;
  const pose=a?battleAxePose(t,a.arc/2,a.side||1):null;
  const blend=a?(t<.22?1-frontScytheEase(t/.22):pose.recover):1;
@@ -3005,7 +3022,7 @@ function updateBattleAxePose(){
  let q=rest.clone();
  if(pose){
   const edge=torso.toWorld(pose.edgeTarget),tangent=pose.tangent.clone().applyQuaternion(torso.rotation);
-  q=battleAxeOrientation(grip,edge,tangent,data.character==='bellshade'?.90:.78,(data.character==='bellshade'?1.37:1.34)-battleAxeGripY).slerp(rest,blend);
+  q=battleAxeOrientation(grip,edge,tangent,data.character==='bellshade'?.90:.78,(data.character==='bellshade'?1.37:data.character==='reaper2'?1.10:1.34)-battleAxeGripY()).slerp(rest,blend);
  }
  if(rigHand){
   battleAxeHandOrientation(rigHand,q,frame);
@@ -3027,14 +3044,14 @@ function updateBattleAxePose(){
    held.scale.copy(worldScale.divide(parentScale));
   }
   held.quaternion.copy(socket.rotation);
-  held.position.copy(socket.position).sub(new THREE.Vector3(0,battleAxeGripY*held.scale.y,0).applyQuaternion(socket.rotation));
+  held.position.copy(socket.position).sub(new THREE.Vector3(0,battleAxeGripY()*held.scale.y,0).applyQuaternion(socket.rotation));
   held.updateWorldMatrix(true,true);
   battleAxeReport(held,grip,frame);return;
  }
  // A single upper-torso-relative pose determines the blade. The REAL palm
  // determines translation. No feedback from the previous weapon transform.
  const scale=held.getWorldScale(new THREE.Vector3());
- const origin=grip.clone().sub(new THREE.Vector3(0,battleAxeGripY*scale.y,0).applyQuaternion(q));
+ const origin=grip.clone().sub(new THREE.Vector3(0,battleAxeGripY()*scale.y,0).applyQuaternion(q));
  parent.updateWorldMatrix(true,false);
  held.position.copy(parent.worldToLocal(origin));
  held.quaternion.copy(parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q));
@@ -3533,8 +3550,9 @@ function frame(){
   hero.position.set(0,0,0);hero.rotation.y=0;running=true;
   document.body.classList.remove('menu-open');$('panel').style.display='none';$('controls').style.display='flex';
   cameraYaw=.85;cameraPitch=.25;
-  const label=document.createElement('div');label.textContent='AXE INSPECTION R9 · Drag to orbit · Attack to test';label.style.cssText='position:fixed;top:105px;left:8px;z-index:20;color:#fff;background:#101019d9;border-radius:6px;padding:6px;font:12px system-ui;pointer-events:none';document.body.appendChild(label);
+  const label=document.createElement('div');label.textContent='AXE INSPECTION R10 · Drag to orbit · Attack to test';label.style.cssText='position:fixed;top:105px;left:8px;z-index:20;color:#fff;background:#101019d9;border-radius:6px;padding:6px;font:12px system-ui;pointer-events:none';document.body.appendChild(label);
   const turn=document.createElement('button');turn.textContent='TEST TORSO TURN';turn.style.cssText='position:fixed;top:137px;left:8px;z-index:10001;padding:8px;background:#252336;color:white;border:1px solid #999;border-radius:6px;font:12px system-ui;touch-action:manipulation';turn.addEventListener('pointerdown',e=>e.stopPropagation());turn.addEventListener('click',()=>{axeTorsoTest=!axeTorsoTest;turn.textContent=axeTorsoTest?'STOP TORSO TURN':'TEST TORSO TURN'});document.body.appendChild(turn);
+  const walkTest=document.createElement('button');walkTest.textContent='TEST WALK';walkTest.style.cssText='position:fixed;top:137px;left:148px;z-index:10001;padding:8px;background:#252336;color:white;border:1px solid #999;border-radius:6px;font:12px system-ui;touch-action:manipulation';walkTest.addEventListener('pointerdown',e=>e.stopPropagation());walkTest.addEventListener('click',()=>{axeWalkTest=!axeWalkTest;walkTest.textContent=axeWalkTest?'STOP WALK':'TEST WALK'});document.body.appendChild(walkTest);
   refresh();
  }
  if(paused){safeRender();return;}
@@ -3631,6 +3649,7 @@ function frame(){
  $('characterAttack').disabled=!running||characterRemain>0;
  $('characterAttack').textContent=(data.character==='spacemarine'?'MARINE STRIKE':data.character==='bellshade'?'GRASPING VINES':data.character==='kitsune'?'DAGGER FLURRY':data.character==='werewolf'?'TAIL AXE':'SCYTHE SWEEP')+(characterRemain>0?' '+characterRemain.toFixed(1)+'s':'');
  animateAura(clock.elapsedTime);
+ if(axeInspection&&axeWalkTest)bodyMoveTarget=1;
  animateHeroBody(dt,clock.elapsedTime);
  updateSpaceMarineAnimation(dt,bodyMoveBlend);
  updateReaperV2Animation(dt,bodyMoveBlend);
