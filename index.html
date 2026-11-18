@@ -2155,7 +2155,7 @@ function attack(){
  }
  if(data.weapon==='axe'){
   // Heavy wind-up followed by a wide, visible forward cleave.
-  swing={elapsed:0,duration:.56,hit:false,damage:w.damage,range:effectiveRange,arc:effectiveArc};
+  swing={elapsed:0,duration:data.character==='reaper2'?.85:.56,hit:false,damage:w.damage,range:effectiveRange,arc:effectiveArc};
   weaponGroup.rotation.set(0,0,0);
  }else{
   swing={elapsed:0,duration:.28,hit:true,damage:0,range:0,arc:0};
@@ -2333,6 +2333,27 @@ function aimReaperArmAtGrip(target,hand=reaperV2RightHand){
    joint.quaternion.premultiply(local).normalize();
    joint.updateWorldMatrix(true,true);
   }
+ }
+}
+// Reaper V2's ordinary axe uses the same sweeping trajectory as SCYTHE SWEEP.
+function updateReaperV2AxeSweepPose(){
+ if(data.character!=='reaper2'||data.weapon!=='axe'||!running||paused||!swing||swing.duration<=0||isReaperScytheActive())return;
+ const t=THREE.MathUtils.clamp(swing.elapsed/swing.duration,0,1);
+ const pose=frontScythePose(t,1);
+ hero.updateWorldMatrix(true,true);
+ const worldGrip=hero.localToWorld(pose.grip.clone());
+ const worldRotation=hero.getWorldQuaternion(new THREE.Quaternion()).multiply(pose.orientation);
+ if(reaperV2IsRigged&&reaperV2RightHand){
+  aimReaperArmAtGrip(worldGrip,reaperV2RightHand);
+  const offHand=reaperV2AttackBones.leftHand;
+  if(offHand&&offHand!==reaperV2RightHand)
+   aimReaperArmAtGrip(new THREE.Vector3(0,.30,0).applyQuaternion(worldRotation).add(worldGrip),offHand);
+ }
+ const parent=weaponGroup.parent;
+ if(parent){
+  parent.updateWorldMatrix(true,false);
+  weaponGroup.position.copy(parent.worldToLocal(worldGrip.clone()));
+  weaponGroup.quaternion.copy(parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(worldRotation));
  }
 }
 function updateFrontScythePose(){
@@ -2678,7 +2699,9 @@ function updateSwing(dt){
  const a=swing;a.elapsed+=dt;
  const t=Math.min(1,a.elapsed/a.duration);
  // Rotate around the hero's hand: lift back, then sweep through the target.
- if(t<.3){
+ if(data.character==='reaper2'&&data.weapon==='axe'){
+  // The final pose is driven by updateReaperV2AxeSweepPose after skeletal animation.
+ }else if(t<.3){
   const u=t/.3;
   weaponGroup.rotation.set(-.25*u,0,.95*u);
  }else{
@@ -2686,7 +2709,7 @@ function updateSwing(dt){
   const eased=u*u*(3-2*u);
   weaponGroup.rotation.set(-.25+.6*eased,-.3*eased,.95-2.35*eased);
  }
- if(!a.hit&&t>=.58){
+ if(!a.hit&&t>=(data.character==='reaper2'&&data.weapon==='axe'?.49:.58)){
   a.hit=true;
   const aim=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
   for(const e of [...enemies]){
@@ -2895,6 +2918,7 @@ function frame(){
  updateSpaceMarineAnimation(dt,bodyMoveBlend);
  updateReaperV2Animation(dt,bodyMoveBlend);
  updateFrontScythePose();
+ updateReaperV2AxeSweepPose();
  const orbitDistance=14,flat=orbitDistance*Math.cos(cameraPitch);
  camera.position.lerp(new THREE.Vector3(hero.position.x+Math.sin(cameraYaw)*flat,1+Math.sin(cameraPitch)*orbitDistance,hero.position.z+Math.cos(cameraYaw)*flat),.12);
  camera.lookAt(hero.position.x,1,hero.position.z);
