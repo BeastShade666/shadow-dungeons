@@ -1920,6 +1920,7 @@ let willoSanctuary=null;
 function clearWilloSanctuary(){
  if(!willoSanctuary)return;
  scene.remove(willoSanctuary.group);
+ willoSanctuary.labelTexture.dispose();
  willoSanctuary.group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials)m.dispose()}});
  willoSanctuary=null;
 }
@@ -1951,8 +1952,21 @@ function createWilloSanctuary(){
  const crown=add(new THREE.TorusGeometry(.25,.055,6,10),0xffd875,0,3.12,.56,{metalness:.6});crown.rotation.x=Math.PI/2;
  for(const x of [-.19,0,.19])add(new THREE.ConeGeometry(.065,.23,6),0xffdf7c,x,3.28,.56);
  const sparkle=add(new THREE.OctahedronGeometry(.19),0xa6f5ff,0,3.75,0,{emissive:0x54dfff,emissiveIntensity:1});
+ // Camera-facing nameplate always remains readable above Princess Willo.
+ const labelCanvas=document.createElement('canvas');labelCanvas.width=512;labelCanvas.height=128;
+ const ctx=labelCanvas.getContext('2d');
+ ctx.clearRect(0,0,512,128);
+ ctx.font='bold 54px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.lineWidth=10;ctx.strokeStyle='#3c225b';ctx.strokeText('Princess Willo',256,64);
+ ctx.fillStyle='#fff0fb';ctx.fillText('Princess Willo',256,64);
+ const labelTexture=new THREE.CanvasTexture(labelCanvas);
+ labelTexture.colorSpace=THREE.SRGBColorSpace;
+ const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture,transparent:true,depthWrite:false}));
+ label.position.set(0,4.5,0);label.scale.set(4.5,1.125,1);
+ group.add(label);
+
  group.position.set(0,0,0);scene.add(group);
- willoSanctuary={group,ring,sparkle,healed:false,finishTimer:0};
+ willoSanctuary={group,ring,sparkle,labelTexture,healed:false,finishTimer:0};
 }
 function updateWilloSanctuary(dt){
  const w=willoSanctuary;
