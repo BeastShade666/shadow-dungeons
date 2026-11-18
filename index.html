@@ -2029,11 +2029,14 @@ function damageEnemy(e,amount,soundType=data.weapon){
 function attack(){
  const w=weapons[data.weapon]||weapons.sword;
  if(!running||paused||isReaperScytheActive()||performance.now()-lastAttack<w.cooldown*attackSpeed())return;
+ const wolfMelee=data.character==='werewolf'&&(data.weapon==='sword'||data.weapon==='axe');
+ const effectiveRange=w.range+(wolfMelee?.85:.35);
+ const effectiveArc=wolfMelee?Math.max(w.arc,2.6):w.arc;
  const forward=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
  const candidates=enemies.map(e=>{
   const delta=new THREE.Vector3().subVectors(e.obj.position,hero.position);delta.y=0;
   return {e,delta,dist:delta.length()};
- }).filter(t=>t.dist<=w.range+.35&&t.dist>.01&&heroCanHit(t.e)).sort((a,b)=>a.dist-b.dist);
+ }).filter(t=>t.dist<=effectiveRange&&t.dist>.01&&heroCanHit(t.e)).sort((a,b)=>a.dist-b.dist);
  lastAttack=performance.now();
  if(!candidates.length){swing={elapsed:0,duration:.3,hit:true,damage:0,range:0,arc:0};return;}
  const chosen=candidates[0];
@@ -2042,7 +2045,7 @@ function attack(){
  else hero.rotation.y=Math.atan2(chosen.delta.x,chosen.delta.z);
  if(data.weapon==='axe'){
   // Heavy wind-up followed by a wide, visible forward cleave.
-  swing={elapsed:0,duration:.56,hit:false,damage:w.damage,range:w.range,arc:w.arc};
+  swing={elapsed:0,duration:.56,hit:false,damage:w.damage,range:effectiveRange,arc:effectiveArc};
   weaponGroup.rotation.set(0,0,0);
  }else{
   swing={elapsed:0,duration:.28,hit:true,damage:0,range:0,arc:0};
@@ -2062,7 +2065,7 @@ function attack(){
   const aim=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
   for(const t of candidates){
    const angle=Math.acos(THREE.MathUtils.clamp(aim.dot(t.delta.clone().normalize()),-1,1));
-   if(angle<=w.arc/2&&heroCanHit(t.e))damageEnemy(t.e,w.damage,'sword');
+   if(angle<=effectiveArc/2&&heroCanHit(t.e))damageEnemy(t.e,w.damage,'sword');
   }
  }
 }
