@@ -2486,8 +2486,9 @@ function battleAxeRestRotation(gripWorld,held){
  // Carrot-chop orientation: the blade plane is vertical, the shaft extends
  // forward and slightly downward beside the leg, and LOCAL +X (the actual
  // sharp bevel) points almost straight at the floor. No inward-facing twist.
- const side=Math.sign(hero.worldToLocal(gripWorld.clone()).x)||1;
- const axisY=new THREE.Vector3(side*.08,-.12,.99).normalize();
+ // Use a single fixed hero-local carry frame. Never infer blade orientation
+ // from the moving wrist: a hand crossing the centerline must not flip it.
+ const axisY=new THREE.Vector3(0,-.12,.99).normalize();
  const down=new THREE.Vector3(0,-1,0);
  const axisX=down.clone().addScaledVector(axisY,-down.dot(axisY)).normalize();
  const axisZ=new THREE.Vector3().crossVectors(axisX,axisY).normalize();
@@ -2513,12 +2514,15 @@ function updateBattleAxeRestPose(){
  hero.updateWorldMatrix(true,true);
  const rigHand=data.character==='reaper2'&&reaperV2IsRigged&&reaperV2RightHand?reaperV2RightHand:null;
  let grip=rigHand?rigHand.getWorldPosition(new THREE.Vector3()):held.getWorldPosition(new THREE.Vector3());
- // Keep the hand beside the hip. If a low wrist would bury the downward
- // cutting edge, raise the actual arm just enough instead of tilting the axe.
+ // A fixed hip-relative carry target prevents walk/run clips from throwing the
+ // axe through a large arc. The other arm and legs retain normal animation.
  const scale=held.getWorldScale(new THREE.Vector3());
  const minimumY=hero.position.y+.10+(data.character==='bellshade'?.90:.78)*Math.abs(scale.x)+.12*Math.abs(scale.y);
- if(grip.y<minimumY&&rigHand){
-  const target=grip.clone();target.y=minimumY;
+ if(rigHand){
+  const shoulder=reaperV2AttackBones.rightArm||rigHand.parent;
+  const shoulderLocal=hero.worldToLocal(shoulder.getWorldPosition(new THREE.Vector3()));
+  const side=Math.sign(shoulderLocal.x)||1;
+  const target=hero.localToWorld(new THREE.Vector3(side*Math.max(.55,Math.abs(shoulderLocal.x)+.13),Math.max(1.03,minimumY-hero.position.y+.06),.20));
   aimReaperArmAtGrip(target,rigHand);
   grip=rigHand.getWorldPosition(new THREE.Vector3());
  }else if(grip.y<minimumY&&!parent.isBone&&parent!==hero&&parent!==reaperVisual&&parent!==reaperV2Visual){
@@ -2822,6 +2826,7 @@ function animateHeroBody(dt,t){
  heroGait+=dt*(2.2+bodyMoveBlend*10.5);
  const stride=Math.sin(heroGait),bounce=Math.abs(Math.sin(heroGait));
  const inhale=Math.sin(t*1.75),move=bodyMoveBlend;
+ const carryingAxe=running&&data.weapon==='axe'&&!swing?.axe&&!characterSwing;
  // Grim Reaper: floating weight, articulated sleeves, cloth flow and a quiet skull tilt.
  reaperVisual.position.y=.045+inhale*.023+move*bounce*.04;
  reaperVisual.rotation.z=stride*move*.023;
@@ -2833,8 +2838,9 @@ function animateHeroBody(dt,t){
  reaperHeadPivot.rotation.x=inhale*.025+move*Math.cos(heroGait)*.03;
  reaperHeadPivot.rotation.y=Math.sin(t*.8)*.045;
  reaperArms.forEach(({side,pivot})=>{
-  pivot.rotation.x=-stride*side*move*.34+inhale*.025;
-  pivot.rotation.z=side*(.025+move*.06);
+  const carry=carryingAxe&&side===1;
+  pivot.rotation.x=carry?-.04+inhale*.008:-stride*side*move*.34+inhale*.025;
+  pivot.rotation.z=carry?.025:side*(.025+move*.06);
  });
  reaperHem.forEach((hem,i)=>{
   hem.rotation.z=hem.userData.restTilt+Math.sin(t*2.6+i*.8)*(.025+move*.085);
@@ -2847,8 +2853,9 @@ function animateHeroBody(dt,t){
  wolfHeadPivot.rotation.x=inhale*.024+move*Math.sin(heroGait+.8)*.06;
  wolfHeadPivot.rotation.y=Math.sin(t*.85)*.045;
  wolfArms.forEach(({side,pivot})=>{
-  pivot.rotation.x=stride*side*move*.45+inhale*.018;
-  pivot.rotation.z=side*(.03+move*.055);
+  const carry=carryingAxe&&side===1;
+  pivot.rotation.x=carry?-.04+inhale*.008:stride*side*move*.45+inhale*.018;
+  pivot.rotation.z=carry?.03:side*(.03+move*.055);
  });
  wolfLegs.forEach(({side,hip,knee})=>{
   const step=Math.sin(heroGait+(side>0?Math.PI:0));
@@ -2870,15 +2877,16 @@ function animateHeroBody(dt,t){
  const flurry=characterSwing?.kitsune?Math.abs(Math.sin(skillProgress*Math.PI*3)):0;
  kitsuneArms.forEach(({side,pivot,trail})=>{
   const alternate=characterSwing?.kitsune?Math.sin(skillProgress*3*Math.PI)*side:0;
-  pivot.rotation.x=-side*stride*move*.34+strike*(side>0?-1.15:.89)-flurry*.52-alternate*.70;
-  pivot.rotation.z=side*(-.12+strike*.26+flurry*.42);
+  const carry=carryingAxe&&side===1;
+  pivot.rotation.x=carry?-.04+inhale*.008:-side*stride*move*.34+strike*(side>0?-1.15:.89)-flurry*.52-alternate*.70;
+  pivot.rotation.z=carry?-.12:side*(-.12+strike*.26+flurry*.42);
   trail.visible=kitsuneDaggerActive;
   trail.rotation.z=side*(.48+Math.sin(t*21)*.85);
   trail.material.opacity=.35+.45*flurry;
  });
  kitsuneLegs.forEach(({side,hip})=>{hip.rotation.x=Math.sin(heroGait+(side>0?Math.PI:0))*move*.42});
  bellVisual.position.y=Math.sin(t*1.7)*.028;
- bellArms.forEach(({side,pivot})=>{pivot.rotation.x=-side*stride*move*.33+(characterSwing?.bell?-.65:0)});
+ bellArms.forEach(({side,pivot})=>{pivot.rotation.x=carryingAxe&&side===1?-.04+inhale*.008:-side*stride*move*.33+(characterSwing?.bell?-.65:0)});
  bellLegs.forEach(({side,hip})=>{hip.rotation.x=Math.sin(heroGait+(side>0?Math.PI:0))*move*.42});
  kitsuneTails.forEach(({tail,spread},i)=>{
   tail.rotation.z=Math.sin(t*1.7+i*.52)*(.045+move*.05)+flurry*spread*.04;
