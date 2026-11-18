@@ -215,6 +215,19 @@ function cameraRelativeMove(x,z){
 scene.add(new THREE.HemisphereLight(0xb8a8ff,0x30202b,2));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(5,12,7);scene.add(light);
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(36,36),new THREE.MeshStandardMaterial({color:0x342b42,roughness:1}));floor.rotation.x=-Math.PI/2;scene.add(floor);
 const grid=new THREE.GridHelper(36,18,0x5b4b78,0x433851);scene.add(grid);
+function crackedConcreteTexture(){
+ const c=document.createElement('canvas');c.width=c.height=512;const ctx=c.getContext('2d');
+ let seed=41879;const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
+ ctx.fillStyle='#89878a';ctx.fillRect(0,0,512,512);
+ for(let i=0;i<21000;i++){const v=90+Math.floor(rand()*90);ctx.fillStyle='rgba('+v+','+v+','+v+','+(rand()*.22)+')';ctx.fillRect(rand()*512,rand()*512,1+rand()*3,1+rand()*3)}
+ for(let i=0;i<16;i++){
+  let x=rand()*512,y=rand()*512,a=rand()*Math.PI*2;ctx.beginPath();ctx.moveTo(x,y);
+  for(let j=0;j<9;j++){a+=(rand()-.5)*1.3;x+=Math.cos(a)*(9+rand()*20);y+=Math.sin(a)*(9+rand()*20);ctx.lineTo(x,y)}
+  ctx.strokeStyle='rgba(28,25,30,.7)';ctx.lineWidth=.9+rand()*1.3;ctx.stroke();
+ }
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+const crackedFloorMaterial=new THREE.MeshStandardMaterial({map:crackedConcreteTexture(),color:0xb3b0b1,roughness:1});
 function mesh(geo,color){return new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:.7}))}
 // Attach existing mesh pieces to an articulated pivot without duplicating geometry.
 function avatarPivot(parent,parts,x,y,z){
@@ -1469,7 +1482,7 @@ function terrainForFloor(){
   {ground:0x403347,stone:0x89778d,accent:0xff77c7,crate:0x73576d},
   {ground:0x343d4d,stone:0x68788f,accent:0xc2e5ff,crate:0x647181}
  ][theme];
- floor.material.color.setHex(palette.ground);grid.visible=false;
+ floor.material.color.setHex(0x252329);grid.visible=false;
  let seed=level*7937+91;
  const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
  const add=(geo,color,x,y,z,solid=0)=>{
@@ -1477,10 +1490,10 @@ function terrainForFloor(){
   if(solid)obstacles.push({x,z,r:solid});
   return o;
  };
- // Uneven stone slabs make the ground read as a real dungeon.
+ // Cracked concrete slabs with worn dark grout lines between each tile.
  for(let x=-16;x<17;x+=2)for(let z=-16;z<17;z+=2){
-  const slab=add(new THREE.BoxGeometry(1.94,.07+rand()*.07,1.94),rand()>.77?palette.stone:palette.ground,x,0,z);
-  slab.material.color.offsetHSL(0,0,(rand()-.5)*.13);
+  const slab=new THREE.Mesh(new THREE.BoxGeometry(1.93,.08+rand()*.035,1.93),crackedFloorMaterial);
+  slab.position.set(x,.018,z);slab.rotation.y=(rand()-.5)*.018;terrainGroup.add(slab);
  }
  // Perimeter walls and corner pillars.
  for(let i=-16;i<=16;i+=4){
