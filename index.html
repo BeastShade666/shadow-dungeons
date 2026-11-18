@@ -725,16 +725,23 @@ const reaperV2AppliedOffsets=new Map();
 const reaperV2AttackEuler=new THREE.Euler();
 function collectReaperV2AttackBones(root){
  for(const key of Object.keys(reaperV2AttackBones))reaperV2AttackBones[key]=null;
+ const scores={};
  root.traverse(node=>{
   if(!node.isBone)return;
   const raw=node.name.toLowerCase(),n=raw.replace(/[^a-z0-9]/g,'');
+  if(/finger|thumb|index|middle|pinky|little|ringfinger|twist|helper|end$/.test(n))return;
   const right=n.includes('right')||/(?:^|[_. :\-])r(?:[_. :\-]|$)/.test(raw)||/(?:forearm|lowerarm|upperarm|hand|wrist|arm)r$/.test(n);
   const left=n.includes('left')||/(?:^|[_. :\-])l(?:[_. :\-]|$)/.test(raw)||/(?:forearm|lowerarm|upperarm|hand|wrist|arm)l$/.test(n);
   if(!right&&!left)return;
   const side=right?'right':'left';
-  if(/(?:forearm|lowerarm|elbow)/.test(n))reaperV2AttackBones[side+'Forearm']??=node;
-  else if(/(?:hand|wrist)/.test(n))reaperV2AttackBones[side+'Hand']??=node;
-  else if(/(?:upperarm|arm|shoulder)/.test(n))reaperV2AttackBones[side+'Arm']??=node;
+  let key=null,score=0;
+  if(/(?:forearm|lowerarm)/.test(n)){key=side+'Forearm';score=4}
+  else if(/elbow/.test(n)){key=side+'Forearm';score=1}
+  else if(/(?:hand|wrist)(?:r|l|right|left)?$/.test(n)){key=side+'Hand';score=6}
+  else if(/(?:hand|wrist)/.test(n)){key=side+'Hand';score=2}
+  else if(/upperarm/.test(n)||/(?:right|left)arm$/.test(n)||/arm[r l]$/.test(n)){key=side+'Arm';score=5}
+  else if(/(?:arm|shoulder)/.test(n)){key=side+'Arm';score=1}
+  if(key&&score>(scores[key]||0)){scores[key]=score;reaperV2AttackBones[key]=node}
  });
 }
 function clearReaperV2AttackOffsets(){
@@ -2167,20 +2174,28 @@ function isReaperScytheActive(){
 }
 function frontScytheEase(t){t=THREE.MathUtils.clamp(t,0,1);return t*t*(3-2*t)}
 function frontScythePose(t,side){
- // The approved blade's point is ~(-1.86,+.68,+.02) from the grip.
- // Align that vector with the cutting direction, not the staff's upright axis.
- // Windup -> fast forward side-to-side horizontal cut -> short follow-through.
- const progress=frontScytheEase((t-.16)/.55);
- const theta=side*THREE.MathUtils.lerp(.78,-.78,progress);
- const radius=Math.sin(Math.PI*progress);
- const radial=new THREE.Vector3(Math.sin(theta),0,Math.cos(theta));
- const tangent=new THREE.Vector3(Math.cos(theta)*side,0,-Math.sin(theta)*side);
- const grip=new THREE.Vector3(.46*Math.sin(theta),1.47+.07*radius,.78+.11*radius);
- // Make the shaft mostly horizontal (15 degrees above the ground).
- // The tip projects radially outward and continuously crosses +Z in front.
- const shaftTilt=.24;
- const horizontalY=radial.clone().multiplyScalar(.345).addScaledVector(tangent,.9386).normalize();
- const axisY=horizontalY.multiplyScalar(Math.sqrt(1-shaftTilt*shaftTilt)).add(new THREE.Vector3(0,shaftTilt,0)).normalize();
+ // Real attack choreography: lift and draw back, slash across the chest,
+ // finish on the opposite side. Angle describes the actual blade-tip direction.
+ const keys=[
+  [0,.62,.47,1.30,.57,.33],
+  [.19,1.15,.56,1.67,.54,.42],
+  [.36,.58,.34,1.50,.78,.16],
+  [.49,0,0,1.36,.88,.04],
+  [.65,-.76,-.34,1.32,.73,.12],
+  [.80,-1.11,-.48,1.45,.61,.30],
+  [1,-.72,-.23,1.53,.58,.44]
+ ];
+ let k=1;while(k<keys.length-1&&t>keys[k][0])k++;
+ const p=keys[k-1],q=keys[k],u=frontScytheEase((t-p[0])/(q[0]-p[0]));
+ const v=i=>THREE.MathUtils.lerp(p[i],q[i],u);
+ const theta=side*v(1),radial=new THREE.Vector3(Math.sin(theta),0,Math.cos(theta));
+ const tangent=new THREE.Vector3(Math.cos(theta),0,-Math.sin(theta)).multiplyScalar(side);
+ const grip=new THREE.Vector3(side*v(2),v(3),v(4));
+ const pitch=v(5);
+ // Shaft has a real lift/drop; the blade leads the arc rather than spinning
+ // around its own handle. The -X blade point stays outward from the chest.
+ const flatY=radial.clone().multiplyScalar(.345).addScaledVector(tangent,.9386).normalize();
+ const axisY=flatY.clone().multiplyScalar(Math.sqrt(1-pitch*pitch)).add(new THREE.Vector3(0,pitch,0)).normalize();
  const axisX=radial.clone().multiplyScalar(-.9386).addScaledVector(tangent,.345).normalize();
  const axisZ=new THREE.Vector3().crossVectors(axisX,axisY).normalize();
  const orientation=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(axisX,axisY,axisZ));
@@ -2188,80 +2203,97 @@ function frontScythePose(t,side){
 }
 function aimReaperArmAtGrip(target,hand=reaperV2RightHand){
  if(!hand)return;
- // Favor actual wrist ancestry, rather than assuming a particular Meshy joint name.
- const joints=[];
- for(let bone=hand.parent;bone&&joints.length<2;bone=bone.parent){
-  if(bone.isBone)joints.push(bone);
+ const side=hand===reaperV2AttackBones.leftHand?'left':'right';
+ const ancestors=[];
+ for(let b=hand.parent;b;b=b.parent)if(b.isBone)ancestors.push(b);
+ const forearm=reaperV2AttackBones[side+'Forearm'],upper=reaperV2AttackBones[side+'Arm'];
+ const joints=[forearm,upper].filter(b=>b&&ancestors.includes(b)&&!(/clavicle|collar|shoulder/i.test(b.name)));
+ for(const b of ancestors){
+  if(joints.length>=2)break;
+  if(!joints.includes(b)&&!/spine|hips|pelvis|neck|clavicle|collar|shoulder/i.test(b.name))joints.push(b);
  }
- // Bounded CCD: rotate only the forearm and upper arm, never stretch the mesh.
- for(let n=0;n<10;n++){
+ if(!joints.length)return;
+ for(let n=0;n<12;n++){
+  if(hand.getWorldPosition(new THREE.Vector3()).distanceToSquared(target)<.0004)break;
   for(const joint of joints){
-   joint.updateWorldMatrix(true,false);
-   hand.updateWorldMatrix(true,false);
    const pivot=joint.getWorldPosition(new THREE.Vector3());
    const current=hand.getWorldPosition(new THREE.Vector3()).sub(pivot);
    const desired=target.clone().sub(pivot);
    if(current.lengthSq()<1e-8||desired.lengthSq()<1e-8)continue;
    const delta=new THREE.Quaternion().setFromUnitVectors(current.normalize(),desired.normalize());
    const parentQ=joint.parent.getWorldQuaternion(new THREE.Quaternion());
-   const step=new THREE.Quaternion().slerp(delta,.83);
+   const step=new THREE.Quaternion().slerp(delta,.80);
    const local=parentQ.clone().invert().multiply(step).multiply(parentQ);
    rememberReaperV2Bone(joint);
    joint.quaternion.premultiply(local).normalize();
-   joint.updateWorldMatrix(true,false);
+   joint.updateWorldMatrix(true,true);
   }
  }
 }
 function updateFrontScythePose(){
  if(!isReaperScytheActive())return;
- const phase=THREE.MathUtils.clamp(characterSwing.elapsed/characterSwing.duration,0,1);
+ const a=characterSwing;
+ const phase=THREE.MathUtils.clamp(a.elapsed/a.duration,0,1);
  const hand=data.character==='reaper2'&&reaperV2IsRigged?reaperV2RightHand:null;
- hero.updateWorldMatrix(true,false);
- let side=1;
- if(hand){
-  const shoulder=hand.parent?.parent;
-  if(shoulder){
-   const p=hero.worldToLocal(shoulder.getWorldPosition(new THREE.Vector3()));
-   if(Math.abs(p.x)>.05)side=Math.sign(p.x);
-  }
+ hero.updateWorldMatrix(true,true);
+ // Resolve side once, not on every frame (IK can move shoulder coordinates).
+ if(!a.scytheSide){
+  const shoulder=hand&&(reaperV2AttackBones.rightArm||hand.parent?.parent);
+  const p=shoulder?hero.worldToLocal(shoulder.getWorldPosition(new THREE.Vector3())):null;
+  a.scytheSide=p&&Math.abs(p.x)>.05?Math.sign(p.x):1;
  }
- const pose=frontScythePose(phase,side);
- const target=hero.localToWorld(pose.grip.clone());
+ const pose=frontScythePose(phase,a.scytheSide);
  const heroQ=hero.getWorldQuaternion(new THREE.Quaternion());
  const weaponWorldQ=heroQ.clone().multiply(pose.orientation);
- let gripWorld=target;
+ let gripWorld=hero.localToWorld(pose.grip.clone());
  if(hand){
-  aimReaperArmAtGrip(target);
-  // The wrist is rotated to the same weapon frame, not allowed to fight it.
+  // Primary hand follows the handle. The achieved wrist position is the real
+  // weapon anchor; the off hand aims at a second point on that same shaft.
+  aimReaperArmAtGrip(gripWorld,hand);
+  gripWorld=hand.getWorldPosition(new THREE.Vector3());
+  const support=reaperV2AttackBones.leftHand;
+  if(support&&support!==hand){
+   const supportTarget=new THREE.Vector3(0,.34,0).applyQuaternion(weaponWorldQ).add(gripWorld);
+   aimReaperArmAtGrip(supportTarget,support);
+  }
+  // Calibrate wrist rotation from its actual neutral pose, then constrain it to
+  // the weapon frame. Restore animation quaternions before the next tick.
   if(reaperV2HandCalibrated&&hand.parent){
    const desiredHandQ=weaponWorldQ.clone().multiply(reaperV2RestHandInverse.clone().invert());
    const parentQ=hand.parent.getWorldQuaternion(new THREE.Quaternion());
    rememberReaperV2Bone(hand);
    hand.quaternion.copy(parentQ.invert().multiply(desiredHandQ)).normalize();
   }
-  hand.updateWorldMatrix(true,false);
+  hand.updateWorldMatrix(true,true);
   gripWorld=hand.getWorldPosition(new THREE.Vector3());
-  // Off hand is a supporting grip a short way along the shaft.  It follows
-  // the same weapon pose instead of independently swinging at the blade.
-  const support=reaperV2AttackBones.leftHand;
-  if(support&&support!==hand){
-   const supportTarget=new THREE.Vector3(0,.32,0).applyQuaternion(weaponWorldQ).add(gripWorld);
-   aimReaperArmAtGrip(supportTarget,support);
-  }
-  // Re-evaluate the wrist mount after the IK pose; preserve the actual hand grip.
   if(scytheRig.parent===reaperV2ScytheMount){
    reaperV2ScytheMount.position.copy(reaperV2Visual.worldToLocal(gripWorld.clone()));
    const visualQ=reaperV2Visual.getWorldQuaternion(new THREE.Quaternion());
    reaperV2ScytheMount.quaternion.copy(visualQ.invert().multiply(weaponWorldQ));
-   reaperV2ScytheMount.updateWorldMatrix(true,false);
+   reaperV2ScytheMount.updateWorldMatrix(true,true);
+  }
+ }else if(data.character==='reaper'||reaperV2State!=='ready'){
+  // Classic procedural Reaper also moves the visible arm toward the hilt.
+  const arm=reaperArms.find(p=>p.side===a.scytheSide)?.pivot;
+  if(arm){
+   const handOffset=new THREE.Vector3(.31*a.scytheSide,-.82,.13);
+   const shoulder=arm.getWorldPosition(new THREE.Vector3());
+   const desired=gripWorld.clone().sub(shoulder);
+   const parentQ=arm.parent.getWorldQuaternion(new THREE.Quaternion());
+   if(desired.lengthSq()>.0001){
+    arm.quaternion.setFromUnitVectors(handOffset.clone().normalize(),desired.applyQuaternion(parentQ.invert()).normalize());
+    arm.updateWorldMatrix(true,true);
+    gripWorld=arm.localToWorld(handOffset);
+   }
   }
  }
- // The weapon's local position is its grip, so the blade cannot pivot off the palm.
  const parent=scytheRig.parent;
  if(!parent)return;
  parent.updateWorldMatrix(true,false);
  scytheRig.position.copy(parent.worldToLocal(gripWorld.clone()));
  scytheRig.quaternion.copy(parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(weaponWorldQ));
+ // Actual world-space weapon geometry, not an assumed circular animation.
+ scytheRig.updateWorldMatrix(true,true);
 }
 
 function characterAttack(){
@@ -2275,7 +2307,7 @@ function characterAttack(){
  }
  if(!wolf&&!kitsune&&!bell&&!marine){swing=null;weaponGroup.rotation.set(0,0,0);}
  characterSwing={elapsed:0,duration:marine?.65:bell?.9:kitsune?.78:wolf?.85:.85,wolf,kitsune,bell,marine,hit:false,hits:0,hitEnemies:new Set(),aimYaw:hero.rotation.y};
- if((data.character==='reaper'||data.character==='reaper2')&&!paused)scytheRig.visible=true;
+ if(isReaperScytheActive()){scytheRig.visible=true;scytheTrail.visible=false;}
  if(kitsune){kitsuneDaggerActive=true;kitsuneDaggerSlash=1;kitsuneDaggersVisible()}
  weaponSound(bell?'staff':wolf?'axe':'sword',true);
 }
@@ -2651,7 +2683,9 @@ function frame(){
   let z=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+joy.z;
   const len=Math.max(1,Math.hypot(x,z));x/=len;z/=len;
   const oldX=hero.position.x,oldZ=hero.position.z;
-  moveWithCollision(hero,x*dt*6*(1+.05*skillLevel('agility')),z*dt*6*(1+.05*skillLevel('agility')),.5);
+  const cleaving=isReaperScytheActive();
+  const moveScale=cleaving?.38:1;
+  moveWithCollision(hero,x*dt*6*moveScale*(1+.05*skillLevel('agility')),z*dt*6*moveScale*(1+.05*skillLevel('agility')),.5);
   bodyMoveTarget=Math.min(1,Math.hypot(hero.position.x-oldX,hero.position.z-oldZ)/Math.max(dt*6,.0001));
   if(isReaperScytheActive())hero.rotation.y=characterSwing.aimYaw;
   else if((x||z)&&!updateSpaceMarineFacing())hero.rotation.y=Math.atan2(x,z);
