@@ -70,7 +70,7 @@
       <h3 class="section-title">🗡 Weapons</h3>
       <div id="weapons"></div>
       <button id="start" type="button">Enter Dungeon</button>
-      <p class="menu-controls-help"><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E • Dash: Shift or mobile DASH button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move</small></p>
+      <p class="menu-controls-help"><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E • Dash: Shift or mobile DASH button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move; swipe the open game view to rotate the camera</small></p>
     </section>
   </div>
   <footer class="menu-preview-footer">Choose your hero. Upgrade your skills. Conquer the dungeon.</footer>
@@ -191,6 +191,27 @@ menuPanel.addEventListener('click',event=>{
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x141020);scene.fog=new THREE.Fog(0x141020,18,43);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,100);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);document.body.prepend(renderer.domElement);
+// Drag the open game view to orbit around the hero (touch or mouse).
+let cameraYaw=0,cameraPitch=.57,cameraDrag=null;
+renderer.domElement.style.touchAction='none';
+renderer.domElement.addEventListener('pointerdown',e=>{
+ if(!running||paused||e.button!==0)return;
+ cameraDrag={id:e.pointerId,x:e.clientX,y:e.clientY};
+ renderer.domElement.setPointerCapture(e.pointerId);
+});
+renderer.domElement.addEventListener('pointermove',e=>{
+ if(!cameraDrag||cameraDrag.id!==e.pointerId||!running||paused)return;
+ const dx=e.clientX-cameraDrag.x,dy=e.clientY-cameraDrag.y;
+ cameraYaw-=dx*.009;
+ cameraPitch=THREE.MathUtils.clamp(cameraPitch+dy*.005,.23,1.18);
+ cameraDrag.x=e.clientX;cameraDrag.y=e.clientY;
+});
+for(const type of ['pointerup','pointercancel','lostpointercapture'])
+ renderer.domElement.addEventListener(type,e=>{if(cameraDrag?.id===e.pointerId)cameraDrag=null});
+function cameraRelativeMove(x,z){
+ const c=Math.cos(cameraYaw),sn=Math.sin(cameraYaw);
+ return {x:x*c+z*sn,z:z*c-x*sn};
+}
 scene.add(new THREE.HemisphereLight(0xb8a8ff,0x30202b,2));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(5,12,7);scene.add(light);
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(36,36),new THREE.MeshStandardMaterial({color:0x342b42,roughness:1}));floor.rotation.x=-Math.PI/2;scene.add(floor);
 const grid=new THREE.GridHelper(36,18,0x5b4b78,0x433851);scene.add(grid);
@@ -2672,6 +2693,7 @@ function dash(){
  const length=Math.hypot(x,z);
  if(length<.1){x=Math.sin(hero.rotation.y);z=Math.cos(hero.rotation.y)}
  else{x/=length;z/=length}
+ ({x,z}=cameraRelativeMove(x,z));
  dashX=x;dashZ=z;dashTime=.22;dashCooldown=3;
  invuln=Math.max(invuln,.3);
 }
@@ -2685,6 +2707,7 @@ function frame(){
   let x=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+joy.x;
   let z=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+joy.z;
   const len=Math.max(1,Math.hypot(x,z));x/=len;z/=len;
+  ({x,z}=cameraRelativeMove(x,z));
   const oldX=hero.position.x,oldZ=hero.position.z;
   const cleaving=isReaperScytheActive();
   const moveScale=cleaving?.38:1;
@@ -2774,7 +2797,8 @@ function frame(){
  updateSpaceMarineAnimation(dt,bodyMoveBlend);
  updateReaperV2Animation(dt,bodyMoveBlend);
  updateFrontScythePose();
- camera.position.lerp(new THREE.Vector3(hero.position.x,9,hero.position.z+12),.09);
+ const orbitDistance=14,flat=orbitDistance*Math.cos(cameraPitch);
+ camera.position.lerp(new THREE.Vector3(hero.position.x+Math.sin(cameraYaw)*flat,1+Math.sin(cameraPitch)*orbitDistance,hero.position.z+Math.cos(cameraYaw)*flat),.12);
  camera.lookAt(hero.position.x,1,hero.position.z);
  renderer.render(scene,camera);
 }
