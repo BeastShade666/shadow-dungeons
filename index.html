@@ -216,18 +216,27 @@ scene.add(new THREE.HemisphereLight(0xb8a8ff,0x30202b,2));const light=new THREE.
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(36,36),new THREE.MeshStandardMaterial({color:0x342b42,roughness:1}));floor.rotation.x=-Math.PI/2;scene.add(floor);
 const grid=new THREE.GridHelper(36,18,0x5b4b78,0x433851);scene.add(grid);
 function crackedConcreteTexture(){
- const c=document.createElement('canvas');c.width=c.height=512;const ctx=c.getContext('2d');
- let seed=41879;const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
- ctx.fillStyle='#89878a';ctx.fillRect(0,0,512,512);
- for(let i=0;i<21000;i++){const v=90+Math.floor(rand()*90);ctx.fillStyle='rgba('+v+','+v+','+v+','+(rand()*.22)+')';ctx.fillRect(rand()*512,rand()*512,1+rand()*3,1+rand()*3)}
- for(let i=0;i<16;i++){
-  let x=rand()*512,y=rand()*512,a=rand()*Math.PI*2;ctx.beginPath();ctx.moveTo(x,y);
-  for(let j=0;j<9;j++){a+=(rand()-.5)*1.3;x+=Math.cos(a)*(9+rand()*20);y+=Math.sin(a)*(9+rand()*20);ctx.lineTo(x,y)}
-  ctx.strokeStyle='rgba(28,25,30,.7)';ctx.lineWidth=.9+rand()*1.3;ctx.stroke();
+ const c=document.createElement('canvas');c.width=c.height=512;
+ const ctx=c.getContext('2d');let seed=41879;
+ const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
+ ctx.fillStyle='#8e8a84';ctx.fillRect(0,0,512,512);
+ // Mottled, stained cement rather than flat colored stone.
+ for(let i=0;i<750;i++){const v=55+Math.floor(rand()*125),x=rand()*512,y=rand()*512,r=3+rand()*35;
+  ctx.fillStyle='rgba('+v+','+v+','+v+','+(.025+rand()*.09)+')';ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
  }
- const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+ for(let i=0;i<12500;i++){const v=75+Math.floor(rand()*110);ctx.fillStyle='rgba('+v+','+v+','+v+','+(.1+rand()*.2)+')';ctx.fillRect(rand()*512,rand()*512,1+rand()*4,1+rand()*4)}
+ // Deep, jagged primary cracks and thinner branching fractures.
+ for(let i=0;i<9;i++){
+  let x=rand()*512,y=rand()*512,a=rand()*Math.PI*2;
+  const path=[[x,y]];
+  for(let j=0;j<11;j++){a+=(rand()-.5)*1.1;x+=Math.cos(a)*(19+rand()*24);y+=Math.sin(a)*(19+rand()*24);path.push([x,y])}
+  const draw=(offset,width,color)=>{ctx.beginPath();ctx.moveTo(path[0][0]+offset,path[0][1]+offset);for(const p of path.slice(1))ctx.lineTo(p[0]+offset,p[1]+offset);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineJoin='round';ctx.stroke()};
+  draw(2,6,'rgba(200,191,177,.42)');draw(0,3.6,'rgba(19,17,18,.94)');draw(-.5,1,'rgba(7,7,8,.85)');
+  for(let b=0;b<3;b++){const p=path[2+Math.floor(rand()*7)];ctx.beginPath();ctx.moveTo(...p);let bx=p[0],by=p[1],ba=rand()*6.28;for(let j=0;j<4;j++){ba+=(rand()-.5)*1.5;bx+=Math.cos(ba)*(12+rand()*17);by+=Math.sin(ba)*(12+rand()*17);ctx.lineTo(bx,by)}ctx.strokeStyle='rgba(26,22,22,.8)';ctx.lineWidth=1.7;ctx.stroke()}
+ }
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());return t;
 }
-const crackedFloorMaterial=new THREE.MeshStandardMaterial({map:crackedConcreteTexture(),color:0xb3b0b1,roughness:1});
+const crackedFloorMaterial=new THREE.MeshStandardMaterial({map:crackedConcreteTexture(),color:0xffffff,roughness:1});
 function mesh(geo,color){return new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:.7}))}
 // Attach existing mesh pieces to an articulated pivot without duplicating geometry.
 function avatarPivot(parent,parts,x,y,z){
@@ -1492,8 +1501,8 @@ function terrainForFloor(){
  };
  // Cracked concrete slabs with worn dark grout lines between each tile.
  for(let x=-16;x<17;x+=2)for(let z=-16;z<17;z+=2){
-  const slab=new THREE.Mesh(new THREE.BoxGeometry(1.93,.08+rand()*.035,1.93),crackedFloorMaterial);
-  slab.position.set(x,.018,z);slab.rotation.y=(rand()-.5)*.018;terrainGroup.add(slab);
+  const slab=new THREE.Mesh(new THREE.BoxGeometry(1.95,.09+rand()*.035,1.95),crackedFloorMaterial);
+  slab.position.set(x,.065,z);slab.rotation.y=(rand()-.5)*.018;terrainGroup.add(slab);
  }
  // Perimeter walls and corner pillars.
  for(let i=-16;i<=16;i+=4){
