@@ -1,9 +1,8 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161126"><title>Shadow Dungeons</title>
-<link rel="stylesheet" href="./root.css?v=camera-buttons-e14c665c">
+<link rel="stylesheet" href="./root.css?v=ios-viewport-20261117">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script></head><body class="menu-open">
-<div id="hud"><span id="stats"></span><div id="runHudActions"><span id="stage"></span><button id="endRun" type="button" aria-label="End current dungeon run and return to main menu" title="End current run and return to menu">End Run</button></div></div>
-<button id="pauseRun" type="button" aria-label="Pause game">⏸ Pause</button>
+<div id="hud"><span id="stats"></span><div id="runHudActions"><button id="pauseRun" type="button" aria-label="Pause game">⏸ Pause</button><button id="endRun" type="button" aria-label="End current dungeon run and return to main menu" title="End current run and return to menu">End Run</button><span id="stage"></span></div></div>
 <div id="pauseOverlay" hidden role="dialog" aria-modal="true" aria-label="Game paused"><div class="pause-card"><h2>⏸ Game Paused</h2><p>Your dungeon run is safe. Enemies and timers are frozen.</p><button id="resumeRun" type="button">▶ Resume Game</button></div></div>
 <div id="panel" data-menu-theme="moonlit">
   <header class="menu-preview-top">
@@ -189,8 +188,35 @@ menuPanel.addEventListener('click',event=>{
  menuTouchGesture=null;
 },true);
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x141020);scene.fog=new THREE.Fog(0x141020,18,43);
-const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,100);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);document.body.prepend(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(65,1,.1,100);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.prepend(renderer.domElement);
+// Use the same visible viewport for the canvas and every gameplay control.
+// Safari's browser bars, rotation and page zoom can change it without a window resize.
+let gameViewportWidth=0,gameViewportHeight=0,viewportFrame=0;
+function syncGameViewport(){
+ const v=window.visualViewport,root=document.documentElement;
+ const w=Math.max(1,Math.floor(v?.width||root.clientWidth||innerWidth));
+ const h=Math.max(1,Math.floor(v?.height||root.clientHeight||innerHeight));
+ root.style.setProperty('--game-width',w+'px');
+ root.style.setProperty('--game-height',h+'px');
+ root.style.setProperty('--game-left',(v?.offsetLeft||0)+'px');
+ root.style.setProperty('--game-top',(v?.offsetTop||0)+'px');
+ if(w!==gameViewportWidth||h!==gameViewportHeight){
+  gameViewportWidth=w;gameViewportHeight=h;
+  camera.aspect=w/h;camera.updateProjectionMatrix();
+  renderer.setSize(w,h,false);
+ }
+}
+function scheduleGameViewport(){
+ if(viewportFrame)return;
+ viewportFrame=requestAnimationFrame(()=>{viewportFrame=0;syncGameViewport()});
+}
+syncGameViewport();
+window.addEventListener('resize',scheduleGameViewport);
+window.addEventListener('orientationchange',scheduleGameViewport);
+window.addEventListener('pageshow',scheduleGameViewport);
+window.visualViewport?.addEventListener('resize',scheduleGameViewport);
+window.visualViewport?.addEventListener('scroll',scheduleGameViewport);
 // Drag the open game view to orbit around the hero (touch or mouse).
 let cameraYaw=0,cameraPitch=.57,cameraDrag=null;
 renderer.domElement.style.touchAction='none';
@@ -1082,7 +1108,7 @@ function animateAura(t){
 const wallMat=new THREE.MeshStandardMaterial({color:0x514366});for(let i=-18;i<=18;i+=3){for(const [x,z] of [[i,-18],[i,18],[-18,i],[18,i]]){const w=new THREE.Mesh(new THREE.BoxGeometry(3,3,1),wallMat);w.position.set(x,1.5,z);if(Math.abs(x)===18)w.rotation.y=Math.PI/2;scene.add(w)}}
 const keys=new Set();addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.code==='Space'){unlockAudio();attack()}if(e.code==='KeyQ'&&!e.repeat){unlockAudio();specialAttack()}if(e.code==='KeyE'&&!e.repeat){unlockAudio();characterAttack()}if((e.code==='ShiftLeft'||e.code==='ShiftRight')&&!e.repeat)dash()});addEventListener('keyup',e=>keys.delete(e.code));
 const joystick=$('joystick'),stick=$('stick'),joy={x:0,z:0};const maxStick=40;
-function moveStick(e){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const d=Math.hypot(dx,dy);if(d>maxStick){dx=dx/d*maxStick;dy=dy/d*maxStick}joy.x=dx/maxStick;joy.z=dy/maxStick;stick.style.transform='translate(calc(-50% + '+dx+'px),calc(-50% + '+dy+'px))'}
+function moveStick(e){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const radius=Math.max(1,Math.min(maxStick,(r.width-stick.offsetWidth)/2-4));const d=Math.hypot(dx,dy);if(d>radius){dx=dx/d*radius;dy=dy/d*radius}joy.x=dx/radius;joy.z=dy/radius;stick.style.transform='translate(calc(-50% + '+dx+'px),calc(-50% + '+dy+'px))'}
 function resetStick(){joy.x=joy.z=0;stick.style.transform='translate(-50%,-50%)'}
 joystick.addEventListener('pointerdown',e=>{e.preventDefault();joystick.setPointerCapture(e.pointerId);moveStick(e)});
 joystick.addEventListener('pointermove',e=>{if(joystick.hasPointerCapture(e.pointerId))moveStick(e)});
@@ -1861,7 +1887,7 @@ function spawn(){
  }
  refresh();
 }
-function show(message){setPaused(false);clearPlayerProjectiles();clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
+function show(message){setPaused(false);clearPlayerProjectiles();clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;scheduleGameViewport();refresh()}
 let paused=false,pauseStarted=0;
 function setPaused(next){
  if(!running&&next)return;
@@ -1882,7 +1908,7 @@ function setPaused(next){
  $('pauseRun').textContent=paused?'Resume':'Pause';
  $('pauseRun').setAttribute('aria-label',paused?'Resume game':'Pause game');
 }
-// Standalone fixed-position button bypasses the HUD's disabled pointer events.
+// Pause shares the viewport-aligned HUD; its button has explicit pointer events.
 const pauseRunButton=$('pauseRun');
 let pausePointerHandled=false;
 pauseRunButton.addEventListener('pointerdown',e=>{
@@ -2723,7 +2749,7 @@ $('start').onclick=()=>{
   if(spaceMarineState==='error')requestSpaceMarineModel();
   return;
  }
- if(!running){setPaused(false);clearBossLoot();clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);clearPlayerProjectiles();for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();placeHeroForFloor();running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
+ if(!running){setPaused(false);clearBossLoot();clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);clearPlayerProjectiles();for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();placeHeroForFloor();running=true;document.activeElement?.blur();document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';syncGameViewport();scheduleGameViewport();refresh()}};
 data.character=['werewolf','reaper','reaper2','kitsune','bellshade','spacemarine'].includes(data.character)?data.character:'reaper';
 if(data.weapon==='daggers')data.weapon='sword';
 $('characterSelect').value=data.character;
@@ -2875,5 +2901,5 @@ function frame(){
  renderer.render(scene,camera);
 }
 frame();
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+
 </script></body></html>
