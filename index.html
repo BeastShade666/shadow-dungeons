@@ -751,6 +751,59 @@ const spaceMarineURLs=[
 ];
 let spaceMarineModel=null,spaceMarineMixer=null,spaceMarineState='idle',spaceMarineMotion='Idle',spaceMarineActive=null;
 const spaceMarineActions={};
+// A fixed-size accessory built once for the imported character, not a separate weapon.
+// It remains bright green when Hero Color changes and is included in portrait clones.
+function attachSpaceMarineCrayon(){
+ const crayon=new THREE.Group();
+ crayon.name='SpaceMarineGreenCrayon';
+ const wax=new THREE.MeshStandardMaterial({color:0x37d329,roughness:.74,metalness:0});
+ const tipWax=new THREE.MeshStandardMaterial({color:0x5cf247,roughness:.91,metalness:0});
+ const ink=new THREE.MeshStandardMaterial({color:0x142a17,roughness:.78});
+ const harness=new THREE.MeshStandardMaterial({color:0x313a39,roughness:.55,metalness:.52});
+ const make=(geometry,material,x=0,y=0,z=0)=>{
+  const mesh=new THREE.Mesh(geometry,material);
+  mesh.position.set(x,y,z);mesh.castShadow=true;crayon.add(mesh);return mesh;
+ };
+ // Vertical green wax stick with the unmistakable pointed crayon tip.
+ make(new THREE.CylinderGeometry(.19,.19,1.6,20),wax,0,.05);
+ make(new THREE.ConeGeometry(.19,.50,20),tipWax,0,1.10);
+ for(const y of [-.60,.61])make(new THREE.CylinderGeometry(.198,.198,.105,20),ink,0,y);
+ // Dark central wrapper, printed once on a small canvas to avoid new assets.
+ const labelCanvas=document.createElement('canvas');
+ labelCanvas.width=512;labelCanvas.height=256;
+ const ctx=labelCanvas.getContext('2d');
+ if(ctx){
+  ctx.fillStyle='#173b19';ctx.fillRect(0,0,512,256);
+  ctx.fillStyle='#a8ff81';ctx.fillRect(0,15,512,13);ctx.fillRect(0,228,512,13);
+  ctx.font='bold 79px Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('CRAYON',256,128);
+ }
+ const labelTexture=new THREE.CanvasTexture(labelCanvas);
+ labelTexture.colorSpace=THREE.SRGBColorSpace;
+ labelTexture.anisotropy=4;
+ make(new THREE.CylinderGeometry(.199,.199,.48,24),new THREE.MeshStandardMaterial({map:labelTexture,roughness:.82}),0,.01);
+ // Two backpack straps and reinforced clamps, following the upper torso.
+ for(const y of [-.53,.55]){
+  const strap=make(new THREE.TorusGeometry(.206,.045,8,24),harness,0,y);
+  strap.rotation.x=Math.PI/2;
+  make(new THREE.BoxGeometry(.47,.12,.32),harness,0,y,.28);
+ }
+ // Local game space faces +Z; back is -Z. Keep it clear of the right-hand weapon.
+ crayon.position.set(.56,1.82,-.52);
+ crayon.rotation.z=-.09;
+ spaceMarineVisual.add(crayon);
+ // Attach to an animated upper-spine bone so idle/walk/run torso motion carries it.
+ // Preserving world transform avoids assumptions about the GLB's bone-local units.
+ const bones=[];
+ spaceMarineModel.traverse(o=>{if(o.isBone&&/spine|chest/i.test(o.name))bones.push(o)});
+ const spine=bones.find(o=>/spine2|upperchest/i.test(o.name))
+  ||bones.find(o=>/spine1|chest/i.test(o.name))||bones[0];
+ if(spine){
+  spaceMarineVisual.updateMatrixWorld(true);
+  spine.attach(crayon);
+ }
+}
+
 // Space Marine is an imported GLB. Clone and register only its armor materials
 // so Hero Color affects the textured uniform without changing its rig or maps.
 const spaceMarineColorParts=[];
@@ -862,6 +915,7 @@ async function requestSpaceMarineModel(){
     spaceMarineActive=null;
     playSpaceMarineMotion('Idle');
     spaceMarineMixer.update(1/60);
+    attachSpaceMarineCrayon();
     spaceMarineState='ready';
     lastPortraitKey='';
     refresh();
