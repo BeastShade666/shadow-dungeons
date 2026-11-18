@@ -786,11 +786,12 @@ function attachSpaceMarineCrayon(){
  for(const y of [-.53,.55]){
   const strap=make(new THREE.TorusGeometry(.206,.045,8,24),harness,0,y);
   strap.rotation.x=Math.PI/2;
-  make(new THREE.BoxGeometry(.47,.12,.32),harness,0,y,.28);
+  make(new THREE.BoxGeometry(.47,.12,.32),harness,0,y,-.28);
  }
- // Local game space faces +Z; back is -Z. Keep it clear of the right-hand weapon.
- crayon.position.set(.56,1.82,-.52);
- crayon.rotation.z=-.09;
+ // The imported Soldier faces local -Z, so its BACK is local +Z.
+ // Center the crayon behind the spine (not beside or in front of the player).
+ crayon.position.set(0,1.78,.55);
+ crayon.rotation.z=0;
  spaceMarineVisual.add(crayon);
  // Attach to an animated upper-spine bone so idle/walk/run torso motion carries it.
  // Preserving world transform avoids assumptions about the GLB's bone-local units.
