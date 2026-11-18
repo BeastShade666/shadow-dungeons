@@ -2473,6 +2473,42 @@ function battleAxeOrientation(gripWorld,edgeWorld,tangentWorld,edgeX,edgeY){
  const axisZ=new THREE.Vector3().crossVectors(axisX,axisY).normalize();
  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(axisX,axisY,axisZ));
 }
+// Resting axe: the shaft points toward the floor, angled away from the feet.
+ // Derive from world-space gravity so animated or differently oriented bones
+ // cannot accidentally turn the blade upward. Keep the head above the floor.
+function battleAxeRestRotation(gripWorld,held){
+ const scale=held.getWorldScale(new THREE.Vector3());
+ const maxScale=Math.max(Math.abs(scale.x),Math.abs(scale.y),Math.abs(scale.z),.01);
+ const down=THREE.MathUtils.clamp((gripWorld.y-hero.position.y-.13)/(1.78*maxScale),.10,.72);
+ const side=Math.sign(hero.worldToLocal(gripWorld.clone()).x)||1;
+ const flat=Math.sqrt(1-down*down);
+ const axisY=new THREE.Vector3(side*.48,0,.8773).normalize().multiplyScalar(flat);
+ axisY.y=-down;
+ const axisX=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),axisY).normalize().multiplyScalar(side);
+ const axisZ=new THREE.Vector3().crossVectors(axisX,axisY).normalize();
+ const local=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(axisX,axisY,axisZ));
+ return hero.getWorldQuaternion(new THREE.Quaternion()).multiply(local);
+}
+function updateBattleAxeRestPose(){
+ if(!running||paused||data.weapon!=='axe'||swing?.axe||characterSwing)return;
+ const held=data.character==='bellshade'?bellStaff:weaponGroup;
+ const parent=held.parent;
+ if(!parent)return;
+ hero.updateWorldMatrix(true,true);
+ const rigHand=data.character==='reaper2'&&reaperV2IsRigged&&reaperV2RightHand?reaperV2RightHand:null;
+ const grip=rigHand?rigHand.getWorldPosition(new THREE.Vector3()):held.getWorldPosition(new THREE.Vector3());
+ const worldRotation=battleAxeRestRotation(grip,held);
+ if(rigHand&&reaperV2HandCalibrated&&rigHand.parent){
+  const handQ=worldRotation.clone().multiply(reaperV2RestHandInverse.clone().invert());
+  rememberReaperV2Bone(rigHand);
+  rigHand.quaternion.copy(rigHand.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(handQ)).normalize();
+  rigHand.updateWorldMatrix(true,true);
+ }
+ parent.updateWorldMatrix(true,false);
+ held.position.copy(parent.worldToLocal(grip.clone()));
+ held.quaternion.copy(parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(worldRotation));
+ held.updateWorldMatrix(true,true);
+}
 function updateBattleAxeSweepPose(){
  if(!running||paused||!swing?.axe||isReaperScytheActive())return;
  const t=THREE.MathUtils.clamp(swing.elapsed/swing.duration,0,1);
@@ -2504,6 +2540,8 @@ function updateBattleAxeSweepPose(){
  }
  // Only now compute rotation, after the physical hand has reached its final point.
  const worldRotation=battleAxeOrientation(gripWorld,edgeWorld,tangentWorld,edgeX,edgeY);
+ // Preserve the approved cutting trajectory; lower only during recovery.
+ if(pose.recover>0)worldRotation.slerp(battleAxeRestRotation(gripWorld,held),pose.recover);
  if(rigHand){
   const support=reaperV2AttackBones.leftHand;
   if(support&&support!==rigHand){
@@ -2520,11 +2558,8 @@ function updateBattleAxeSweepPose(){
  }
  parent.updateWorldMatrix(true,false);
  const localRotation=parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(worldRotation);
- const idleRotation=new THREE.Quaternion().setFromEuler(new THREE.Euler(
-  data.character==='werewolf'||data.character==='kitsune'?.30:0,0,
-  data.character==='werewolf'||data.character==='kitsune'?-.60:0));
  held.position.copy(parent.worldToLocal(gripWorld.clone()));
- held.quaternion.copy(localRotation).slerp(idleRotation,pose.recover);
+ held.quaternion.copy(localRotation);
  held.updateWorldMatrix(true,true);
 }
 function updateFrontScythePose(){
@@ -3104,6 +3139,7 @@ function frame(){
  updateReaperV2Animation(dt,bodyMoveBlend);
  updateFrontScythePose();
  updateBattleAxeSweepPose();
+ updateBattleAxeRestPose();
  const orbitDistance=14,flat=orbitDistance*Math.cos(cameraPitch);
  camera.position.lerp(new THREE.Vector3(hero.position.x+Math.sin(cameraYaw)*flat,1+Math.sin(cameraPitch)*orbitDistance,hero.position.z+Math.cos(cameraYaw)*flat),.12);
  camera.lookAt(hero.position.x,1,hero.position.z);
