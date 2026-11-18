@@ -360,10 +360,54 @@ body:not(.menu-open) #controls{
 @media(pointer:coarse){
  #panel input,#panel select,#panel .menu-grid select{font-size:16px}
 }
-@media(max-height:480px) and (orientation:landscape){
- #joystick{width:clamp(82px,30vh,120px);height:clamp(82px,30vh,120px)}
- #attackButtons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end;max-width:55%}
- #attackButtons button{min-height:40px;font-size:.78rem}
+/* Phone landscape: full-width 3D world, compact corner controls, single-row HUD.
+   JS selects this layout from the same visible viewport used by the renderer. */
+html[data-game-layout="landscape"] body:not(.menu-open) #hud{
+ --hud-pad:6px;display:grid;grid-template-columns:auto minmax(0,1fr);
+ align-items:center;gap:8px;font-size:clamp(12px,calc(var(--game-height,100vh) * .045),17px);
+}
+html[data-game-layout="landscape"] #stats{padding:0;white-space:nowrap}
+html[data-game-layout="landscape"] #runHudActions{
+ display:grid;grid-template-columns:minmax(0,1fr) auto auto;
+ width:100%;margin:0;gap:5px;align-items:center;
+}
+html[data-game-layout="landscape"] #stage{
+ order:0;text-align:center;font-size:clamp(10px,calc(var(--game-height,100vh) * .04),14px);
+}
+html[data-game-layout="landscape"] #hud #pauseRun,
+html[data-game-layout="landscape"] #hud #endRun{
+ min-height:40px;padding:7px 10px;font-size:clamp(11px,calc(var(--game-height,100vh) * .042),15px);
+}
+html[data-game-layout="landscape"] body:not(.menu-open) #controls{gap:12px}
+html[data-game-layout="landscape"] #joystick{
+ width:clamp(76px,calc(var(--game-height,100vh) * .38),132px);
+ height:clamp(76px,calc(var(--game-height,100vh) * .38),132px);
+}
+html[data-game-layout="landscape"] #attackButtons{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ width:clamp(150px,calc(var(--game-width,100vw) * .31),254px);
+ max-width:55%;gap:5px;align-items:stretch;
+}
+html[data-game-layout="landscape"] #attackButtons button{
+ min-height:44px;min-width:0;width:100%;margin:0;padding:6px 8px;
+ font-size:clamp(10px,calc(var(--game-height,100vh) * .042),14px);
+}
+html[data-game-layout="landscape"] #attack{grid-column:2;grid-row:2}
+html[data-game-layout="landscape"] #special{grid-column:1;grid-row:2}
+html[data-game-layout="landscape"] #dash{grid-column:1;grid-row:1}
+html[data-game-layout="landscape"] #characterAttack{grid-column:2;grid-row:1}
+@media(orientation:landscape) and (max-height:560px){
+ body.menu-open #panel{
+  padding-left:calc(12px + env(safe-area-inset-left,0px));
+  padding-right:calc(12px + env(safe-area-inset-right,0px));
+  padding-top:calc(10px + env(safe-area-inset-top,0px));
+  padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));
+ }
+}
+@media(orientation:landscape) and (max-height:560px) and (min-width:580px){
+ #panel .menu-preview-stage{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);max-width:1050px;align-items:start}
+ #panel .scene-title{align-self:start;padding:8px 4px}
+ #panel .scene-title h1{font-size:clamp(1.65rem,4.3vw,3rem)}
 }
 #pauseOverlay[hidden]{display:none!important}
 #pauseOverlay{
