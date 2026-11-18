@@ -2438,7 +2438,8 @@ function updateBattleAxeSweepPose(){
  }else if(parent.isBone){
   // Imported models keep the weapon at the actual hand.
   if(data.character==='spacemarine'){
-   aimReaperArmAtGrip(gripWorld,parent);
+   // Keep the original imported hand animation; do not register Marine bones
+   // in the Reaper-specific IK cache.
    gripWorld=parent.localToWorld(new THREE.Vector3(0,0,.08));
   }
  }else{
