@@ -300,77 +300,80 @@ body.menu-open #panel .menu-card :is(button,select,summary,input,a):focus-visibl
 .leaderboard{margin:8px 0 14px;border:2px solid #c5a4ff;box-shadow:0 0 18px #6745a733}
 .leaderboard h3{font-size:1.1rem}
 
-/* In-dungeon top HUD exit. The original HUD ignores touches except this button. */
-#hud{z-index:4;align-items:flex-start}
-#runHudActions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px 10px;min-width:0;max-width:60%;text-align:right}
-#stage{min-width:0}
-#endRun{
- display:inline-flex;align-items:center;justify-content:center;
- min-width:96px;min-height:44px;margin:0;padding:9px 13px;
- pointer-events:auto;touch-action:manipulation;
- border:1px solid #ffc0b3;border-radius:11px;
- background:linear-gradient(145deg,#9c233b,#58162f);
- color:#fff5f1;font-size:.86rem;font-weight:850;line-height:1;
+/* Gameplay viewport: shared geometry for world and HUD, including iOS Safari. */
+body > canvas{
+ position:fixed;inset:auto;left:var(--game-left,0px);top:var(--game-top,0px);
+ width:var(--game-width,100vw);height:var(--game-height,100vh);
+ max-width:none;max-height:none;z-index:0;
+}
+body:not(.menu-open) > canvas{pointer-events:auto;touch-action:none}
+body.menu-open > canvas{pointer-events:none}
+body:not(.menu-open){touch-action:none;overscroll-behavior:none;overflow:hidden}
+body.menu-open #hud{display:none}
+body:not(.menu-open) #hud{
+ --hud-pad:8px;
+ position:fixed;inset:auto;
+ top:calc(var(--game-top,0px) + env(safe-area-inset-top,0px) + var(--hud-pad));
+ left:calc(var(--game-left,0px) + env(safe-area-inset-left,0px) + var(--hud-pad));
+ width:calc(var(--game-width,100vw) - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 2 * var(--hud-pad));
+ display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:5px 8px;
+ z-index:4;pointer-events:none;font-size:clamp(11px,3.2vw,16px);
+}
+#stats{flex:1 1 auto;min-width:0;max-width:100%;overflow-wrap:anywhere;padding-top:5px}
+#runHudActions{
+ display:flex;flex:0 1 auto;flex-wrap:wrap;justify-content:flex-end;align-items:center;
+ gap:5px;min-width:0;max-width:100%;margin-left:auto;text-align:right;
+}
+#stage{order:3;flex:0 0 100%;min-width:0;max-width:100%;font-size:.8em;line-height:1.2;overflow-wrap:anywhere}
+#hud #pauseRun,#hud #endRun{
+ display:inline-flex;align-items:center;justify-content:center;flex:0 1 auto;
+ min-width:0;min-height:44px;margin:0;padding:8px 10px;pointer-events:auto;
+ touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+ border-radius:11px;color:#fff;font-size:.82rem;font-weight:850;line-height:1.1;
  box-shadow:0 3px 12px #0008;text-shadow:0 1px 2px #000b;
 }
-#endRun:hover{background:linear-gradient(145deg,#b52b45,#6e1d35)}
-#endRun:focus-visible{outline:3px solid #fff3be;outline-offset:2px}
-body.menu-open #endRun{display:none}
-@media(max-width:700px){
- #runHudActions{max-width:61%;gap:5px 7px}
- #endRun{min-width:84px;min-height:44px;padding:9px;font-size:.76rem}
- #stats{max-width:42%}
+#hud #pauseRun{order:1;border:1px solid #b9a5ff;background:linear-gradient(145deg,#5340a2,#30256a)}
+#hud #endRun{order:2;border:1px solid #ffc0b3;background:linear-gradient(145deg,#9c233b,#58162f)}
+#hud #pauseRun:focus-visible,#hud #endRun:focus-visible,#resumeRun:focus-visible{outline:3px solid #fff3be;outline-offset:2px}
+body:not(.menu-open) #controls{
+ position:fixed;inset:auto;left:calc(var(--game-left,0px) + env(safe-area-inset-left,0px) + 10px);
+ top:calc(var(--game-top,0px) + var(--game-height,100vh) - env(safe-area-inset-bottom,0px) - 10px);
+ transform:translateY(-100%);
+ width:calc(var(--game-width,100vw) - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 20px);
+ align-items:flex-end;justify-content:space-between;gap:8px;
+}
+#joystick{
+ flex:0 0 auto;width:clamp(64px,calc(var(--game-width,100vw) * .31),144px);
+ height:clamp(64px,calc(var(--game-width,100vw) * .31),144px);
+ max-width:calc(var(--game-width,100vw) * .4);
+}
+#stick{width:42%;height:42%}
+#attackButtons{flex:0 1 auto;min-width:0;max-width:55%;gap:3px}
+#attackButtons button{
+ min-width:0;max-width:100%;min-height:44px;margin:0;padding:8px 10px;
+ font-size:clamp(10px,3vw,15px);white-space:normal;overflow-wrap:anywhere;
+ user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none;
+}
+#special{min-width:0!important}
+#attack.is-held{filter:brightness(1.22);transform:scale(.96)}
+/* Stop Safari's automatic input-focus zoom without disabling accessible pinch zoom. */
+@media(pointer:coarse){
+ #panel input,#panel select,#panel .menu-grid select{font-size:16px}
 }
 @media(max-height:480px) and (orientation:landscape){
- #endRun{min-height:38px;padding:7px 10px}
+ #joystick{width:clamp(82px,30vh,120px);height:clamp(82px,30vh,120px)}
+ #attackButtons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end;max-width:55%}
+ #attackButtons button{min-height:40px;font-size:.78rem}
 }
-
-/* Holding ATTACK must never select/highlight the label on Android. */
-#attack,#attack *{
- -webkit-user-select:none;
- user-select:none;
- -webkit-touch-callout:none;
- touch-action:none;
- -webkit-tap-highlight-color:transparent;
-}
-#attack.is-held{filter:brightness(1.22);transform:scale(.96)}
-
-/* Pause action beside End Run, with a modal that blocks game touches. */
-#pauseRun{display:inline-flex;align-items:center;justify-content:center;min-width:86px;min-height:44px;margin:0;padding:9px 12px;border:1px solid #b9a5ff;border-radius:11px;background:linear-gradient(145deg,#5340a2,#30256a);color:white;font-size:.86rem;font-weight:850;box-shadow:0 3px 12px #0008;touch-action:manipulation}
-#pauseRun:focus-visible,#resumeRun:focus-visible{outline:3px solid #fff3be;outline-offset:2px}
-body.menu-open #pauseRun{display:none}
 #pauseOverlay[hidden]{display:none!important}
-#pauseOverlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;background:#0d0928bb;backdrop-filter:blur(5px);touch-action:none}
+#pauseOverlay{
+ position:fixed;inset:auto;left:var(--game-left,0px);top:var(--game-top,0px);
+ width:var(--game-width,100vw);height:var(--game-height,100vh);z-index:100;
+ display:flex;align-items:center;justify-content:center;padding:16px;
+ background:#0d0928bb;backdrop-filter:blur(5px);touch-action:none;overflow:auto;
+}
 .pause-card{max-width:360px;width:100%;padding:28px 22px;text-align:center;background:#201937;border:2px solid #a68bf0;border-radius:18px;box-shadow:0 16px 55px #000a;color:#fff}
 .pause-card h2{margin:0 0 12px;font-size:1.6rem}
 .pause-card p{line-height:1.5;color:#ddd2f5}
 #resumeRun{min-height:50px;padding:12px 24px;border-radius:12px;border:1px solid #dfc88a;background:#7754c8;color:white;font-weight:850;font-size:1rem;touch-action:manipulation}
-@media(max-width:700px){#pauseRun{min-width:70px;min-height:44px;padding:9px;font-size:.76rem}}
-@media(max-height:480px) and (orientation:landscape){#pauseRun{min-height:38px;padding:7px 10px}.pause-card{padding:15px 20px}.pause-card h2{font-size:1.3rem}}
-
-/* Keep both run controls visible on narrow Android landscape viewports.
-   They no longer compete with the potentially long floor name in the HUD. */
-body:not(.menu-open) #runHudActions{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;gap:5px;max-width:calc(100vw - 130px);width:auto;flex:none}
-body:not(.menu-open) #stage{max-width:min(52vw,310px);font-size:clamp(10px,2.3vw,13px);line-height:1.15;overflow-wrap:anywhere}
-body:not(.menu-open) #pauseRun,body:not(.menu-open) #endRun{display:flex;position:relative;flex:none;visibility:visible;opacity:1;z-index:10;margin:0;min-width:94px;min-height:40px}
-body:not(.menu-open) #pauseRun{order:1}
-body:not(.menu-open) #endRun{order:2}
-body:not(.menu-open) #stage{order:3}
-@media(max-height:480px) and (orientation:landscape){
- body:not(.menu-open) #runHudActions{flex-direction:row;flex-wrap:wrap;max-width:calc(100vw - 115px);gap:4px}
- body:not(.menu-open) #pauseRun,body:not(.menu-open) #endRun{min-width:75px;min-height:38px;padding:7px 9px}
- body:not(.menu-open) #stage{order:3;flex-basis:100%;max-width:100%;text-align:right}
-}
-
-/* HUD disables pointer events by default; explicitly re-enable Pause taps. */
-#hud #pauseRun{pointer-events:auto!important;touch-action:manipulation;cursor:pointer}
-
-/* Pause is a direct body child, not inside the non-interactive HUD. */
-body > #pauseRun{position:fixed!important;top:calc(12px + env(safe-area-inset-top,0px));right:calc(118px + env(safe-area-inset-right,0px));left:auto;z-index:80!important;display:inline-flex;align-items:center;justify-content:center;pointer-events:auto!important;touch-action:none;min-width:88px;min-height:44px;margin:0;user-select:none;-webkit-user-select:none}
-body.menu-open > #pauseRun{display:none!important}
-@media(max-width:700px){body > #pauseRun{right:calc(106px + env(safe-area-inset-right,0px));min-width:75px;min-height:40px;font-size:.76rem}}
-@media(max-height:480px) and (orientation:landscape){body > #pauseRun{top:calc(12px + env(safe-area-inset-top,0px));min-height:38px}}
-
-/* Allow touch/mouse orbit gestures on the gameplay canvas. */
-body:not(.menu-open) > canvas { pointer-events:auto; touch-action:none; }
-body.menu-open > canvas { pointer-events:none; }
+@media(max-height:480px) and (orientation:landscape){.pause-card{padding:15px 20px}.pause-card h2{font-size:1.3rem}}
