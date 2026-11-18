@@ -1640,18 +1640,43 @@ function terrainForFloor(){
   const slab=new THREE.Mesh(new THREE.BoxGeometry(1.95,.09+rand()*.035,1.95),crackedFloorMaterial);
   slab.position.set(x,.065,z);slab.rotation.y=(rand()-.5)*.018;terrainGroup.add(slab);
  }
- // Continuous perimeter walls aligned to the enlarged 48x48 arena.
- // The old short segments were placed at +/-25.2, leaving visible gaps and
- // allowing the hero to walk beyond the floor before reaching a wall.
- const outerWallHeight=3.2,outerWallThickness=.7;
- for(const side of [-1,1]){
-  const wallX=add(new THREE.BoxGeometry(outerWallThickness,outerWallHeight,49.4),palette.stone,side*24.5,outerWallHeight/2,0);
-  const wallZ=add(new THREE.BoxGeometry(49.4,outerWallHeight,outerWallThickness),palette.stone,0,outerWallHeight/2,side*24.5);
-  wallX.material.roughness=wallZ.material.roughness=.95;
+ // Rotten timber perimeter: shared instanced boards for smooth mobile rendering.
+ {
+ const woodMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1});
+ const darkMat=new THREE.MeshStandardMaterial({color:0x302219,roughness:1});
+ const mossMat=new THREE.MeshStandardMaterial({color:0x34402b,roughness:1});
+ const boards=new THREE.InstancedMesh(new THREE.BoxGeometry(1.9,3.25,.34),woodMat,104);
+ const seams=new THREE.InstancedMesh(new THREE.BoxGeometry(.22,3.55,.53),darkMat,104);
+ const moss=new THREE.InstancedMesh(new THREE.BoxGeometry(1.55,.2,.39),mossMat,104);
+ const d=new THREE.Object3D(),c=new THREE.Color();
+ let bi=0,si=0,mi=0;
+ for(let side=0;side<4;side++){
+  const alongX=side>=2,sign=side%2===0?-1:1;
+  for(let k=0;k<26;k++){
+   const along=-23.5+k*1.88,fixed=sign*24.35,h=3.05+rand()*.6;
+   d.position.set(alongX?along:fixed,h/2,alongX?fixed:along);
+   d.rotation.set(0,alongX?0:Math.PI/2,(rand()-.5)*.035);
+   d.scale.set(.94+rand()*.07,h/3.25,1);d.updateMatrix();
+   boards.setMatrixAt(bi,d.matrix);
+   c.setHex([0x745238,0x60422d,0x503925,0x816044,0x48372a][Math.floor(rand()*5)]);
+   boards.setColorAt(bi++,c);
+   d.rotation.set(0,alongX?0:Math.PI/2,0);
+   d.position.set(alongX?along+.89:fixed,1.77,alongX?fixed:along+.89);
+   d.scale.set(1,1,1);d.updateMatrix();seams.setMatrixAt(si++,d.matrix);
+   if(rand()<.7){
+    d.position.set(alongX?along:fixed,.12+rand()*.4,alongX?fixed:along);
+    d.scale.set(.65+rand()*.3,1,1);d.updateMatrix();moss.setMatrixAt(mi++,d.matrix);
+   }
+  }
  }
- for(const x of [-24.25,24.25])for(const z of [-24.25,24.25]){
-  add(new THREE.CylinderGeometry(.58,.75,3.5,8),palette.stone,x,1.75,z);
-  add(new THREE.BoxGeometry(1.6,.32,1.6),palette.accent,x,3.52,z);
+ boards.count=bi;seams.count=si;moss.count=mi;
+ boards.instanceMatrix.needsUpdate=seams.instanceMatrix.needsUpdate=moss.instanceMatrix.needsUpdate=true;
+ if(boards.instanceColor)boards.instanceColor.needsUpdate=true;
+ terrainGroup.add(boards,seams,moss);
+ for(const side of [-1,1])for(const h of [.6,2.55]){
+  add(new THREE.BoxGeometry(48.7,.21,.38),0x39291f,0,h,side*24.13);
+  add(new THREE.BoxGeometry(.38,.21,48.7),0x39291f,side*24.13,h,0);
+ }
  }
  // The former interior divider meshes were leftover from the smaller room layout.
  // Remove them entirely: only the new solid perimeter encloses this open arena.
