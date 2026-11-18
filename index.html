@@ -70,12 +70,12 @@
       <h3 class="section-title">🗡 Weapons</h3>
       <div id="weapons"></div>
       <button id="start" type="button">Enter Dungeon</button>
-      <p class="menu-controls-help"><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E • Dash: Shift or mobile DASH button • Auto aim: nearest enemy in range • Mobile: drag the joystick to move; swipe the open game view to rotate the camera</small></p>
+      <p class="menu-controls-help"><small>Move: WASD / arrow keys • Attack: Space • Special: Q • Character attack: E • Dash: Shift or mobile DASH button • Auto aim: nearest enemy in range • Mobile: joystick moves; use the camera arrow buttons or swipe the open game view to rotate</small></p>
     </section>
   </div>
   <footer class="menu-preview-footer">Choose your hero. Upgrade your skills. Conquer the dungeon.</footer>
 </div>
-<div id="controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div></div><div id="attackButtons"><button id="dash" aria-label="Quick dodge dash">DASH</button><button id="characterAttack">SCYTHE SWEEP</button><button id="special">SPECIAL</button><button id="attack">ATTACK</button></div></div><div id="error"></div>
+<div id="cameraControls" aria-label="Camera rotation controls"><button type="button" id="cameraLeft" aria-label="Rotate camera left">↶</button><button type="button" id="cameraUp" aria-label="Raise camera angle">↑</button><button type="button" id="cameraDown" aria-label="Lower camera angle">↓</button><button type="button" id="cameraRight" aria-label="Rotate camera right">↷</button></div><div id="controls"><div id="joystick" aria-label="Movement joystick"><div id="stick"></div></div><div id="attackButtons"><button id="dash" aria-label="Quick dodge dash">DASH</button><button id="characterAttack">SCYTHE SWEEP</button><button id="special">SPECIAL</button><button id="attack">ATTACK</button></div></div><div id="error"></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const $=id=>document.getElementById(id);
@@ -208,6 +208,31 @@ renderer.domElement.addEventListener('pointermove',e=>{
 });
 for(const type of ['pointerup','pointercancel','lostpointercapture'])
  renderer.domElement.addEventListener(type,e=>{if(cameraDrag?.id===e.pointerId)cameraDrag=null});
+// Dedicated on-screen orbit controls: reliable even when a browser blocks canvas swipes.
+const cameraButtons=[
+ ['cameraLeft',-1,0],['cameraRight',1,0],
+ ['cameraUp',0,-1],['cameraDown',0,1]
+];
+const cameraHold=new Set();
+for(const [id,yaw,pitch] of cameraButtons){
+ const btn=$(id);
+ btn.addEventListener('pointerdown',e=>{
+  e.preventDefault();e.stopPropagation();
+  if(!running||paused)return;
+  cameraHold.add(id);
+  try{btn.setPointerCapture(e.pointerId)}catch{}
+  cameraYaw+=yaw*.12;
+  cameraPitch=THREE.MathUtils.clamp(cameraPitch+pitch*.07,.23,1.18);
+ });
+ for(const type of ['pointerup','pointercancel','lostpointercapture'])
+  btn.addEventListener(type,()=>cameraHold.delete(id));
+ btn.addEventListener('click',e=>{
+  e.preventDefault();
+  if(e.detail!==0||!running||paused)return;
+  cameraYaw+=yaw*.12;
+  cameraPitch=THREE.MathUtils.clamp(cameraPitch+pitch*.07,.23,1.18);
+ });
+}
 function cameraRelativeMove(x,z){
  const c=Math.cos(cameraYaw),sn=Math.sin(cameraYaw);
  return {x:x*c+z*sn,z:z*c-x*sn};
@@ -1831,7 +1856,7 @@ function spawn(){
  }
  refresh();
 }
-function show(message){setPaused(false);clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
+function show(message){setPaused(false);clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('cameraControls').style.display='none';$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
 let paused=false,pauseStarted=0;
 function setPaused(next){
  if(!running&&next)return;
@@ -2652,7 +2677,7 @@ $('start').onclick=()=>{
   if(spaceMarineState==='error')requestSpaceMarineModel();
   return;
  }
- if(!running){setPaused(false);clearBossLoot();clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();placeHeroForFloor();running=true;document.body.classList.remove('menu-open');$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
+ if(!running){setPaused(false);clearBossLoot();clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();placeHeroForFloor();running=true;document.body.classList.remove('menu-open');$('cameraControls').style.display='flex';$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
 data.character=['werewolf','reaper','reaper2','kitsune','bellshade','spacemarine'].includes(data.character)?data.character:'reaper';
 if(data.weapon==='daggers')data.weapon='sword';
 $('characterSelect').value=data.character;
@@ -2704,6 +2729,10 @@ function frame(){
  bodyMoveTarget=0;
  if(running){
   if(attackHeld)attack();
+  for(const [id,yaw,pitch] of cameraButtons)if(cameraHold.has(id)){
+   cameraYaw+=yaw*dt*1.8;
+   cameraPitch=THREE.MathUtils.clamp(cameraPitch+pitch*dt*.9,.23,1.18);
+  }
   let x=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+joy.x;
   let z=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+joy.z;
   const len=Math.max(1,Math.hypot(x,z));x/=len;z/=len;
