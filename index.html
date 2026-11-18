@@ -142,7 +142,7 @@ function drawSkills(){
   el.appendChild(button);
  }
 }
-const persist=()=>{try{localStorage.setItem('shadow-save',JSON.stringify(data))}catch{}};
+const persist=()=>{if(new URLSearchParams(location.search).has('axeInspect'))return;try{localStorage.setItem('shadow-save',JSON.stringify(data))}catch{}};
 function setMenuTheme(theme){
  const chosen=theme==='ember'?'ember':'moonlit';
  data.menuTheme=chosen;
@@ -1609,7 +1609,7 @@ function monster(kind){
 // Procedural floor themes and lightweight scenery; regenerated each floor.
 // Visible build marker distinguishes the new wooden-wall version from stale tabs.
 const buildTag=document.createElement('span');
-buildTag.textContent='CAMERA FIX · BUILD 2026-11-17C';
+buildTag.textContent='AXE SOCKET · BUILD 2026-11-17D';
 buildTag.style.cssText='position:fixed;left:8px;bottom:8px;z-index:8;font:10px system-ui;color:#c5a883;background:#241b15c9;padding:3px 6px;border-radius:4px;pointer-events:none';
 document.body.appendChild(buildTag);
 const terrainGroup=new THREE.Group();scene.add(terrainGroup);
@@ -2608,8 +2608,10 @@ function battleAxeCarryTarget(held,shoulder,reach){
  const minimumY=.13+(data.character==='bellshade'?.90:.78)*Math.abs(scale.x)+.08*Math.abs(scale.y);
  const clearance={reaper:.91,reaper2:.96,werewolf:1.10,kitsune:.86,bellshade:.80,spacemarine:.90}[data.character]||.96;
  const p=shoulder?hero.worldToLocal(shoulder.getWorldPosition(new THREE.Vector3())):new THREE.Vector3(.55,1.75,0);
- const side=p.x<-.05?-1:1,dx=Math.max(.16,clearance-Math.abs(p.x)),dz=.22-p.z;
- const dy=Math.max(minimumY-p.y,reach>0?-Math.sqrt(Math.max(.04,(reach*.94)**2-dx*dx-dz*dz)):-.78);
+ const side=p.x<-.05?-1:1;
+ const dx=reach>0?Math.min(Math.max(.14,clearance-Math.abs(p.x)),reach*.38):Math.max(.14,clearance-Math.abs(p.x));
+ const dz=.24-p.z;
+ const dy=Math.max(minimumY-p.y,reach>0?-Math.sqrt(Math.max(.04,(reach*.97)**2-dx*dx-dz*dz)):-.78);
  return hero.localToWorld(new THREE.Vector3(p.x+side*dx,p.y+dy,p.z+dz));
 }
 function battleAxeRigReach(hand){
@@ -2645,7 +2647,7 @@ function battleAxeAimRig(hand,target){
  const length=THREE.MathUtils.clamp(d.length(),Math.abs(l1-l2)+.001,(l1+l2)*.985);
  d.normalize();
  const side=hero.worldToLocal(a.clone()).x<0?-1:1;
- const pole=new THREE.Vector3(side,0,-.65).applyQuaternion(hero.getWorldQuaternion(new THREE.Quaternion()));
+ const pole=new THREE.Vector3(side*.45,.15,-1).applyQuaternion(hero.getWorldQuaternion(new THREE.Quaternion()));
  pole.addScaledVector(d,-pole.dot(d));
  if(pole.lengthSq()<1e-6)pole.set(0,1,0).addScaledVector(d,-d.y);
  pole.normalize();
@@ -2705,26 +2707,32 @@ function battleAxeNeutralArm(frame){
 // Align the palm's real across-knuckle axis to the shaft, and keep the
 // length of the hand in the direction of the forearm. Do not use the scythe
 // rest calibration or infer the axe orientation from changing wrist axes.
+function battleAxeSocket(hand,frame){
+ if(frame.socket)return frame.socket;
+ // Hand basis columns are across the fingers, along the hand, palm normal.
+ // Weapon basis columns must be blade edge, shaft and blade normal.
+ const x=new THREE.Vector3(0,1,0).applyQuaternion(frame.basis);
+ const y=new THREE.Vector3(1,0,0).applyQuaternion(frame.basis);
+ const z=new THREE.Vector3().crossVectors(x,y).normalize();
+ const q=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
+ frame.socket={position:frame.palm.clone(),rotation:q};
+ return frame.socket;
+}
 function battleAxeHandOrientation(hand,axeQ,frame){
- const shaft=new THREE.Vector3(0,1,0).applyQuaternion(axeQ).normalize();
+ const socket=battleAxeSocket(hand,frame);
+ const desired=axeQ.clone().multiply(socket.rotation.clone().invert());
  const fore=reaperV2AttackBones.rightForearm;
- const wrist=hand.getWorldPosition(new THREE.Vector3());
- const arm=wrist.clone().sub((fore||hand.parent).getWorldPosition(new THREE.Vector3())).normalize();
- const long=arm.clone().addScaledVector(shaft,-arm.dot(shaft));
- if(long.lengthSq()<1e-6)long.copy(new THREE.Vector3(1,0,0).applyQuaternion(axeQ));
- long.normalize();
- const normal=new THREE.Vector3().crossVectors(shaft,long).normalize();
- const basis=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(shaft,long,normal));
- const desired=basis.multiply(frame.basis.clone().invert());
- // Rotate the forearm about its own axis first. This is pronation, not a
- // sideways wrist bend, and does not change elbow/wrist positions.
  if(fore){
-  const current=new THREE.Vector3(1,0,0).applyQuaternion(frame.basis).applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion()));
-  const u=current.addScaledVector(arm,-current.dot(arm)),v=shaft.clone().addScaledVector(arm,-shaft.dot(arm));
+  // Twist the forearm around its long axis before setting the hand. This
+  // keeps the wrist from appearing rotated sideways relative to the arm.
+  const axis=hand.getWorldPosition(new THREE.Vector3()).sub(fore.getWorldPosition(new THREE.Vector3())).normalize();
+  const u=new THREE.Vector3(1,0,0).applyQuaternion(socket.rotation).applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion()));
+  const v=new THREE.Vector3(1,0,0).applyQuaternion(axeQ);
+  u.addScaledVector(axis,-u.dot(axis));v.addScaledVector(axis,-v.dot(axis));
   if(u.lengthSq()>1e-6&&v.lengthSq()>1e-6){
    u.normalize();v.normalize();
-   const twist=Math.atan2(arm.dot(new THREE.Vector3().crossVectors(u,v)),u.dot(v));
-   battleAxeRotateBone(fore,new THREE.Quaternion().setFromAxisAngle(arm,twist));
+   const twist=Math.atan2(axis.dot(new THREE.Vector3().crossVectors(u,v)),u.dot(v));
+   battleAxeRotateBone(fore,new THREE.Quaternion().setFromAxisAngle(axis,twist));
   }
  }
  rememberReaperV2Bone(hand);
@@ -2754,6 +2762,7 @@ function battleAxeCloseFingers(hand,frame,grip,axeQ){
  }
 }
 const axePoseTest=new URLSearchParams(location.search).has('axeTest');
+const axeInspection=new URLSearchParams(location.search).has('axeInspect');
 let axePoseStatus=null;
 function battleAxeReport(held,grip,frame){
  if(!axePoseTest)return;
@@ -2764,7 +2773,7 @@ function battleAxeReport(held,grip,frame){
  }
  const actual=held.localToWorld(new THREE.Vector3(0,battleAxeGripY,0));
  const edge=new THREE.Vector3(1,0,0).applyQuaternion(held.getWorldQuaternion(new THREE.Quaternion()));
- axePoseStatus.textContent='AXE R4 | '+data.character+' | '+(swing?.axe?'SWING':'CARRY')+' | palm error '+actual.distanceTo(grip).toFixed(4)+' | edge Y '+edge.y.toFixed(2)+' | fingers '+(frame?Object.keys(frame.digits).length:'n/a');
+ axePoseStatus.textContent='AXE R5 | '+data.character+' | '+(swing?.axe?'SWING':'CARRY')+' | palm error '+actual.distanceTo(grip).toFixed(4)+' | edge Y '+edge.y.toFixed(2)+' | fingers '+(frame?Object.keys(frame.digits).length:'n/a');
 }
 function updateBattleAxePose(){
  if(!running||paused||data.weapon!=='axe'||isReaperScytheActive())return;
@@ -2813,6 +2822,9 @@ function updateBattleAxePose(){
   battleAxeHandOrientation(rigHand,q,frame);
   grip=rigHand.localToWorld(frame.palm.clone());
   battleAxeCloseFingers(rigHand,frame,grip,q);
+  const socket=battleAxeSocket(rigHand,frame);
+  grip=rigHand.localToWorld(socket.position.clone());
+  q=rigHand.getWorldQuaternion(new THREE.Quaternion()).multiply(socket.rotation);
  }
  // A single fixed hero-relative pose determines the blade. The REAL palm
  // determines translation. No feedback from the previous weapon transform.
@@ -3303,9 +3315,21 @@ function dash(){
  dashX=x;dashZ=z;dashTime=.22;dashCooldown=3;
  invuln=Math.max(invuln,.3);
 }
+let axeInspectionStarted=false;
 function frame(){
  requestAnimationFrame(frame);
  const dt=Math.min(clock.getDelta(),.05);
+ if(axeInspection&&!axeInspectionStarted){
+  axeInspectionStarted=true;
+  data.character='reaper2';data.weapon='axe';data.aura=false;
+  $('characterSelect').value='reaper2';buildWeapon();drawWeapons();requestReaperV2Model();
+  for(const e of enemies){removeEnemyHealthBar(e);scene.remove(e.obj)}enemies=[];
+  hero.position.set(0,0,0);hero.rotation.y=0;running=true;
+  document.body.classList.remove('menu-open');$('panel').style.display='none';$('controls').style.display='flex';
+  cameraYaw=.85;cameraPitch=.25;
+  const label=document.createElement('div');label.textContent='AXE INSPECTION R5 · Drag to orbit · Attack to test';label.style.cssText='position:fixed;top:105px;left:8px;z-index:20;color:#fff;background:#101019d9;border-radius:6px;padding:6px;font:12px system-ui;pointer-events:none';document.body.appendChild(label);
+  refresh();
+ }
  if(paused){renderer.render(scene,camera);return;}
  bodyMoveTarget=0;
  if(running){
@@ -3389,8 +3413,7 @@ function frame(){
   updateProjectiles(dt);
   updateBossBolts(dt);
   updateBossExplosions(dt);
-  updateBossLoot(dt);
-  updateWilloSanctuary(dt);
+  if(!axeInspection){updateBossLoot(dt);updateWilloSanctuary(dt);}
   updateSpecialEffects(dt);
   refresh();
  }
@@ -3406,9 +3429,9 @@ function frame(){
  updateReaperV2Animation(dt,bodyMoveBlend);
  updateFrontScythePose();
  updateBattleAxePose();
- const orbitDistance=14,flat=orbitDistance*Math.cos(cameraPitch);
+ const orbitDistance=axeInspection?5.0:14,flat=orbitDistance*Math.cos(cameraPitch);
  camera.position.lerp(new THREE.Vector3(hero.position.x+Math.sin(cameraYaw)*flat,1+Math.sin(cameraPitch)*orbitDistance,hero.position.z+Math.cos(cameraYaw)*flat),.12);
- camera.lookAt(hero.position.x,1,hero.position.z);
+ camera.lookAt(hero.position.x,axeInspection?1.35:1,hero.position.z);
  updatePerimeterVisibility(dt);
  for(const e of enemies)if(e.healthBar)e.healthBar.bar.quaternion.copy(camera.quaternion);
  if(willoSanctuary){
