@@ -2483,23 +2483,21 @@ function battleAxeOrientation(gripWorld,edgeWorld,tangentWorld,edgeX,edgeY){
 // almost horizontally for a low hand. Instead use a mid-shaft carry grip.
 // This changes only the resting attachment, not the attacking weapon model.
 function battleAxeRestRotation(gripWorld,held){
+ // Carrot-chop orientation: the blade plane is vertical, the shaft extends
+ // forward and slightly downward beside the leg, and LOCAL +X (the actual
+ // sharp bevel) points almost straight at the floor. No inward-facing twist.
  const side=Math.sign(hero.worldToLocal(gripWorld.clone()).x)||1;
- const axisY=new THREE.Vector3(side*.22,-.96,-.17).normalize();
- // Preserve V2's exact shaft angle and carry plane, but turn the edge inward.
- const axisX=new THREE.Vector3(-side,0,0).addScaledVector(axisY,side*axisY.x).normalize();
+ const axisY=new THREE.Vector3(side*.08,-.12,.99).normalize();
+ const down=new THREE.Vector3(0,-1,0);
+ const axisX=down.clone().addScaledVector(axisY,-down.dot(axisY)).normalize();
  const axisZ=new THREE.Vector3().crossVectors(axisX,axisY).normalize();
  const local=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(axisX,axisY,axisZ));
  return hero.getWorldQuaternion(new THREE.Quaternion()).multiply(local);
 }
 function battleAxeCarryOffset(gripWorld,held){
- const scale=held.getWorldScale(new THREE.Vector3());
- // The axe head extends to about 1.70 units from its combat grip.
- // Sliding the hand up the existing shaft lets the blade hang nearly vertical
- // even when the wrist is low; preserve the same geometry and hand contact.
- const yScale=Math.max(.01,Math.abs(scale.y));
- const handHeight=gripWorld.y-hero.position.y;
- const slide=THREE.MathUtils.clamp(1.75-(handHeight-.12)/(.96*yScale),.35,1.15);
- return slide;
+ // Keep the existing mid-shaft carry grip. The horizontal shaft no longer
+ // needs the old nearly-vertical clearance calculation.
+ return .78;
 }
 function battleAxeHeldOrigin(gripWorld,held,rotation,carryBlend){
  const scale=held.getWorldScale(new THREE.Vector3());
@@ -2514,7 +2512,27 @@ function updateBattleAxeRestPose(){
  if(!parent)return;
  hero.updateWorldMatrix(true,true);
  const rigHand=data.character==='reaper2'&&reaperV2IsRigged&&reaperV2RightHand?reaperV2RightHand:null;
- const grip=rigHand?rigHand.getWorldPosition(new THREE.Vector3()):held.getWorldPosition(new THREE.Vector3());
+ let grip=rigHand?rigHand.getWorldPosition(new THREE.Vector3()):held.getWorldPosition(new THREE.Vector3());
+ // Keep the hand beside the hip. If a low wrist would bury the downward
+ // cutting edge, raise the actual arm just enough instead of tilting the axe.
+ const scale=held.getWorldScale(new THREE.Vector3());
+ const minimumY=hero.position.y+.10+(data.character==='bellshade'?.90:.78)*Math.abs(scale.x)+.12*Math.abs(scale.y);
+ if(grip.y<minimumY&&rigHand){
+  const target=grip.clone();target.y=minimumY;
+  aimReaperArmAtGrip(target,rigHand);
+  grip=rigHand.getWorldPosition(new THREE.Vector3());
+ }else if(grip.y<minimumY&&!parent.isBone&&parent!==hero&&parent!==reaperVisual&&parent!==reaperV2Visual){
+  const offset=held.position.clone();
+  const shoulder=parent.getWorldPosition(new THREE.Vector3());
+  const target=grip.clone();target.y=minimumY;
+  const desired=target.sub(shoulder);
+  if(offset.lengthSq()>.01&&desired.lengthSq()>.01){
+   const inv=parent.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+   parent.quaternion.setFromUnitVectors(offset.clone().normalize(),desired.applyQuaternion(inv).normalize());
+   parent.updateWorldMatrix(true,true);
+   grip=parent.localToWorld(offset);
+  }
+ }
  const worldRotation=battleAxeRestRotation(grip,held);
  if(rigHand&&reaperV2HandCalibrated&&rigHand.parent){
   const handQ=worldRotation.clone().multiply(reaperV2RestHandInverse.clone().invert());
