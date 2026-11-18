@@ -1795,16 +1795,21 @@ function removeEnemyHealthBar(e){if(e.healthBar){scene.remove(e.healthBar.bar);e
 function updateEnemyHealthBarPosition(e){
  if(!e.healthBar)return;
  const p=e.obj.position;
- e.healthBar.bar.position.set(p.x,p.y+e.healthBar.offset,p.z);
- e.healthBar.bar.visible=e.hp>0&&combatLineClear(hero.position.x,hero.position.z,p.x,p.z,.02);
+ const bar=e.healthBar.bar;
+ bar.position.set(p.x,p.y+e.healthBar.offset,p.z);
+ // Keep the fill and frame in the same camera-facing plane at every orbit angle.
+ bar.quaternion.copy(camera.quaternion);
+ bar.visible=e.hp>0&&combatLineClear(hero.position.x,hero.position.z,p.x,p.z,.02);
 }
 function addEnemyHealthBar(e){
  e.obj.updateMatrixWorld(true);
  const bounds=new THREE.Box3().setFromObject(e.obj);
  const width=e.kind==='boss'?2.3:1.25;
  const bar=new THREE.Group();
- const bg=new THREE.Sprite(enemyBarBackMaterial);bg.scale.set(width+.14,.27,1);bg.position.z=-.06;bar.add(bg);
- const fill=new THREE.Sprite(enemyBarFillMaterials[0]);fill.scale.set(width,.17,1);fill.position.z=.06;bar.add(fill);
+ const bg=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0x241b27,side:THREE.DoubleSide,depthTest:true,depthWrite:false}));
+ bg.scale.set(width+.14,.27,1);bar.add(bg);
+ const fill=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0x50e58a,side:THREE.DoubleSide,depthTest:true,depthWrite:false}));
+ fill.scale.set(width,.17,1);fill.position.z=.012;bar.add(fill);
  scene.add(bar);
  e.healthBar={bar,fill,width,offset:Math.max(1,bounds.max.y-e.obj.position.y)+.48};
  updateEnemyHealthBar(e);updateEnemyHealthBarPosition(e);
@@ -1815,7 +1820,7 @@ function updateEnemyHealthBar(e){
  const fraction=THREE.MathUtils.clamp(e.hp/Math.max(1,e.maxHp),0,1);
  fill.scale.x=Math.max(.001,width*fraction);
  fill.position.x=-(width-fill.scale.x)/2;
- fill.material=enemyBarFillMaterials[fraction>.5?0:fraction>.25?1:2];
+ fill.material.color.setHex(fraction>.5?0x50e58a:fraction>.25?0xf2c453:0xf15a66);
  fill.visible=fraction>0;
 }
 // Boss reward chest: the next floor waits until the player walks up to collect it.
@@ -2916,7 +2921,6 @@ function frame(){
     if(e.windup>0)e.obj.scale.setScalar(1.1+Math.sin(e.phase*14)*.03);
    }
    e.obj.rotation.y=Math.atan2(dx,dz);
-   updateEnemyHealthBarPosition(e);
   }
   // Update after all enemy movement and animation, including hover and hit reactions.
   for(const e of enemies)updateEnemyHealthBarPosition(e);
@@ -2946,6 +2950,7 @@ function frame(){
  const orbitDistance=14,flat=orbitDistance*Math.cos(cameraPitch);
  camera.position.lerp(new THREE.Vector3(hero.position.x+Math.sin(cameraYaw)*flat,1+Math.sin(cameraPitch)*orbitDistance,hero.position.z+Math.cos(cameraYaw)*flat),.12);
  camera.lookAt(hero.position.x,1,hero.position.z);
+ for(const e of enemies)if(e.healthBar)e.healthBar.bar.quaternion.copy(camera.quaternion);
  renderer.render(scene,camera);
 }
 frame();
