@@ -1714,9 +1714,14 @@ function terrainForFloor(){
  }
 }
 function moveWithCollision(obj,dx,dz,radius){
- const canStand=(x,z)=>Math.abs(x)<=23.65&&Math.abs(z)<=23.65&&!obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<radius+o.r);
- if(canStand(obj.position.x+dx,obj.position.z))obj.position.x+=dx;
- if(canStand(obj.position.x,obj.position.z+dz))obj.position.z+=dz;
+ const limit=23.65-radius;
+ // Clamp against the arena boundary directly instead of repeatedly rejecting
+ // movement while the joystick is held against a wall.
+ const nextX=THREE.MathUtils.clamp(obj.position.x+dx,-limit,limit);
+ const nextZ=THREE.MathUtils.clamp(obj.position.z+dz,-limit,limit);
+ const clear=(x,z)=>!obstacles.some(o=>{const ox=x-o.x,oz=z-o.z,rr=radius+o.r;return ox*ox+oz*oz<rr*rr});
+ if(clear(nextX,obj.position.z))obj.position.x=nextX;
+ if(clear(obj.position.x,nextZ))obj.position.z=nextZ;
 }
 // Lightweight obstacle-aware navigation. Replan only when needed for mobile performance.
 const navClear=(x,z,r=.47)=>Math.abs(x)<=23.65&&Math.abs(z)<=23.65&&!obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+r);
@@ -1770,7 +1775,8 @@ function navigateMonster(e,dt){
  moveWithCollision(e.obj,dx/len*step,dz/len*step,.45);
  if(Math.hypot(p.x-ox,p.z-oz)<step*.15){
   // Stuck on a corner: force a fresh route on the next frame.
-  e.navTimer=0;
+  // Avoid rebuilding an expensive path every frame when pressed into a wall.
+  e.navTimer=Math.max(e.navTimer,.65);
  }
 }
 // Deterministic per-floor spawn shuffle; keep clear of walls and scenery.
