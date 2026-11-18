@@ -1795,8 +1795,7 @@ function advanceDungeonFloor(){
  level++;recordLeaderboardFloor(level);
  hp=Math.min(maxHealth(),hp+25);
  clearBellVines();
- for(const p of projectiles)scene.remove(p.obj);
- projectiles.length=0;
+ clearPlayerProjectiles();
  for(const b of bossBolts)scene.remove(b.obj);
  bossBolts.length=0;
  for(const fx of bossExplosions)scene.remove(fx.group);
@@ -1856,7 +1855,7 @@ function spawn(){
  }
  refresh();
 }
-function show(message){setPaused(false);clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('cameraControls').style.display='none';$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
+function show(message){setPaused(false);clearPlayerProjectiles();clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('cameraControls').style.display='none';$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;refresh()}
 let paused=false,pauseStarted=0;
 function setPaused(next){
  if(!running&&next)return;
@@ -1902,8 +1901,7 @@ function endDungeonRun(){
  clearSpaceMarineAim();clearBellVines();
  for(const e of enemies)scene.remove(e.obj);
  enemies=[];
- for(const p of projectiles)scene.remove(p.obj);
- projectiles.length=0;
+ clearPlayerProjectiles();
  for(const bolt of bossBolts)scene.remove(bolt.obj);
  bossBolts.length=0;
  for(const effect of bossExplosions)scene.remove(effect.group);
@@ -2063,8 +2061,7 @@ function damageEnemy(e,amount,soundType=data.weapon){
    if(e.kind==='boss'){
     // Defeating the boss reveals the chest. Never advance before collection.
     spawnBossLoot(e.obj.position.clone());
-    for(const p of projectiles)scene.remove(p.obj);
-    projectiles.length=0;
+    clearPlayerProjectiles();
     for(const b of bossBolts)scene.remove(b.obj);
     bossBolts.length=0;
    }else advanceDungeonFloor();
@@ -2072,6 +2069,28 @@ function damageEnemy(e,amount,soundType=data.weapon){
  }
  refresh();
 }
+// Shared projectile system: free shots and homing shots use the same assets.
+function launchPlayerProjectile(type,target=null,yaw=hero.rotation.y,damage=1,special=false,offset=0){
+ const bow=type==='bow',speed=special?20:bow?17:12,range=special?13:weapons[type].range;
+ const obj=bow?new THREE.Group():mesh(new THREE.SphereGeometry(.19,10,8),0x8dfff4);
+ if(bow){
+  const shaft=mesh(new THREE.CylinderGeometry(.035,.035,.78,6),0xd6b481);shaft.rotation.x=Math.PI/2;obj.add(shaft);
+  const tip=mesh(new THREE.ConeGeometry(.11,.25,6),0xdce9f2);tip.rotation.x=Math.PI/2;tip.position.z=.48;obj.add(tip);
+  const fletch=mesh(new THREE.BoxGeometry(.22,.12,.15),0x8a55d2);fletch.position.z=-.32;obj.add(fletch);
+ }else{obj.material.emissive.setHex(0x62e6ff);obj.material.emissiveIntensity=1.2;}
+ const dir=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw));
+ obj.position.copy(hero.position);obj.position.y=1.45;
+ obj.position.x+=Math.cos(yaw)*offset;obj.position.z-=Math.sin(yaw)*offset;
+ obj.rotation.y=yaw;scene.add(obj);
+ projectiles.push({obj,target,dir,damage,speed,life:target?(special?2:1.5):range/speed,soundType:type});
+}
+function removePlayerProjectile(p){
+ scene.remove(p.obj);
+ p.obj.traverse(o=>{if(o.isMesh){o.geometry.dispose();if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose()}});
+ const i=projectiles.indexOf(p);if(i!==-1)projectiles.splice(i,1);
+}
+function clearPlayerProjectiles(){for(const p of [...projectiles])removePlayerProjectile(p);}
+
 function attack(){
  const w=weapons[data.weapon]||weapons.sword;
  if(!running||paused||isReaperScytheActive()||performance.now()-lastAttack<w.cooldown*attackSpeed())return;
@@ -2084,11 +2103,14 @@ function attack(){
   return {e,delta,dist:delta.length()};
  }).filter(t=>t.dist<=effectiveRange&&t.dist>.01&&heroCanHit(t.e)).sort((a,b)=>a.dist-b.dist);
  lastAttack=performance.now();
- if(!candidates.length){swing={elapsed:0,duration:.3,hit:true,damage:0,range:0,arc:0};return;}
  const chosen=candidates[0];
- // Auto aim rotates the hero toward the closest monster in weapon range.
- if(data.character==='spacemarine')aimSpaceMarineAt(chosen.e,Math.max(600,w.cooldown+180));
- else hero.rotation.y=Math.atan2(chosen.delta.x,chosen.delta.z);
+ const ranged=data.weapon==='bow'||data.weapon==='staff';
+ if(!chosen&&!ranged){swing={elapsed:0,duration:.3,hit:true,damage:0,range:0,arc:0};return;}
+ // Aim at a visible enemy when available, otherwise use the current facing.
+ if(chosen){
+  if(data.character==='spacemarine')aimSpaceMarineAt(chosen.e,Math.max(600,w.cooldown+180));
+  else hero.rotation.y=Math.atan2(chosen.delta.x,chosen.delta.z);
+ }
  if(data.weapon==='axe'){
   // Heavy wind-up followed by a wide, visible forward cleave.
   swing={elapsed:0,duration:.56,hit:false,damage:w.damage,range:effectiveRange,arc:effectiveArc};
@@ -2096,17 +2118,9 @@ function attack(){
  }else{
   swing={elapsed:0,duration:.28,hit:true,damage:0,range:0,arc:0};
  }
- if(data.weapon==='bow'||data.weapon==='staff'){
-  const isBow=data.weapon==='bow';
-  const obj=isBow?new THREE.Group():mesh(new THREE.SphereGeometry(.19,10,8),0x8dfff4);
-  if(isBow){
-   const shaft=mesh(new THREE.CylinderGeometry(.035,.035,.78,6),0xd6b481);shaft.rotation.x=Math.PI/2;obj.add(shaft);
-   const tip=mesh(new THREE.ConeGeometry(.11,.25,6),0xdce9f2);tip.rotation.x=Math.PI/2;tip.position.z=.48;obj.add(tip);
-   const fletch=mesh(new THREE.BoxGeometry(.22,.12,.15),0x8a55d2);fletch.position.z=-.32;obj.add(fletch);
-  }
-  obj.position.copy(hero.position);obj.position.y=1.45;
-  scene.add(obj);
-  projectiles.push({obj,target:chosen.e,damage:w.damage,speed:isBow?17:12,life:1.5,soundType:isBow?'bow':'staff'});
+ if(ranged){
+  weaponSound(data.weapon);
+  launchPlayerProjectile(data.weapon,chosen?.e||null,hero.rotation.y,w.damage);
  }else if(data.weapon!=='axe'){
   const aim=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
   for(const t of candidates){
@@ -2592,16 +2606,14 @@ function specialAttack(){
   weaponSound('axe',true);for(const t of [...nearby])if(t.dist<=3.8)damageEnemy(t.e,3,'axe');
   swing={elapsed:0,duration:.56,hit:true,damage:0,range:0,arc:0};
  }else if(type==='bow'){
-  // Volley of three homing arrows at nearby enemies.
+  // Always release all three arrows; unused target slots fire forward in a fan.
   effect(1,0xaadfff,.4);
   weaponSound('bow',true);const targets=nearby.filter(t=>t.dist<=13).slice(0,3);
-  targets.forEach((t,i)=>{
-   const arrow=new THREE.Group();
-   const shaft=mesh(new THREE.CylinderGeometry(.04,.04,.8,6),0xd6b481);shaft.rotation.x=Math.PI/2;arrow.add(shaft);
-   const tip=mesh(new THREE.ConeGeometry(.11,.24,6),0xdce9f2);tip.rotation.x=Math.PI/2;tip.position.z=.5;arrow.add(tip);
-   arrow.position.copy(hero.position);arrow.position.y=1.3;arrow.position.x+=(i-1)*.3;scene.add(arrow);
-   projectiles.push({obj:arrow,target:t.e,damage:2,speed:20,life:2,soundType:'bow'});
-  });
+  for(let i=0;i<3;i++){
+   const target=targets[i]?.e||null;
+   const yaw=target?Math.atan2(target.obj.position.x-hero.position.x,target.obj.position.z-hero.position.z):hero.rotation.y+(i-1)*.22;
+   launchPlayerProjectile('bow',target,yaw,2,true,(i-1)*.16);
+  }
  }else{
   // Arcane nova damages all nearby foes.
   effect(4.8,0xc26aff,.8);
@@ -2651,33 +2663,46 @@ function updateSwing(dt){
  }
 }
 function updateProjectiles(dt){
- for(let i=projectiles.length-1;i>=0;i--){
-  const p=projectiles[i];if(!p)continue;p.life-=dt;
-  if(!running||!enemies.includes(p.target)||p.life<=0){
-   scene.remove(p.obj);const index=projectiles.indexOf(p);if(index!==-1)projectiles.splice(index,1);continue;
+ for(const p of [...projectiles]){
+  if(!projectiles.includes(p))continue;
+  if(!running||p.life<=0){removePlayerProjectile(p);continue}
+  const step=Math.min(dt,p.life);p.life-=step;
+  const start=p.obj.position.clone();
+  const target=p.target&&enemies.includes(p.target)?p.target:null;
+  // Preserve the previous shot direction if a homing target disappears.
+  let travel=p.speed*step;
+  if(target){
+   const delta=target.obj.position.clone().add(new THREE.Vector3(0,1.2,0)).sub(start);
+   const distance=delta.length();
+   if(distance<1e-6){removePlayerProjectile(p);damageEnemy(target,p.damage,p.soundType);continue}
+   p.dir.copy(delta).normalize();travel=Math.min(distance,travel);
+  }else p.target=null;
+  const next=start.clone().addScaledVector(p.dir,travel);
+  if(Math.abs(next.x)>15.8||Math.abs(next.z)>15.8||!combatLineClear(start.x,start.z,next.x,next.z,.03)){
+   removePlayerProjectile(p);continue;
   }
-  const destination=p.target.obj.position.clone().add(new THREE.Vector3(0,1.2,0));
-  const delta=destination.sub(p.obj.position),distance=delta.length();
-  const travel=Math.min(distance,p.speed*dt);
-  const nextX=p.obj.position.x+(distance?delta.x/distance*travel:0);
-  const nextZ=p.obj.position.z+(distance?delta.z/distance*travel:0);
-  if(!combatLineClear(p.obj.position.x,p.obj.position.z,nextX,nextZ,.03)){
-   scene.remove(p.obj);const index=projectiles.indexOf(p);if(index!==-1)projectiles.splice(index,1);continue;
+  let hit=target&&next.distanceTo(target.obj.position.clone().add(new THREE.Vector3(0,1.2,0)))<=.45?target:null;
+  if(!target){
+   const dx=next.x-start.x,dz=next.z-start.z,len2=dx*dx+dz*dz;let first=Infinity;
+   for(const e of enemies){
+    const pos=e.obj.position;
+    const t=len2>1e-8?THREE.MathUtils.clamp(((pos.x-start.x)*dx+(pos.z-start.z)*dz)/len2,0,1):0;
+    const radius=e.kind==='boss'?.85:e.kind==='golem'?.65:.45;
+    if(t<first&&Math.hypot(start.x+t*dx-pos.x,start.z+t*dz-pos.z)<=radius&&heroCanHit(e)){hit=e;first=t;}
+   }
   }
-  if(distance<Math.max(.45,p.speed*dt)){
-   scene.remove(p.obj);const index=projectiles.indexOf(p);if(index!==-1)projectiles.splice(index,1);damageEnemy(p.target,p.damage,p.soundType||data.weapon);
-  }else{
-   p.obj.position.addScaledVector(delta.normalize(),p.speed*dt);
-   p.obj.rotation.y=Math.atan2(delta.x,delta.z);
-  }
+  if(hit){removePlayerProjectile(p);damageEnemy(hit,p.damage,p.soundType);continue}
+  p.obj.position.copy(next);p.obj.rotation.y=Math.atan2(p.dir.x,p.dir.z);
+  if(p.life<=0)removePlayerProjectile(p);
  }
 }
+
 $('start').onclick=()=>{
  if(data.character==='spacemarine'&&spaceMarineState!=='ready'){
   if(spaceMarineState==='error')requestSpaceMarineModel();
   return;
  }
- if(!running){setPaused(false);clearBossLoot();clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);for(const p of projectiles)scene.remove(p.obj);projectiles.length=0;for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();placeHeroForFloor();running=true;document.body.classList.remove('menu-open');$('cameraControls').style.display='flex';$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
+ if(!running){setPaused(false);clearBossLoot();clearBellVines();bellStaff.rotation.set(0,0,0);data.playerName=leaderboardPlayerName();persist();recordLeaderboardFloor(level);lastAttack=0;lastSpecial=-100000;lastCharacterAttack=-100000;swing=null;weaponGroup.rotation.set(0,0,0);clearPlayerProjectiles();for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;if(hp<=0){hp=maxHealth();level=1;spawn()}else if(!enemies.length)spawn();placeHeroForFloor();running=true;document.body.classList.remove('menu-open');$('cameraControls').style.display='flex';$('panel').style.display='none';window.scrollTo(0,0);$('controls').style.display='flex';refresh()}};
 data.character=['werewolf','reaper','reaper2','kitsune','bellshade','spacemarine'].includes(data.character)?data.character:'reaper';
 if(data.weapon==='daggers')data.weapon='sword';
 $('characterSelect').value=data.character;
