@@ -2514,24 +2514,40 @@ function updateBattleAxeRestPose(){
  // axe through a large arc. The other arm and legs retain normal animation.
  const scale=held.getWorldScale(new THREE.Vector3());
  const minimumY=hero.position.y+.10+(data.character==='bellshade'?.90:.78)*Math.abs(scale.x)+.12*Math.abs(scale.y);
+ // Keep the blade's entire vertical plane outside the body/robe silhouette.
+ // Move the supporting arm, never rotate the approved carry frame or detach
+ // the axe from the hand. Use the same clearance while standing and walking.
+ const clearance={reaper:1.02,reaper2:1.02,werewolf:1.13,kitsune:.92,bellshade:.86,spacemarine:.90}[data.character]||1.02;
  if(rigHand){
   const shoulder=reaperV2AttackBones.rightArm||rigHand.parent;
   const shoulderLocal=hero.worldToLocal(shoulder.getWorldPosition(new THREE.Vector3()));
   const side=Math.sign(shoulderLocal.x)||1;
-  const target=hero.localToWorld(new THREE.Vector3(side*Math.max(.55,Math.abs(shoulderLocal.x)+.13),Math.max(1.03,minimumY-hero.position.y+.06),.20));
+  const target=hero.localToWorld(new THREE.Vector3(side*Math.max(clearance,Math.abs(shoulderLocal.x)+.38),Math.max(1.03,minimumY-hero.position.y+.06),.20));
   aimReaperArmAtGrip(target,rigHand);
   grip=rigHand.getWorldPosition(new THREE.Vector3());
- }else if(grip.y<minimumY&&!parent.isBone&&parent!==hero&&parent!==reaperVisual&&parent!==reaperV2Visual){
+ }else if(!parent.isBone&&parent!==hero&&parent!==reaperVisual&&parent!==reaperV2Visual){
   const offset=held.position.clone();
   const shoulder=parent.getWorldPosition(new THREE.Vector3());
-  const target=grip.clone();target.y=minimumY;
-  const desired=target.sub(shoulder);
-  if(offset.lengthSq()>.01&&desired.lengthSq()>.01){
-   const inv=parent.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
-   parent.quaternion.setFromUnitVectors(offset.clone().normalize(),desired.applyQuaternion(inv).normalize());
-   parent.updateWorldMatrix(true,true);
-   grip=parent.localToWorld(offset);
+  const shoulderLocal=hero.worldToLocal(shoulder.clone());
+  const handLocal=hero.worldToLocal(grip.clone());
+  const side=Math.sign(shoulderLocal.x)||1;
+  if(side*handLocal.x<clearance||grip.y<minimumY){
+   handLocal.x=side*Math.max(clearance,side*handLocal.x);
+   handLocal.y=Math.max(handLocal.y,minimumY-hero.position.y);
+   const desired=hero.localToWorld(handLocal).sub(shoulder);
+   if(offset.lengthSq()>.01&&desired.lengthSq()>.01){
+    const inv=parent.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+    parent.quaternion.setFromUnitVectors(offset.clone().normalize(),desired.applyQuaternion(inv).normalize());
+    parent.updateWorldMatrix(true,true);
+    grip=parent.localToWorld(offset);
+   }
   }
+ }else if(parent===hero||parent===reaperV2Visual||parent===reaperVisual){
+  // Static-model fallback has no movable hand rig.
+  const handLocal=hero.worldToLocal(grip.clone());
+  handLocal.x=(Math.sign(handLocal.x)||1)*Math.max(clearance,Math.abs(handLocal.x));
+  handLocal.y=Math.max(handLocal.y,minimumY-hero.position.y);
+  grip=hero.localToWorld(handLocal);
  }
  const worldRotation=battleAxeRestRotation(grip,held);
  if(rigHand&&reaperV2HandCalibrated&&rigHand.parent){
