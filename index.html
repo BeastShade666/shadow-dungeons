@@ -1898,7 +1898,18 @@ function safeMonsterSpawn(index,total,occupied){
 // Independent world-space bars avoid rotating with the monsters.
 const enemyBarBackMaterial=new THREE.SpriteMaterial({color:0x241b27,depthTest:true,depthWrite:false});
 const enemyBarFillMaterials=[0x50e58a,0xf2c453,0xf15a66].map(color=>new THREE.SpriteMaterial({color,depthTest:true,depthWrite:false}));
-function removeEnemyHealthBar(e){if(e.healthBar){scene.remove(e.healthBar.bar);e.healthBar=null}}
+function disposeTransientObject(root){
+ root.traverse(o=>{
+  if(o.geometry)o.geometry.dispose();
+  if(o.material)for(const m of (Array.isArray(o.material)?o.material:[o.material]))m.dispose();
+ });
+}
+function removeEnemyHealthBar(e){
+ if(!e.healthBar)return;
+ scene.remove(e.healthBar.bar);
+ disposeTransientObject(e.healthBar.bar);
+ e.healthBar=null;
+}
 function updateEnemyHealthBarPosition(e){
  if(!e.healthBar)return;
  const p=e.obj.position;
@@ -2043,9 +2054,9 @@ function advanceDungeonFloor(){
  if((level%15)!==0)hp=Math.min(maxHealth(),hp+25);
  clearBellVines();
  clearPlayerProjectiles();
- for(const b of bossBolts)scene.remove(b.obj);
+ for(const b of bossBolts){scene.remove(b.obj);disposeTransientObject(b.obj)}
  bossBolts.length=0;
- for(const fx of bossExplosions)scene.remove(fx.group);
+ for(const fx of bossExplosions){scene.remove(fx.group);disposeTransientObject(fx.group)}
  bossExplosions.length=0;
  swing=null;characterSwing=null;weaponGroup.rotation.set(0,0,0);
  bellStaff.rotation.set(0,0,0);
@@ -2071,7 +2082,7 @@ function spawn(){
  clearBossLoot();
  terrainForFloor();
  placeHeroForFloor();
- for(const e of enemies){removeEnemyHealthBar(e);scene.remove(e.obj)}enemies=[];
+ for(const e of enemies){removeEnemyHealthBar(e);scene.remove(e.obj);disposeTransientObject(e.obj)}enemies=[];
  if(isWilloFloor()){createWilloSanctuary();refresh();return}
  const overlordFloor=isOverlordFloor();
  const bossFloor=overlordFloor||level%3===0,count=bossFloor?1:Math.min(3+level,10);
@@ -2208,7 +2219,7 @@ function updateBossExplosions(dt){
   fx.flash.scale.setScalar(1+t*2.4);
   fx.ring.material.opacity=.8*(1-t);
   fx.flash.material.opacity=.75*(1-t);
-  if(t>=1){scene.remove(fx.group);fx.ring.material.dispose();fx.flash.material.dispose();bossExplosions.splice(i,1)}
+  if(t>=1){scene.remove(fx.group);disposeTransientObject(fx.group);bossExplosions.splice(i,1)}
  }
 }
 function updateBossBolts(dt){
@@ -2314,7 +2325,7 @@ function damageEnemy(e,amount,soundType=data.weapon){
  }
  e.hp-=amount*attackPower();updateEnemyHealthBar(e);e.obj.scale.setScalar(1.13);
  if(e.hp<=0){
-  removeEnemyHealthBar(e);scene.remove(e.obj);enemies.splice(enemies.indexOf(e),1);
+  removeEnemyHealthBar(e);scene.remove(e.obj);disposeTransientObject(e.obj);enemies.splice(enemies.indexOf(e),1);
   data.gold+=e.overlord?500*Math.floor(level/50):e.kind==='boss'?30:5;persist();drawWeapons();drawSkills();drawAuras();
   if(!enemies.length){
    if(e.kind==='boss'){
