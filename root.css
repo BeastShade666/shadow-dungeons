@@ -370,3 +370,7 @@ body > #pauseRun{position:fixed!important;top:calc(12px + env(safe-area-inset-to
 body.menu-open > #pauseRun{display:none!important}
 @media(max-width:700px){body > #pauseRun{right:calc(106px + env(safe-area-inset-right,0px));min-width:75px;min-height:40px;font-size:.76rem}}
 @media(max-height:480px) and (orientation:landscape){body > #pauseRun{top:calc(12px + env(safe-area-inset-top,0px));min-height:38px}}
+
+/* Allow touch/mouse orbit gestures on the gameplay canvas. */
+body:not(.menu-open) > canvas { pointer-events:auto; touch-action:none; }
+body.menu-open > canvas { pointer-events:none; }
