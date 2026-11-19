@@ -1985,7 +1985,7 @@ function navigateMonster(e,dt){
   const ax=(tx-p.x)/d,az=(tz-p.z)/d;
   moveWithCollision(e.obj,(ax*.4-az*side*.9)*e.speed*dt,(az*.4+ax*side*.9)*e.speed*dt,.45);return;
  }
- if((e.weaponType==='bow'||e.kind==='spider')&&d<8.5&&clearPath(p.x,p.z,tx,tz))return;
+ if((e.weaponType==='bow'||e.kind==='spider')&&d<8.5&&combatLineClear(p.x,p.z,tx,tz,.04))return;
  e.navTimer=(e.navTimer||0)-dt;
  if(e.navTimer<=0){
   e.navTimer=.5+Math.random()*.35;
@@ -3795,7 +3795,7 @@ function frame(){
    e.hitStun=Math.max(0,(e.hitStun||0)-dt);
    e.hitFlash=Math.max(0,(e.hitFlash||0)-dt);
    if(e.attackTime>0)e.attackTime=Math.max(0,e.attackTime-dt);
-   if(dist>(e.kind==='boss'?3.2:(e.kind==='spider'||e.weaponType==='bow'?Math.min(6,range*.65):range*.78))&&e.attackTime<=0&&dist>.001&&!e.rootTime&&!e.hitStun)navigateMonster(e,dt);
+   if((dist>(e.kind==='boss'?3.2:(e.kind==='spider'||e.weaponType==='bow'?Math.min(6,range*.65):range*.78))||((e.kind==='spider'||e.weaponType==='bow')&&!combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04)))&&e.attackTime<=0&&dist>.001&&!e.rootTime&&!e.hitStun)navigateMonster(e,dt);
    if(e.cooldown<=0&&dist<range&&!e.rootTime&&!e.hitStun){
     if(e.kind==='boss')e.attackMode=dist>4.1?'ranged':(e.attackCount%3===1?'ranged':'melee');
     e.cooldown=e.kind==='spider'?3.6:e.weaponType==='bow'?2.9:e.overlord?1.25:e.kind==='boss'?1.85:e.kind==='skeleton'?2.1:e.kind==='bat'||e.kind==='imp'?1.65:e.kind==='golem'?2.8:e.kind==='goblin'?1.8:e.kind==='wraith'?2.0:2.35;
@@ -3817,7 +3817,7 @@ function frame(){
     if(e.windup>0)e.obj.scale.setScalar(1.1+Math.sin(e.phase*14)*.03);
    }
    e.obj.rotation.y=Math.atan2(dx,dz);
-   if(e.hitFlash>0)e.obj.scale.multiplyScalar(1+.025*(e.hitFlash/.16));
+   if(e.hitFlash>0){const flash=1+.07*(e.hitFlash/.16);e.obj.scale.lerp(new THREE.Vector3(flash,flash,flash),Math.min(1,dt*14))}
    if(e.kind==='skeleton'&&e.weaponType==='sword')animateSkeletonSword(e,dt);
   }
   // Monster-mounted health bars are oriented after the camera is updated below.
