@@ -1617,6 +1617,21 @@ function refresh(){
  $('stage').textContent='Floor '+level+' · '+(['Crypt','Goblin Warrens','Stone Catacombs','Shadow Realm','Titan Nest','Abyss'][Math.floor((level-1)/10)%6])+(isWilloFloor()?' · 🦄 Princess Willo · Healing Sanctuary':isOverlordFloor()?' · ☠️ ABYSS OVERLORD · MEGA BOSS':bossLoot?' · 🧰 Collect boss loot':level%3===0?' · BOSS':' · Monsters '+enemies.length);
  updateCharacterPortrait();
 }
+function equipSkeleton(g,type){
+ const part=(geo,color,x,y,z)=>{const m=mesh(geo,color);m.position.set(x,y,z);g.add(m);return m};
+ if(type==='bow'){
+  const bow=part(new THREE.TorusGeometry(.48,.055,6,20,Math.PI),0x9d6938,.72,1.16,.35);
+  bow.rotation.z=Math.PI/2;
+  const string=part(new THREE.CylinderGeometry(.012,.012,.95,5),0xece1c3,.72,1.16,.35);
+  string.rotation.z=0;
+  part(new THREE.BoxGeometry(.13,.16,.14),0x4a372e,.72,1.16,.39);
+ }else{
+  part(new THREE.CylinderGeometry(.07,.07,.48,7),0x5b3427,.75,1.06,.34);
+  part(new THREE.BoxGeometry(.48,.10,.16),0xc9a86a,.75,1.34,.34);
+  part(new THREE.BoxGeometry(.16,.95,.12),0xc4d4e2,.75,1.84,.34);
+  part(new THREE.ConeGeometry(.115,.28,4),0xe6eef6,.75,2.44,.34);
+ }
+}
 function monster(kind){
  const g=new THREE.Group();
  const add=(geo,color,x,y,z,sx=1,sy=1,sz=1)=>{const m=mesh(geo,color);m.position.set(x,y,z);m.scale.set(sx,sy,sz);g.add(m);return m};
@@ -2195,6 +2210,7 @@ function updateBossLoot(dt){
  advanceDungeonFloor();
 }
 function spawn(){
+ clearMonsterShots();
  clearWilloSanctuary();
  clearBossLoot();
  terrainForFloor();
@@ -2222,6 +2238,8 @@ function spawn(){
  const occupied=[];
  for(let i=0;i<count;i++){
   const kind=bossFloor?'boss':faction[(level+i-1)%faction.length],obj=monster(kind);
+  const weaponType=kind==='skeleton'?(i%2===0?'bow':'sword'):null;
+  if(weaponType)equipSkeleton(obj,weaponType);
   if(overlordFloor){
    // Ancient Abyss Overlord: giant obsidian armor, burning crown and crimson core.
    obj.scale.setScalar(1.65);
@@ -2237,12 +2255,12 @@ function spawn(){
   obj.position.set(point.x,0,point.z);
   scene.add(obj);
   const enemyHp=Math.ceil((kind==='boss'?12:kind==='golem'?5:kind==='wraith'?4:kind==='skeleton'||kind==='spider'?3:2)*difficulty*(bossFloor?1.4:1)*(overlordFloor?16*Math.pow(1.5,Math.floor(level/50)-1):1));
-  enemies.push({obj,kind,overlord:overlordFloor,hp:enemyHp,maxHp:enemyHp,speed:Math.min(4.1,(kind==='boss'?.75:kind==='bat'||kind==='imp'?1.7:kind==='golem'?.75:kind==='wraith'?1.35:1.1)*(1+Math.min(level-1,9)*.055+late*.014)),damageScale:damageDifficulty*(overlordFloor?2.2:1),phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0,dodgeCooldown:2,dodgeTime:0,attackMode:'melee'});
+  enemies.push({obj,kind,weaponType,overlord:overlordFloor,hp:enemyHp,maxHp:enemyHp,speed:Math.min(4.1,(kind==='boss'?.75:kind==='bat'||kind==='imp'?1.7:kind==='golem'?.75:kind==='wraith'?1.35:1.1)*(1+Math.min(level-1,9)*.055+late*.014)),damageScale:damageDifficulty*(overlordFloor?2.2:1),phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0,dodgeCooldown:2,dodgeTime:0,attackMode:'melee'});
   addEnemyHealthBar(enemies[enemies.length-1]);
  }
  refresh();
 }
-function show(message){setPaused(false);clearPlayerProjectiles();clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;fullscreenAttempted=false;void exitGameFullscreen();scheduleGameViewport();refresh()}
+function show(message){clearMonsterShots();setPaused(false);clearPlayerProjectiles();clearBossLoot();bellStaff.rotation.set(0,0,0);drawLeaderboard();resetStick();running=false;document.body.classList.add('menu-open');$('panel').style.display='flex';window.scrollTo(0,0);$('controls').style.display='none';$('message').textContent=message;fullscreenAttempted=false;void exitGameFullscreen();scheduleGameViewport();refresh()}
 let paused=false,pauseStarted=0;
 function setPaused(next){
  if(!running&&next)return;
@@ -2280,6 +2298,7 @@ pauseRunButton.addEventListener('pointercancel',()=>{pausePointerHandled=false})
 $('resumeRun').addEventListener('click',()=>setPaused(false));
 function endDungeonRun(){
  if(!running)return;
+ clearMonsterShots();
  setPaused(false);
  clearBossLoot();
  // End this run voluntarily; save its score and permanent upgrades, not the floor.
@@ -2304,6 +2323,53 @@ function endDungeonRun(){
 }
 $('endRun').addEventListener('click',endDungeonRun);
 const projectiles=[];const bossBolts=[];let swing=null;
+const monsterShots=[];
+let webRootTime=0;
+function clearMonsterShots(){
+ for(const shot of monsterShots){scene.remove(shot.obj);disposeTransientObject(shot.obj)}
+ monsterShots.length=0;webRootTime=0;
+}
+function launchMonsterShot(e){
+ const web=e.kind==='spider';
+ const start=e.obj.position.clone().add(new THREE.Vector3(0,web?.85:1.55,0));
+ const dir=new THREE.Vector3(hero.position.x-start.x,0,hero.position.z-start.z);
+ if(dir.lengthSq()<.01)return;
+ dir.normalize();
+ const obj=new THREE.Group();
+ if(web){
+  const core=mesh(new THREE.IcosahedronGeometry(.23,0),0xe7f6ff);obj.add(core);
+  for(let i=0;i<5;i++){
+   const strand=mesh(new THREE.TorusGeometry(.23+i*.045,.015,4,12),0xc2e8f7);
+   strand.rotation.set(i*.5,i*.6,0);obj.add(strand);
+  }
+ }else{
+  const shaft=mesh(new THREE.CylinderGeometry(.027,.027,.85,6),0x956a3c);
+  shaft.rotation.x=Math.PI/2;obj.add(shaft);
+  const tip=mesh(new THREE.ConeGeometry(.09,.24,6),0xc6d7e5);
+  tip.rotation.x=Math.PI/2;tip.position.z=.5;obj.add(tip);
+ }
+ obj.position.copy(start).addScaledVector(dir,1);
+ obj.rotation.y=Math.atan2(dir.x,dir.z);
+ scene.add(obj);
+ monsterShots.push({obj,dir,life:3.2,speed:web?8.5:12,web,damage:Math.ceil((web?5:11)*e.damageScale)});
+}
+function updateMonsterShots(dt){
+ webRootTime=Math.max(0,webRootTime-dt);
+ for(let i=monsterShots.length-1;i>=0;i--){
+  const p=monsterShots[i];p.life-=dt;
+  const from=p.obj.position.clone(),to=from.clone().addScaledVector(p.dir,p.speed*dt);
+  const dx=to.x-from.x,dz=to.z-from.z,denom=dx*dx+dz*dz;
+  const t=denom>0?THREE.MathUtils.clamp(((hero.position.x-from.x)*dx+(hero.position.z-from.z)*dz)/denom,0,1):0;
+  const hit=Math.hypot(from.x+t*dx-hero.position.x,from.z+t*dz-hero.position.z)<.72;
+  const blocked=!combatLineClear(from.x,from.z,to.x,to.z,.04)||Math.abs(to.x)>23.5||Math.abs(to.z)>23.5;
+  if(hit&&!blocked){
+   if(p.web&&invuln<=0&&running){webRootTime=Math.max(webRootTime,2.2);dashTime=0}
+   hurtHero(p.damage);
+  }
+  if(hit||blocked||p.life<=0||!running){scene.remove(p.obj);disposeTransientObject(p.obj);monsterShots.splice(i,1)}
+  else{p.obj.position.copy(to);if(p.web)p.obj.rotation.z+=dt*5}
+ }
+}
 function launchBossBolt(e){
  // Fire a clearly visible orb away from the boss, aimed at the hero's current position.
  const start=e.obj.position.clone().add(new THREE.Vector3(0,1.5,0));
@@ -3620,7 +3686,7 @@ function hurtHero(amount){
  }
 }
 function dash(){
- if(!running||paused||dashCooldown>0||dashTime>0)return;
+ if(!running||paused||webRootTime>0||dashCooldown>0||dashTime>0)return;
  let x=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+joy.x;
  let z=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+joy.z;
  const length=Math.hypot(x,z);
@@ -3660,14 +3726,14 @@ function frame(){
   const oldX=hero.position.x,oldZ=hero.position.z;
   const cleaving=isReaperScytheActive();
   const moveScale=cleaving?.38:swing?.axe?.65:1;
-  moveWithCollision(hero,x*dt*6*moveScale*(1+.05*skillLevel('agility')),z*dt*6*moveScale*(1+.05*skillLevel('agility')),.5);
+  if(webRootTime<=0)moveWithCollision(hero,x*dt*6*moveScale*(1+.05*skillLevel('agility')),z*dt*6*moveScale*(1+.05*skillLevel('agility')),.5);
   bodyMoveTarget=Math.min(1,Math.hypot(hero.position.x-oldX,hero.position.z-oldZ)/Math.max(dt*6,.0001));
   if(isReaperScytheActive())hero.rotation.y=characterSwing.aimYaw;
   else if(swing?.axe)hero.rotation.y=swing.aimYaw;
   else if((x||z)&&!updateSpaceMarineFacing())hero.rotation.y=Math.atan2(x,z);
   invuln=Math.max(0,invuln-dt);
   dashCooldown=Math.max(0,dashCooldown-dt);
-  if(dashTime>0){
+  if(dashTime>0&&webRootTime<=0){
    const dashStep=Math.min(dt,dashTime);
    moveWithCollision(hero,dashX*18*dashStep,dashZ*18*dashStep,.5);
    dashTime=Math.max(0,dashTime-dt);
@@ -3678,31 +3744,31 @@ function frame(){
    e.rootTime=Math.max(0,(e.rootTime||0)-dt);
    e.phase+=dt;e.cooldown-=dt;if(e.kind==='boss'){e.dodgeCooldown-=dt;e.dodgeTime=Math.max(0,e.dodgeTime-dt)}
    const dx=hero.position.x-e.obj.position.x,dz=hero.position.z-e.obj.position.z,dist=Math.hypot(dx,dz);
-   const range=e.overlord?12:e.kind==='boss'?9:e.kind==='bat'||e.kind==='imp'?2.5:e.kind==='wraith'?2.2:e.kind==='golem'?2:e.kind==='skeleton'?1.9:1.5;
+   const range=e.kind==='spider'?9:e.weaponType==='bow'?11:e.overlord?12:e.kind==='boss'?9:e.kind==='bat'||e.kind==='imp'?2.5:e.kind==='wraith'?2.2:e.kind==='golem'?2:e.kind==='skeleton'?1.9:1.5;
    if(e.windup>0&&!e.rootTime){
     e.windup-=dt;
     e.obj.scale.set(1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06);
     if(e.windup<=0){
      e.attackTime=.35;
      if(e.kind==='slime'){if(dist<2)hurtHero(Math.ceil(9*e.damageScale))}
-     else if(e.kind==='skeleton'){if(dist<2.35)hurtHero(Math.ceil(13*e.damageScale))}
+     else if(e.kind==='skeleton'){if(e.weaponType==='bow'){if(dist<12&&combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04))launchMonsterShot(e)}else if(dist<2.35)hurtHero(Math.ceil(13*e.damageScale))}
      else if(e.kind==='bat'||e.kind==='imp'){if(dist<2.9)hurtHero(Math.ceil(10*e.damageScale))}
      else if(e.kind==='golem'){if(dist<2.7)hurtHero(Math.ceil(18*e.damageScale))}
      else if(e.kind==='wraith'){if(dist<2.8)hurtHero(Math.ceil(14*e.damageScale))}
-     else if(e.kind==='spider'){if(dist<2.2)hurtHero(Math.ceil(11*e.damageScale))}
+     else if(e.kind==='spider'){if(dist<10&&combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04))launchMonsterShot(e);else if(dist<2.2)hurtHero(Math.ceil(11*e.damageScale))}
      else if(e.kind==='goblin'){if(dist<2.1)hurtHero(Math.ceil(10*e.damageScale))}
      else if(e.attackMode==='ranged')launchBossBolt(e);
       else if(dist<4.1)hurtHero(Math.ceil(22*e.damageScale));
     }
    }else{
     if(e.attackTime>0)e.attackTime=Math.max(0,e.attackTime-dt);
-    if(dist>(e.kind==='boss'?3.2:range*.78) && e.attackTime<=0 && dist>.001){
+    if(dist>(e.kind==='boss'?3.2:(e.kind==='spider'||e.weaponType==='bow'?Math.min(6,range*.65):range*.78)) && e.attackTime<=0 && dist>.001){
      if(!e.rootTime)navigateMonster(e,dt);
     }
     if(e.cooldown<=0&&dist<range&&!e.rootTime){
      if(e.kind==='boss')e.attackMode=dist>4.1?'ranged':(Math.random()<.4?'ranged':'melee');
      e.windup=e.overlord?.42:e.kind==='boss'?.65:e.kind==='skeleton'?.48:e.kind==='bat'||e.kind==='imp'?.36:e.kind==='golem'?.75:.55;
-     e.cooldown=e.overlord?1.25:e.kind==='boss'?1.85:e.kind==='skeleton'?2.1:e.kind==='bat'||e.kind==='imp'?1.65:e.kind==='golem'?2.8:2.35;
+     e.cooldown=e.kind==='spider'?3.6:e.weaponType==='bow'?2.9:e.overlord?1.25:e.kind==='boss'?1.85:e.kind==='skeleton'?2.1:e.kind==='bat'||e.kind==='imp'?1.65:e.kind==='golem'?2.8:2.35;
     }
     e.obj.scale.lerp(new THREE.Vector3(1,1,1),Math.min(1,dt*9));
    }
@@ -3729,15 +3795,16 @@ function frame(){
   updateBellVines(dt);
   updateProjectiles(dt);
   updateBossBolts(dt);
+  updateMonsterShots(dt);
   updateBossExplosions(dt);
   if(!axeInspection){updateBossLoot(dt);updateWilloSanctuary(dt);}
   updateSpecialEffects(dt);
   refresh();
  }
- if(!running){scytheRig.visible=false;scytheTrail.visible=false;updateBellVines(dt);for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;updateSpecialEffects(dt);characterSwing=null;kitsuneDaggerActive=false;kitsuneDaggersVisible();scytheRig.rotation.set(0,0,0);tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0)}
+ if(!running){clearMonsterShots();scytheRig.visible=false;scytheTrail.visible=false;updateBellVines(dt);for(const b of bossBolts)scene.remove(b.obj);bossBolts.length=0;updateSpecialEffects(dt);characterSwing=null;kitsuneDaggerActive=false;kitsuneDaggersVisible();scytheRig.rotation.set(0,0,0);tailRig.rotation.set(0,0,0);tailAxe.rotation.set(0,0,0)}
  const characterRemain=Math.max(0,8-(performance.now()-lastCharacterAttack)/1000);
- $('dash').disabled=!running||dashCooldown>0;
- $('dash').textContent=dashCooldown>0?'DASH '+dashCooldown.toFixed(1)+'s':'DASH';
+ $('dash').disabled=!running||dashCooldown>0||webRootTime>0;
+ $('dash').textContent=webRootTime>0?'WEBBED '+webRootTime.toFixed(1)+'s':dashCooldown>0?'DASH '+dashCooldown.toFixed(1)+'s':'DASH';
  $('characterAttack').disabled=!running||characterRemain>0;
  $('characterAttack').textContent=(data.character==='spacemarine'?'MARINE STRIKE':data.character==='bellshade'?'GRASPING VINES':data.character==='kitsune'?'DAGGER FLURRY':data.character==='werewolf'?'TAIL AXE':'SCYTHE SWEEP')+(characterRemain>0?' '+characterRemain.toFixed(1)+'s':'');
  animateAura(clock.elapsedTime);
