@@ -1638,22 +1638,18 @@ function equipSkeleton(g,type){
   g.userData.swordArm=arm;
  }
 }
-function animateSkeletonSword(e){
+function animateSkeletonSword(e,dt){
  const arm=e.obj.userData.swordArm;
  if(!arm)return;
- // Raise the blade during windup, then slash forward on the damaging frame.
- if(e.windup>0){
-  const t=THREE.MathUtils.clamp(e.windup/.48,0,1);
-  arm.rotation.x=-.85-.4*(1-t);
-  arm.rotation.z=-.22;
- }else if(e.attackTime>0){
+ if(e.attackTime>0){
+  // Instant strike: the blade begins forward at the same moment damage is dealt.
   const progress=1-THREE.MathUtils.clamp(e.attackTime/.35,0,1);
-  const slash=progress<.65?progress/.65:1;
-  arm.rotation.x=-1.25+2.45*(slash*slash*(3-2*slash));
-  arm.rotation.z=-.22+.42*Math.sin(progress*Math.PI);
+  const slash=1-Math.pow(1-progress,3);
+  arm.rotation.x=.85+.35*slash;
+  arm.rotation.z=.18*Math.sin(progress*Math.PI);
  }else{
-  arm.rotation.x=THREE.MathUtils.damp(arm.rotation.x,0,12,.016);
-  arm.rotation.z=THREE.MathUtils.damp(arm.rotation.z,0,12,.016);
+  arm.rotation.x=THREE.MathUtils.damp(arm.rotation.x,0,14,dt);
+  arm.rotation.z=THREE.MathUtils.damp(arm.rotation.z,0,14,dt);
  }
 }
 function monster(kind){
@@ -2622,17 +2618,11 @@ function attack(){
   weaponSound('axe');
   weaponGroup.rotation.set(0,0,0);
  }else{
-  swing={elapsed:0,duration:.28,hit:true,damage:0,range:0,arc:0};
+  swing={elapsed:0,duration:.28,hit:ranged,damage:ranged?0:w.damage,range:effectiveRange,arc:effectiveArc,aimYaw:hero.rotation.y};
  }
  if(ranged){
   weaponSound(data.weapon);
   launchPlayerProjectile(data.weapon,chosen?.e||null,hero.rotation.y,w.damage);
- }else if(data.weapon!=='axe'){
-  const aim=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
-  for(const t of candidates){
-   const angle=Math.acos(THREE.MathUtils.clamp(aim.dot(t.delta.clone().normalize()),-1,1));
-   if(angle<=effectiveArc/2&&heroCanHit(t.e))damageEnemy(t.e,w.damage,'sword');
-  }
  }
 }
 // Character-specific attacks use an independent cooldown and visible weapon animations.
@@ -3621,13 +3611,13 @@ function updateSwing(dt){
  }
  if(!a.axe&&!a.hit&&t>=.42){
   a.hit=true;
-  const aim=new THREE.Vector3(Math.sin(hero.rotation.y),0,Math.cos(hero.rotation.y));
+  const aim=new THREE.Vector3(Math.sin(a.aimYaw),0,Math.cos(a.aimYaw));
   for(const e of [...enemies]){
    const d=new THREE.Vector3().subVectors(e.obj.position,hero.position);d.y=0;
    const distance=d.length();
    if(distance>.01&&distance<=a.range){
     const angle=Math.acos(THREE.MathUtils.clamp(aim.dot(d.normalize()),-1,1));
-    if(angle<=a.arc/2&&heroCanHit(e))damageEnemy(e,a.damage,'axe');
+    if(angle<=a.arc/2&&heroCanHit(e))damageEnemy(e,a.damage,'sword');
    }
   }
  }
@@ -3815,7 +3805,7 @@ function frame(){
    }
    e.obj.rotation.y=Math.atan2(dx,dz);
    if(e.hitFlash>0)e.obj.scale.multiplyScalar(1+.10*(e.hitFlash/.16));
-   if(e.kind==='skeleton'&&e.weaponType==='sword')animateSkeletonSword(e);
+   if(e.kind==='skeleton'&&e.weaponType==='sword')animateSkeletonSword(e,dt);
   }
   // Monster-mounted health bars are oriented after the camera is updated below.
   if(!swing?.axe)updateSpaceMarineFacing();
