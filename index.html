@@ -3721,6 +3721,18 @@ function dash(){
  invuln=Math.max(invuln,.3);
 }
 let axeInspectionStarted=false;
+function monsterInstantAttack(e,dist){
+ e.attackTime=.35;
+     if(e.kind==='slime'){if(dist<2)hurtHero(Math.ceil(9*e.damageScale))}
+     else if(e.kind==='skeleton'){if(e.weaponType==='bow'){if(dist<12&&combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04))launchMonsterShot(e)}else if(dist<2.35)hurtHero(Math.ceil(13*e.damageScale))}
+     else if(e.kind==='bat'||e.kind==='imp'){if(dist<2.9)hurtHero(Math.ceil(10*e.damageScale))}
+     else if(e.kind==='golem'){if(dist<2.7)hurtHero(Math.ceil(18*e.damageScale))}
+     else if(e.kind==='wraith'){if(dist<2.8)hurtHero(Math.ceil(14*e.damageScale))}
+     else if(e.kind==='spider'){if(dist<10&&combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04))launchMonsterShot(e);else if(dist<2.2)hurtHero(Math.ceil(11*e.damageScale))}
+     else if(e.kind==='goblin'){if(dist<2.1)hurtHero(Math.ceil(10*e.damageScale))}
+     else if(e.attackMode==='ranged')launchBossBolt(e);
+      else if(dist<4.1)hurtHero(Math.ceil(22*e.damageScale));
+}
 function frame(){
  requestAnimationFrame(frame);
  if(webglUnavailable)return;
@@ -3769,33 +3781,14 @@ function frame(){
    e.phase+=dt;e.cooldown-=dt;if(e.kind==='boss'){e.dodgeCooldown-=dt;e.dodgeTime=Math.max(0,e.dodgeTime-dt)}
    const dx=hero.position.x-e.obj.position.x,dz=hero.position.z-e.obj.position.z,dist=Math.hypot(dx,dz);
    const range=e.kind==='spider'?9:e.weaponType==='bow'?11:e.overlord?12:e.kind==='boss'?9:e.kind==='bat'||e.kind==='imp'?2.5:e.kind==='wraith'?2.2:e.kind==='golem'?2:e.kind==='skeleton'?1.9:1.5;
-   if(e.windup>0&&!e.rootTime){
-    e.windup-=dt;
-    e.obj.scale.set(1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06,1+Math.sin(e.phase*22)*.06);
-    if(e.windup<=0){
-     e.attackTime=.35;
-     if(e.kind==='slime'){if(dist<2)hurtHero(Math.ceil(9*e.damageScale))}
-     else if(e.kind==='skeleton'){if(e.weaponType==='bow'){if(dist<12&&combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04))launchMonsterShot(e)}else if(dist<2.35)hurtHero(Math.ceil(13*e.damageScale))}
-     else if(e.kind==='bat'||e.kind==='imp'){if(dist<2.9)hurtHero(Math.ceil(10*e.damageScale))}
-     else if(e.kind==='golem'){if(dist<2.7)hurtHero(Math.ceil(18*e.damageScale))}
-     else if(e.kind==='wraith'){if(dist<2.8)hurtHero(Math.ceil(14*e.damageScale))}
-     else if(e.kind==='spider'){if(dist<10&&combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04))launchMonsterShot(e);else if(dist<2.2)hurtHero(Math.ceil(11*e.damageScale))}
-     else if(e.kind==='goblin'){if(dist<2.1)hurtHero(Math.ceil(10*e.damageScale))}
-     else if(e.attackMode==='ranged')launchBossBolt(e);
-      else if(dist<4.1)hurtHero(Math.ceil(22*e.damageScale));
-    }
-   }else{
-    if(e.attackTime>0)e.attackTime=Math.max(0,e.attackTime-dt);
-    if(dist>(e.kind==='boss'?3.2:(e.kind==='spider'||e.weaponType==='bow'?Math.min(6,range*.65):range*.78)) && e.attackTime<=0 && dist>.001){
-     if(!e.rootTime)navigateMonster(e,dt);
-    }
-    if(e.cooldown<=0&&dist<range&&!e.rootTime){
-     if(e.kind==='boss')e.attackMode=dist>4.1?'ranged':(Math.random()<.4?'ranged':'melee');
-     e.windup=e.overlord?.42:e.kind==='boss'?.65:e.kind==='skeleton'?.48:e.kind==='bat'||e.kind==='imp'?.36:e.kind==='golem'?.75:.55;
-     e.cooldown=e.kind==='spider'?3.6:e.weaponType==='bow'?2.9:e.overlord?1.25:e.kind==='boss'?1.85:e.kind==='skeleton'?2.1:e.kind==='bat'||e.kind==='imp'?1.65:e.kind==='golem'?2.8:2.35;
-    }
-    e.obj.scale.lerp(new THREE.Vector3(1,1,1),Math.min(1,dt*9));
+   if(e.attackTime>0)e.attackTime=Math.max(0,e.attackTime-dt);
+   if(dist>(e.kind==='boss'?3.2:(e.kind==='spider'||e.weaponType==='bow'?Math.min(6,range*.65):range*.78))&&e.attackTime<=0&&dist>.001&&!e.rootTime)navigateMonster(e,dt);
+   if(e.cooldown<=0&&dist<range&&!e.rootTime){
+    if(e.kind==='boss')e.attackMode=dist>4.1?'ranged':(Math.random()<.4?'ranged':'melee');
+    e.cooldown=e.kind==='spider'?3.6:e.weaponType==='bow'?2.9:e.overlord?1.25:e.kind==='boss'?1.85:e.kind==='skeleton'?2.1:e.kind==='bat'||e.kind==='imp'?1.65:e.kind==='golem'?2.8:2.35;
+    monsterInstantAttack(e,dist);
    }
+   e.obj.scale.lerp(new THREE.Vector3(1,1,1),Math.min(1,dt*9));
    if(e.kind==='slime'){
     e.obj.scale.y*=1+Math.sin(e.phase*7)*.008;
     e.obj.position.y=Math.abs(Math.sin(e.phase*4))*(e.windup>0?.32:.12);
