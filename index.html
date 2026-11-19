@@ -2258,7 +2258,7 @@ function spawn(){
  const occupied=[];
  for(let i=0;i<count;i++){
   const kind=bossFloor?'boss':faction[(level+i-1)%faction.length],obj=monster(kind);
-  const weaponType=kind==='skeleton'?(i%2===0?'bow':'sword'):null;
+  const weaponType=kind==='skeleton'?((Math.floor(i/3)+level+i)%2===0?'bow':'sword'):null;
   if(weaponType)equipSkeleton(obj,weaponType);
   if(overlordFloor){
    // Ancient Abyss Overlord: giant obsidian armor, burning crown and crimson core.
@@ -2275,7 +2275,7 @@ function spawn(){
   obj.position.set(point.x,0,point.z);
   scene.add(obj);
   const enemyHp=Math.ceil((kind==='boss'?12:kind==='golem'?5:kind==='wraith'?4:kind==='skeleton'||kind==='spider'?3:2)*difficulty*(bossFloor?1.4:1)*(overlordFloor?16*Math.pow(1.5,Math.floor(level/50)-1):1));
-  enemies.push({obj,kind,weaponType,overlord:overlordFloor,hp:enemyHp,maxHp:enemyHp,speed:Math.min(4.1,(kind==='boss'?.75:kind==='bat'||kind==='imp'?1.7:kind==='golem'?.75:kind==='wraith'?1.35:1.1)*(1+Math.min(level-1,9)*.055+late*.014)),damageScale:damageDifficulty*(overlordFloor?2.2:1),hitStun:0,hitFlash:0,phase:i*1.8,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0,dodgeCooldown:2,dodgeTime:0,attackMode:'melee'});
+  enemies.push({obj,kind,weaponType,overlord:overlordFloor,hp:enemyHp,maxHp:enemyHp,speed:Math.min(4.1,(kind==='boss'?.75:kind==='bat'||kind==='imp'?1.7:kind==='golem'?.75:kind==='wraith'?1.35:1.1)*(1+Math.min(level-1,9)*.055+late*.014)),damageScale:damageDifficulty*(overlordFloor?2.2:1),hitStun:0,hitFlash:0,phase:i*1.8,attackCount:0,cooldown:1+i*.35,windup:0,attackTime:0,baseY:0,dodgeCooldown:2,dodgeTime:0,attackMode:'melee'});
   addEnemyHealthBar(enemies[enemies.length-1]);
  }
  refresh();
@@ -2349,12 +2349,13 @@ function clearMonsterShots(){
  for(const shot of monsterShots){scene.remove(shot.obj);disposeTransientObject(shot.obj)}
  monsterShots.length=0;webRootTime=0;
 }
-function launchMonsterShot(e){
+function launchMonsterShot(e,spread=0){
  const web=e.kind==='spider';
  const start=e.obj.position.clone().add(new THREE.Vector3(0,web?.85:1.55,0));
  const dir=new THREE.Vector3(hero.position.x-start.x,0,hero.position.z-start.z);
  if(dir.lengthSq()<.01)return;
  dir.normalize();
+ if(spread){const angle=Math.atan2(dir.x,dir.z)+spread;dir.set(Math.sin(angle),0,Math.cos(angle))}
  const obj=new THREE.Group();
  if(web){
   const core=mesh(new THREE.IcosahedronGeometry(.23,0),0xe7f6ff);obj.add(core);
@@ -2390,12 +2391,13 @@ function updateMonsterShots(dt){
   else{p.obj.position.copy(to);if(p.web)p.obj.rotation.z+=dt*5}
  }
 }
-function launchBossBolt(e){
+function launchBossBolt(e,spread=0){
  // Fire a clearly visible orb away from the boss, aimed at the hero's current position.
  const start=e.obj.position.clone().add(new THREE.Vector3(0,1.5,0));
  const dir=new THREE.Vector3(hero.position.x-start.x,0,hero.position.z-start.z);
  if(dir.lengthSq()<.001)dir.set(Math.sin(e.obj.rotation.y),0,Math.cos(e.obj.rotation.y));
  dir.normalize();
+ if(spread){const angle=Math.atan2(dir.x,dir.z)+spread;dir.set(Math.sin(angle),0,Math.cos(angle))}
  const orb=new THREE.Mesh(new THREE.SphereGeometry(.34,16,12),
   new THREE.MeshStandardMaterial({color:0xe3a1ff,emissive:0x8c21ff,emissiveIntensity:2.5}));
  orb.position.copy(start).addScaledVector(dir,1.45);
@@ -3721,14 +3723,15 @@ function dash(){
 let axeInspectionStarted=false;
 function monsterInstantAttack(e,dist){
  e.attackTime=.35;
+ e.attackCount=(e.attackCount||0)+1;
      if(e.kind==='slime'){if(dist<2)hurtHero(Math.ceil(9*e.damageScale))}
-     else if(e.kind==='skeleton'){if(e.weaponType==='bow'){if(dist<12&&combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04))launchMonsterShot(e)}else if(dist<2.35)hurtHero(Math.ceil(13*e.damageScale))}
+     else if(e.kind==='skeleton'){if(e.weaponType==='bow'){if(dist<12&&combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04)){launchMonsterShot(e);if(e.attackCount%3===0){launchMonsterShot(e,-.17);launchMonsterShot(e,.17)}}}else if(dist<2.35)hurtHero(Math.ceil(13*e.damageScale))}
      else if(e.kind==='bat'||e.kind==='imp'){if(dist<2.9)hurtHero(Math.ceil(10*e.damageScale))}
      else if(e.kind==='golem'){if(dist<2.7)hurtHero(Math.ceil(18*e.damageScale))}
      else if(e.kind==='wraith'){if(dist<2.8)hurtHero(Math.ceil(14*e.damageScale))}
-     else if(e.kind==='spider'){if(dist<10&&combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04))launchMonsterShot(e);else if(dist<2.2)hurtHero(Math.ceil(11*e.damageScale))}
+     else if(e.kind==='spider'){if(dist<10&&combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04)){launchMonsterShot(e);if(e.attackCount%3===0){launchMonsterShot(e,-.23);launchMonsterShot(e,.23)}}else if(dist<2.2)hurtHero(Math.ceil(11*e.damageScale))}
      else if(e.kind==='goblin'){if(dist<2.1)hurtHero(Math.ceil(10*e.damageScale))}
-     else if(e.attackMode==='ranged')launchBossBolt(e);
+     else if(e.attackMode==='ranged'){launchBossBolt(e);if(e.attackCount%2===0){launchBossBolt(e,-.27);launchBossBolt(e,.27)}if(e.overlord&&e.attackCount%3===0){launchBossBolt(e,-.52);launchBossBolt(e,.52)}}
       else if(dist<4.1)hurtHero(Math.ceil(22*e.damageScale));
 }
 function frame(){
