@@ -3731,7 +3731,7 @@ function monsterInstantAttack(e,dist){
      else if(e.kind==='wraith'){if(dist<2.8)hurtHero(Math.ceil(14*e.damageScale))}
      else if(e.kind==='spider'){if(dist<10&&combatLineClear(e.obj.position.x,e.obj.position.z,hero.position.x,hero.position.z,.04)){launchMonsterShot(e);if(e.attackCount%3===0){launchMonsterShot(e,-.23);launchMonsterShot(e,.23)}}else if(dist<2.2)hurtHero(Math.ceil(11*e.damageScale))}
      else if(e.kind==='goblin'){if(dist<2.1)hurtHero(Math.ceil(10*e.damageScale))}
-     else if(e.attackMode==='ranged'){launchBossBolt(e);if(e.attackCount%2===0){launchBossBolt(e,-.27);launchBossBolt(e,.27)}if(e.overlord&&e.attackCount%3===0){launchBossBolt(e,-.52);launchBossBolt(e,.52)}}
+     else if(e.attackMode==='ranged'){launchBossBolt(e);if(e.overlord&&e.attackCount%3===0){launchBossBolt(e,-.27);launchBossBolt(e,.27);launchBossBolt(e,-.52);launchBossBolt(e,.52)}else if(e.attackCount%2===0){launchBossBolt(e,-.27);launchBossBolt(e,.27)}}
       else if(dist<4.1)hurtHero(Math.ceil(22*e.damageScale));
 }
 function frame(){
